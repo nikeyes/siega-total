@@ -34,7 +34,7 @@ export function createDebugPanel(game: Game, actions: DebugActions): DebugPanel 
   for (const [type, settings] of Object.entries(config.grassTypes)) addNumberFolder(grassFolder, type, settings);
   grassFolder.close();
 
-  gui.add({ [texts.debug.win]: () => actions.markCut(cutAllTargets(game)) }, texts.debug.win);
+  gui.add({ [texts.debug.win]: () => actions.markCut(cutAllTargets(game).blades) }, texts.debug.win);
   gui.add({ [texts.debug.threeSeconds]: () => (game.timeLeft = 3) }, texts.debug.threeSeconds);
   gui.add({ [texts.debug.restart]: () => actions.restart() }, texts.debug.restart);
   gui.add(

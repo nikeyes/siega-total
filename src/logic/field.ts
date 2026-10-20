@@ -51,16 +51,20 @@ export interface Field {
 
 /** The field of `level`, with the configured blade count, spatial grid and seed. */
 export function levelFieldOptions(level: LevelDefinition): FieldOptions {
-  const { width, depth, cellSize, cells } = level;
-  const { bladeCount, gridCellSize, seed } = config.field;
+  const { width, depth, cellSize, cells, seed } = level;
+  const { bladeCount, gridCellSize } = config.field;
   return { width, depth, cellSize, cells, bladeCount, gridCellSize, seed };
 }
 
-/** Spreads the blades evenly over the grass cells: blade `i` goes to grass cell `i % grassCellCount`. */
+/**
+ * Spreads the blades evenly over the grass cells: blade `i` goes to grass cell `i % grassCellCount`.
+ * A field without grass cells has no blades.
+ */
 export function createField(options: FieldOptions): Field {
-  const { width, depth, cellSize, cells, bladeCount, gridCellSize, seed } = options;
+  const { width, depth, cellSize, cells, gridCellSize, seed } = options;
   const columns = Math.ceil(width / cellSize);
   const grassCells = cells.flatMap((type, cell) => (type === null ? [] : [cell]));
+  const bladeCount = grassCells.length === 0 ? 0 : options.bladeCount;
   const random = createRandom(seed);
   const positionsX = new Float32Array(bladeCount);
   const positionsZ = new Float32Array(bladeCount);

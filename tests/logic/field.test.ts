@@ -46,11 +46,44 @@ function cellOf(field: Field, blade: number, cellSize: number): number {
 }
 
 describe('levelFieldOptions', () => {
-  it('takes the layout from the level and the blade count, grid and seed from the configuration', () => {
+  it('takes the layout and seed from the level, and the blade count and grid from the configuration', () => {
     const cells: (GrassType | null)[] = ['ice', null];
-    const level = { width: 4, depth: 2, cellSize: 2, cells, target: 'ice' as const, timeSeconds: 10 };
-    const { bladeCount, gridCellSize, seed } = config.field;
+    const seed = 777;
+    const level = { number: 0, seed, width: 4, depth: 2, cellSize: 2, cells, obstacles: [], targets: ['ice' as const], timeSeconds: 10 };
+    const { bladeCount, gridCellSize } = config.field;
     expect(levelFieldOptions(level)).toEqual({ width: 4, depth: 2, cellSize: 2, cells, bladeCount, gridCellSize, seed });
+  });
+
+  describe('with levels that differ only in seed', () => {
+    const levelWithSeed = (seed: number) => ({
+      number: 1,
+      seed,
+      width: SMALL_WIDTH,
+      depth: SMALL_DEPTH,
+      cellSize: 1,
+      cells: uniformCells('green'),
+      obstacles: [],
+      targets: ['green' as const],
+      timeSeconds: 10,
+    });
+
+    it('places the blades differently', () => {
+      const first = createField(levelFieldOptions(levelWithSeed(1)));
+      const second = createField(levelFieldOptions(levelWithSeed(2)));
+      expect([...second.positionsX]).not.toEqual([...first.positionsX]);
+    });
+
+    it('places the blades at the same positions for the same level seed', () => {
+      const first = createField(levelFieldOptions(levelWithSeed(42)));
+      const second = createField(levelFieldOptions(levelWithSeed(42)));
+      expect([...second.positionsX]).toEqual([...first.positionsX]);
+      expect([...second.positionsZ]).toEqual([...first.positionsZ]);
+    });
+
+    it('accepts a level seed of 0', () => {
+      const field = createField(levelFieldOptions(levelWithSeed(0)));
+      expect([...field.positionsX].every(Number.isFinite)).toBe(true);
+    });
   });
 });
 
@@ -131,17 +164,43 @@ describe('createField', () => {
     expect([...field.countByType].every((count) => count === 0)).toBe(true);
   });
 
-  it.skip('places no blades on a field that is all sand - BUG', () => {
-    /*
-     * ROOT CAUSE: with no grass cells, `blade % grassCells.length` is NaN, so every blade gets
-     *   an undefined cell: NaN positions and type 255 (indexOf(undefined) = -1 in a Uint8Array).
-     * CODE LOCATION: src/logic/field.ts createField, `grassCells[blade % grassCells.length]`
-     * PROPOSED FIX: place no blades when there are no grass cells (bladeCount 0), or throw.
-     * EXPECTED: bladeCount 0, or an error
-     * ACTUAL: bladeCount blades with NaN positions, uncounted in countByType
-     */
+  it('places no blades on a field that is all sand', () => {
     const field = createSmallField({ width: 2, depth: 2, cells: [null, null, null, null], bladeCount: 10 });
     expect(field.bladeCount).toBe(0);
+  });
+
+  describe('on a field that is all sand', () => {
+    const allSand = () => createSmallField({ width: 2, depth: 2, cells: [null, null, null, null], bladeCount: 10 });
+
+    it('has empty blade arrays and counts', () => {
+      const field = allSand();
+      expect([field.positionsX.length, field.positionsZ.length, field.types.length, field.cut.length]).toEqual([0, 0, 0, 0]);
+      expect([...field.countByType].every((count) => count === 0)).toBe(true);
+      expect(field.cutCount).toBe(0);
+    });
+
+    it('has a spatial grid with no blades in any cell', () => {
+      const { grid } = allSand();
+      expect(grid.cellBlades.length).toBe(0);
+      expect([...grid.cellStart].every((start) => start === 0)).toBe(true);
+    });
+
+    it('cuts nothing with a circle covering the whole field', () => {
+      const field = allSand();
+      expect(cutInCircle(field, 1, 1, 10, Infinity)).toEqual([]);
+      expect(field.cutCount).toBe(0);
+    });
+  });
+
+  it('places no blades on a field with no cells at all', () => {
+    const field = createSmallField({ cells: [], bladeCount: 10 });
+    expect(field.bladeCount).toBe(0);
+  });
+
+  it('places blades on a field with a single grass cell among sand', () => {
+    const field = createSmallField({ width: 2, depth: 2, cells: [null, null, null, 'bramble'], bladeCount: 5 });
+    expect(field.bladeCount).toBe(5);
+    expect(field.countByType[GRASS_TYPE_ORDER.indexOf('bramble')]).toBe(5);
   });
 });
 

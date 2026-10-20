@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
 import type { GrassType } from '../../src/logic/field';
-import { stripesLevel, type LevelDefinition } from '../../src/logic/levels';
+import { obstacleRadius } from '../../src/logic/obstacles';
+import {
+  clearCellsUnderSolidObstacles,
+  isObstacleType,
+  sampleLevel,
+  stripesLevel,
+  type LevelDefinition,
+  type ObstacleType,
+} from '../../src/logic/levels';
 
 const { stripeWidthMeters } = config.level;
 
@@ -56,7 +64,206 @@ describe('stripesLevel', () => {
 
   it('targets ice with the configured time', () => {
     const level = stripesLevel();
-    expect(level.target).toBe('ice');
+    expect(level.targets).toEqual(['ice']);
+    expect(level.timeSeconds).toBe(config.level.timeSeconds);
+  });
+
+  it('is a hand-made level without obstacles, seeded with the configured field seed', () => {
+    const level = stripesLevel();
+    expect(level.number).toBe(0);
+    expect(level.seed).toBe(config.field.seed);
+    expect(level.obstacles).toEqual([]);
+  });
+});
+
+describe('clearCellsUnderSolidObstacles', () => {
+  /** 7 × 7 cells of 1 m, all green. */
+  const COLUMNS = 7;
+  function greenCells(): (GrassType | null)[] {
+    return Array<GrassType | null>(COLUMNS * COLUMNS).fill('green');
+  }
+  function sandCells(cells: (GrassType | null)[]): number[] {
+    return cells.flatMap((type, cell) => (type === null ? [cell] : []));
+  }
+
+  it('turns into sand the cells whose center lies inside a rock, and leaves the cells around it', () => {
+    const cells = greenCells();
+    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'rock', x: 3.5, z: 3.5 }]);
+    const centerInsideRock = (cell: number) =>
+      Math.hypot((cell % COLUMNS) + 0.5 - 3.5, Math.floor(cell / COLUMNS) + 0.5 - 3.5) < obstacleRadius('rock');
+    const expected = cells.flatMap((_, cell) => (centerInsideRock(cell) ? [cell] : []));
+    expect(expected.length).toBeGreaterThan(0);
+    expect(expected.length).toBeLessThan(cells.length);
+    expect(sandCells(cells)).toEqual(expected);
+  });
+
+  it('turns into sand the cells under a cactus too', () => {
+    const cells = greenCells();
+    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'cactus', x: 3.5, z: 3.5 }]);
+    expect(sandCells(cells)).toContain(3 * COLUMNS + 3);
+  });
+
+  it('keeps the grass under fruit', () => {
+    const cells = greenCells();
+    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [
+      { type: 'watermelon', x: 3.5, z: 3.5 },
+      { type: 'strawberry', x: 1.5, z: 1.5 },
+    ]);
+    expect(sandCells(cells)).toEqual([]);
+  });
+
+  it('leaves the grass whose center lies exactly on the edge of a rock', () => {
+    const cells = greenCells();
+    const radius = obstacleRadius('rock');
+    // Rock centered so that cell (3, 3)'s center is exactly `radius` to its east.
+    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'rock', x: 3.5 - radius, z: 3.5 }]);
+    expect(cells[3 * COLUMNS + 3]).toBe('green');
+  });
+
+  it('uses the cell size to find each cell center', () => {
+    const cellSize = 2 * obstacleRadius('cactus');
+    const cells = greenCells();
+    // Center of cell (column 2, row 1) when cells are `cellSize` wide.
+    clearCellsUnderSolidObstacles(cells, cellSize, COLUMNS, [{ type: 'cactus', x: 2.5 * cellSize, z: 1.5 * cellSize }]);
+    expect(sandCells(cells)).toEqual([1 * COLUMNS + 2]);
+  });
+
+  it('works on fields that are not square', () => {
+    const columns = 3;
+    const cells = Array<GrassType | null>(columns * 5).fill('green');
+    clearCellsUnderSolidObstacles(cells, 1, columns, [{ type: 'rock', x: 0.5, z: 4.5 }]);
+    expect(sandCells(cells)).toContain(4 * columns + 0);
+    expect(sandCells(cells)).not.toContain(0);
+  });
+
+  it('clears under every solid obstacle of the list', () => {
+    const cells = greenCells();
+    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [
+      { type: 'rock', x: 0.5, z: 0.5 },
+      { type: 'watermelon', x: 3.5, z: 3.5 },
+      { type: 'cactus', x: 6.5, z: 6.5 },
+    ]);
+    expect(sandCells(cells)).toContain(0);
+    expect(sandCells(cells)).toContain(COLUMNS * COLUMNS - 1);
+    expect(sandCells(cells)).not.toContain(3 * COLUMNS + 3);
+  });
+
+  it('keeps sand as sand and leaves an empty list untouched', () => {
+    const cells = greenCells();
+    cells[0] = null;
+    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, []);
+    expect(sandCells(cells)).toEqual([0]);
+  });
+});
+
+describe('isObstacleType', () => {
+  it('is true for the obstacles a level can target', () => {
+    expect(isObstacleType('cactus')).toBe(true);
+    expect(isObstacleType('watermelon')).toBe(true);
+    expect(isObstacleType('strawberry')).toBe(true);
+  });
+
+  it('is false for every grass type', () => {
+    for (const grass of Object.keys(config.grassTypes) as GrassType[]) {
+      expect(isObstacleType(grass), grass).toBe(false);
+    }
+  });
+});
+
+describe('sampleLevel', () => {
+  const level = sampleLevel();
+  const columns = columnCount(level);
+  const cellUnder = (x: number, z: number) => level.cells[Math.floor(z / level.cellSize) * columns + Math.floor(x / level.cellSize)];
+
+  it('covers the configured field', () => {
+    expect(level.width).toBe(config.field.width);
+    expect(level.cells).toHaveLength(columns * (level.depth / level.cellSize));
+  });
+
+  it('has one cell per square meter', () => {
+    expect(level.cellSize).toBe(1);
+  });
+
+  it('has obstacles of the four types', () => {
+    expect(new Set(level.obstacles.map((obstacle) => obstacle.type))).toEqual(new Set(['rock', 'cactus', 'watermelon', 'strawberry']));
+  });
+
+  it('has no grass under its rocks and its cactus', () => {
+    const solid = level.obstacles.filter((obstacle) => obstacle.type === 'rock' || obstacle.type === 'cactus');
+    expect(solid.map(({ x, z }) => cellUnder(x, z))).toEqual(solid.map(() => null));
+  });
+
+  it('puts the fruit on green or ice', () => {
+    const fruit = level.obstacles.filter((obstacle) => obstacle.type === 'watermelon' || obstacle.type === 'strawberry');
+    expect(fruit.every(({ x, z }) => cellUnder(x, z) === 'green' || cellUnder(x, z) === 'ice')).toBe(true);
+  });
+
+  it('keeps the obstacles apart, so none overlaps another', () => {
+    const { obstacles } = level;
+    obstacles.forEach((a, i) =>
+      obstacles.slice(i + 1).forEach((b) =>
+        expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(obstacleRadius(a.type) + obstacleRadius(b.type)),
+      ),
+    );
+  });
+
+  const countOf = (type: ObstacleType) => level.obstacles.filter((obstacle) => obstacle.type === type).length;
+
+  it('has 2 rocks, 1 cactus, 6 watermelons and 20 strawberries', () => {
+    expect([countOf('rock'), countOf('cactus'), countOf('watermelon'), countOf('strawberry')]).toEqual([2, 1, 6, 20]);
+  });
+
+  it('repeats stripes of green, ice and wheat, stripeWidthMeters wide, from the west edge', () => {
+    const order: GrassType[] = ['green', 'ice', 'wheat'];
+    Array.from({ length: columns }, (_, column) => column).forEach((column) => {
+      const expected = order[Math.floor((column * level.cellSize) / stripeWidthMeters) % order.length];
+      const grass = columnTypes(level, column).filter((type) => type !== null);
+      expect(new Set(grass), `column ${column}`).toEqual(new Set([expected]));
+    });
+  });
+
+  it('puts every obstacle wholly inside the field', () => {
+    for (const { type, x, z } of level.obstacles) {
+      const radius = obstacleRadius(type);
+      expect(x - radius, `${type} at ${x},${z}`).toBeGreaterThanOrEqual(0);
+      expect(z - radius, `${type} at ${x},${z}`).toBeGreaterThanOrEqual(0);
+      expect(x + radius, `${type} at ${x},${z}`).toBeLessThanOrEqual(level.width);
+      expect(z + radius, `${type} at ${x},${z}`).toBeLessThanOrEqual(level.depth);
+    }
+  });
+
+  it('keeps the rocks and the cactus away from the center, where the blade starts', () => {
+    const solid = level.obstacles.filter((obstacle) => obstacle.type === 'rock' || obstacle.type === 'cactus');
+    for (const { type, x, z } of solid) {
+      const reach = obstacleRadius(type) + stripeWidthMeters;
+      expect(Math.hypot(x - level.width / 2, z - level.depth / 2), `${type} at ${x},${z}`).toBeGreaterThan(reach);
+    }
+  });
+
+  it('only turns into sand the cells under the rocks and the cactus', () => {
+    const solid = level.obstacles.filter((obstacle) => obstacle.type === 'rock' || obstacle.type === 'cactus');
+    level.cells.forEach((type, cell) => {
+      const centerX = ((cell % columns) + 0.5) * level.cellSize;
+      const centerZ = (Math.floor(cell / columns) + 0.5) * level.cellSize;
+      const underSolid = solid.some(({ type: kind, x, z }) => Math.hypot(centerX - x, centerZ - z) < obstacleRadius(kind));
+      expect(type === null, `cell ${cell}`).toBe(underSolid);
+    });
+  });
+
+  it('builds a fresh level on every call, so clearing cells in one does not touch another', () => {
+    const other = sampleLevel();
+    expect(other.cells).not.toBe(level.cells);
+    expect(other.obstacles).not.toBe(level.obstacles);
+    expect(other.cells).toEqual(level.cells);
+  });
+
+  it('is a hand-made level seeded with the configured field seed', () => {
+    expect(level.number).toBe(0);
+    expect(level.seed).toBe(config.field.seed);
+  });
+
+  it('targets ice and strawberries with the configured time', () => {
+    expect(level.targets).toEqual(['ice', 'strawberry']);
     expect(level.timeSeconds).toBe(config.level.timeSeconds);
   });
 });

@@ -2,7 +2,8 @@ import { config } from './config';
 import type { DebugPanel } from './debug/panel';
 import { bladeRadius, growthFraction } from './logic/blade';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
-import { createGame, resetGame, shouldHighlightTargets, stepGame, targetProgress } from './logic/game';
+import { createGame, remainingTargets, resetGame, shouldHighlightTargets, stepGame, targetGrassTypes } from './logic/game';
+import { isObstacleType } from './logic/levels';
 import { combineDirections } from './logic/input';
 import { createBladeView } from './render/blade';
 import { createCameraRig, halfVisible } from './render/cameraRig';
@@ -29,7 +30,10 @@ const cameraRig = createCameraRig();
 const focus = createCameraFocus(blade.x, blade.z, blade.size);
 const joystick = createJoystick(container);
 const keyboard = createKeyboard();
-const hud = createHud(container, game.level.target);
+const firstTarget = game.level.targets[0]!;
+// Phase 3 replaces the single bar with one counter per target.
+const hud = createHud(container, isObstacleType(firstTarget) ? 'green' : firstTarget);
+const initialTargets = remainingTargets(game);
 const resultOverlay = createResultOverlay(container, restart);
 
 /** Plays the level again from the start, keeping the scene. */
@@ -72,7 +76,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const statusBefore = game.status;
   const result = stepGame(game, direction, dt);
   grass.markCut(result.cutIndices, elapsedSeconds);
-  grass.setHighlight(shouldHighlightTargets(game) ? game.targetType : null);
+  grass.setHighlight(shouldHighlightTargets(game) ? (targetGrassTypes(game)[0] ?? null) : null);
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
     resultOverlay.show(game.status);
   }
@@ -91,7 +95,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   hud.update({
     timeLeft: game.timeLeft,
     timeTotal: game.level.timeSeconds,
-    remainingFraction: 1 - targetProgress(game),
+    remainingFraction: initialTargets === 0 ? 0 : remainingTargets(game) / initialTargets,
     size: blade.size,
     growthFraction: growthFraction(blade),
     sizeLabelX: bladeOnScreen.x,
