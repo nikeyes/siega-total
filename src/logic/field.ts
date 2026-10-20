@@ -1,19 +1,21 @@
 import { config } from '../config';
+import type { LevelDefinition } from './levels';
 import { createRandom } from './random';
 
 export type GrassType = keyof typeof config.grassTypes;
 
 export const GRASS_TYPE_ORDER: readonly GrassType[] = ['green', 'ice', 'wheat', 'lavender', 'bramble'];
 
-const MIN_SIZE_BY_TYPE = GRASS_TYPE_ORDER.map((type) => config.grassTypes[type].minSize);
-
 export interface FieldOptions {
   width: number;
   depth: number;
+  /** Side of each square cell of `cells`, in meters. */
+  cellSize: number;
+  /** Row by row (`cell = row * columns + column`); null = sand, no grass. */
+  cells: readonly (GrassType | null)[];
   bladeCount: number;
   gridCellSize: number;
   seed: number;
-  grassType: GrassType;
 }
 
 /**
@@ -41,16 +43,37 @@ export interface Field {
   readonly cut: Uint8Array;
   readonly grid: SpatialGrid;
   cutCount: number;
+  /** Blades of each type, indexed like GRASS_TYPE_ORDER. */
+  readonly countByType: Int32Array;
+  /** Cut blades of each type, indexed like GRASS_TYPE_ORDER. */
+  readonly cutByType: Int32Array;
 }
 
+/** The field of `level`, with the configured blade count, spatial grid and seed. */
+export function levelFieldOptions(level: LevelDefinition): FieldOptions {
+  const { width, depth, cellSize, cells } = level;
+  const { bladeCount, gridCellSize, seed } = config.field;
+  return { width, depth, cellSize, cells, bladeCount, gridCellSize, seed };
+}
+
+/** Spreads the blades evenly over the grass cells: blade `i` goes to grass cell `i % grassCellCount`. */
 export function createField(options: FieldOptions): Field {
-  const { width, depth, bladeCount, gridCellSize, seed, grassType } = options;
+  const { width, depth, cellSize, cells, bladeCount, gridCellSize, seed } = options;
+  const columns = Math.ceil(width / cellSize);
+  const grassCells = cells.flatMap((type, cell) => (type === null ? [] : [cell]));
   const random = createRandom(seed);
   const positionsX = new Float32Array(bladeCount);
   const positionsZ = new Float32Array(bladeCount);
+  const types = new Uint8Array(bladeCount);
+  const countByType = new Int32Array(GRASS_TYPE_ORDER.length);
   for (let blade = 0; blade < bladeCount; blade++) {
-    positionsX[blade] = randomFloat32Below(random, width);
-    positionsZ[blade] = randomFloat32Below(random, depth);
+    const cell = grassCells[blade % grassCells.length]!;
+    const left = (cell % columns) * cellSize;
+    const top = Math.floor(cell / columns) * cellSize;
+    positionsX[blade] = randomFloat32Between(random, left, Math.min(left + cellSize, width));
+    positionsZ[blade] = randomFloat32Between(random, top, Math.min(top + cellSize, depth));
+    types[blade] = GRASS_TYPE_ORDER.indexOf(cells[cell]!);
+    countByType[types[blade]!]!++;
   }
   return {
     width,
@@ -58,19 +81,21 @@ export function createField(options: FieldOptions): Field {
     bladeCount,
     positionsX,
     positionsZ,
-    types: new Uint8Array(bladeCount).fill(GRASS_TYPE_ORDER.indexOf(grassType)),
+    types,
     cut: new Uint8Array(bladeCount),
     grid: buildSpatialGrid(positionsX, positionsZ, width, depth, gridCellSize),
     cutCount: 0,
+    countByType,
+    cutByType: new Int32Array(GRASS_TYPE_ORDER.length),
   };
 }
 
 /**
- * A random value in [0, limit) that stays below `limit` after rounding to a 32-bit float.
+ * A random value in [min, limit) that stays below `limit` after rounding to a 32-bit float.
  * Values close to `limit` would otherwise round up to `limit` itself.
  */
-function randomFloat32Below(random: () => number, limit: number): number {
-  const value = Math.fround(random() * limit);
+function randomFloat32Between(random: () => number, min: number, limit: number): number {
+  const value = Math.fround(min + random() * (limit - min));
   return value < limit ? value : previousFloat32(value);
 }
 
@@ -115,6 +140,13 @@ function buildSpatialGrid(
   return { cellSize, columns, rows, cellStart, cellBlades };
 }
 
+/** Marks a standing blade as cut and counts it. */
+export function cutBlade(field: Field, blade: number): void {
+  field.cut[blade] = 1;
+  field.cutCount++;
+  field.cutByType[field.types[blade]!]!++;
+}
+
 export function cutInCircle(
   field: Field,
   centerX: number,
@@ -129,6 +161,8 @@ export function cutInCircle(
   const firstRow = Math.max(0, Math.floor((centerZ - radius) / grid.cellSize));
   const lastRow = Math.min(grid.rows - 1, Math.floor((centerZ + radius) / grid.cellSize));
   const radiusSquared = radius * radius;
+  // Read on every call, so minimum sizes tuned from the debug panel apply at once.
+  const minSizeByType = GRASS_TYPE_ORDER.map((type) => config.grassTypes[type].minSize);
 
   for (let row = firstRow; row <= lastRow; row++) {
     for (let column = firstColumn; column <= lastColumn; column++) {
@@ -136,12 +170,11 @@ export function cutInCircle(
       for (let slot = grid.cellStart[cell]!; slot < grid.cellStart[cell + 1]!; slot++) {
         const blade = grid.cellBlades[slot]!;
         if (field.cut[blade] === 1) continue;
-        if (MIN_SIZE_BY_TYPE[field.types[blade]!]! > bladeSize) continue;
+        if (minSizeByType[field.types[blade]!]! > bladeSize) continue;
         const dx = field.positionsX[blade]! - centerX;
         const dz = field.positionsZ[blade]! - centerZ;
         if (dx * dx + dz * dz <= radiusSquared) {
-          field.cut[blade] = 1;
-          field.cutCount++;
+          cutBlade(field, blade);
           newlyCut.push(blade);
         }
       }

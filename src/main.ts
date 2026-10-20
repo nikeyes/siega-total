@@ -1,15 +1,17 @@
 import { config } from './config';
-import type { Stats } from './debug/stats';
-import { bladeRadius } from './logic/blade';
+import type { DebugPanel } from './debug/panel';
+import { bladeRadius, growthFraction } from './logic/blade';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
-import { createGame, stepGame } from './logic/game';
+import { createGame, resetGame, shouldHighlightTargets, stepGame, targetProgress } from './logic/game';
 import { combineDirections } from './logic/input';
 import { createBladeView } from './render/blade';
 import { createCameraRig, halfVisible } from './render/cameraRig';
 import { createGrassView } from './render/grass';
 import { createGameScene } from './render/scene';
+import { createHud } from './ui/hud';
 import { createJoystick } from './ui/joystick';
 import { createKeyboard } from './ui/keyboard';
+import { createResultOverlay } from './ui/result';
 import './ui/styles.css';
 
 /** Longest step the game takes, so coming back to the tab does not make the blade jump. */
@@ -27,13 +29,26 @@ const cameraRig = createCameraRig();
 const focus = createCameraFocus(blade.x, blade.z, blade.size);
 const joystick = createJoystick(container);
 const keyboard = createKeyboard();
+const hud = createHud(container, game.level.target);
+const resultOverlay = createResultOverlay(container, restart);
 
-let stats: Stats | null = null;
+/** Plays the level again from the start, keeping the scene. */
+function restart(): void {
+  resetGame(game);
+  grass.reset();
+  Object.assign(focus, createCameraFocus(blade.x, blade.z, blade.size));
+  resultOverlay.hide();
+}
+
+let debugPanel: DebugPanel | null = null;
 if (new URLSearchParams(location.search).has('debug')) {
   // Debug only: exposes the game state so automated browser checks can read blade position and cutCount.
   Object.assign(window, { __siega: game });
-  void import('./debug/stats').then(({ createStats }) => {
-    stats = createStats(container);
+  void import('./debug/panel').then(({ createDebugPanel }) => {
+    debugPanel = createDebugPanel(game, {
+      restart,
+      markCut: (indices) => grass.markCut(indices, elapsedSeconds),
+    });
   });
 }
 
@@ -54,8 +69,13 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   elapsedSeconds += dt;
 
   const direction = combineDirections(joystick.getDirection(), keyboard.getDirection());
+  const statusBefore = game.status;
   const result = stepGame(game, direction, dt);
   grass.markCut(result.cutIndices, elapsedSeconds);
+  grass.setHighlight(shouldHighlightTargets(game) ? game.targetType : null);
+  if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
+    resultOverlay.show(game.status);
+  }
 
   followBlade(focus, blade.x, blade.z, blade.size, dt);
   const { halfVisibleX, halfVisibleZ } = halfVisible(focus.distance, cameraRig.camera.aspect);
@@ -67,5 +87,16 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   grass.setTime(elapsedSeconds);
   gameScene.renderer.render(gameScene.scene, cameraRig.camera);
 
-  stats?.update(realSeconds, field.cutCount, field.bladeCount);
+  const bladeOnScreen = cameraRig.toScreen(blade.x, 0, blade.z, container.clientWidth, container.clientHeight);
+  hud.update({
+    timeLeft: game.timeLeft,
+    timeTotal: game.level.timeSeconds,
+    remainingFraction: 1 - targetProgress(game),
+    size: blade.size,
+    growthFraction: growthFraction(blade),
+    sizeLabelX: bladeOnScreen.x,
+    sizeLabelY: bladeOnScreen.y,
+  });
+
+  debugPanel?.update(realSeconds);
 });

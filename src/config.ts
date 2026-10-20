@@ -22,6 +22,12 @@ export const config = {
     turnSmoothingSeconds: 0.1,
     brakeSeconds: 0.15,
   },
+  level: {
+    timeSeconds: 90,
+    stripeWidthMeters: 3,
+    winWaveSpeed: 25,
+    highlightBelow: 10,
+  },
   input: {
     joystickDeadZonePx: 10,
   },
@@ -37,4 +43,4 @@ export const config = {
   render: {
     maxPixelRatio: 1.5,
   },
-} as const;
+};

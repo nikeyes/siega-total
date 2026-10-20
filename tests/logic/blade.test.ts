@@ -6,6 +6,7 @@ import {
   bladeRadius,
   createBlade,
   cutsToNextSize,
+  growthFraction,
   moveBlade,
   type Blade,
   type Direction,
@@ -96,6 +97,24 @@ describe('addCuts', () => {
     expect(bulkBlade.growthProgress).toBe(batchedBlade.growthProgress);
     expect(sizesGained).toBe(bulkBlade.size - startSize);
     expect(bulkBlade.growthProgress).toBeLessThan(cutsToNextSize(bulkBlade.size));
+  });
+});
+
+describe('growthFraction', () => {
+  it('is 0 for a new blade', () => {
+    expect(growthFraction(createBlade(0, 0))).toBe(0);
+  });
+
+  it('is 0.5 halfway to the next size', () => {
+    const blade = createBlade(0, 0);
+    addCuts(blade, cutsToNextSize(blade.size) / 2);
+    expect(growthFraction(blade)).toBe(0.5);
+  });
+
+  it('starts again from 0 right after growing a size', () => {
+    const blade = createBlade(0, 0);
+    addCuts(blade, cutsToNextSize(blade.size));
+    expect(growthFraction(blade)).toBe(0);
   });
 });
 

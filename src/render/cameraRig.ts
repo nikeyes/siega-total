@@ -1,4 +1,4 @@
-import { MathUtils, PerspectiveCamera } from 'three';
+import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 import { config } from '../config';
 import type { CameraFocus } from '../logic/camera';
 
@@ -12,6 +12,8 @@ export interface CameraRig {
   setAspect(aspect: number): void;
   /** Places the camera south of the focus and above it, looking at it, so north stays up. */
   update(focus: CameraFocus): void;
+  /** Projects a field point to pixels of a `width` × `height` container, from its top-left corner. */
+  toScreen(x: number, y: number, z: number, width: number, height: number): { x: number; y: number };
 }
 
 export function createCameraRig(): CameraRig {
@@ -31,7 +33,15 @@ export function createCameraRig(): CameraRig {
     camera.lookAt(focus.x, 0, focus.z);
   }
 
-  return { camera, setAspect, update };
+  const projected = new Vector3();
+
+  function toScreen(x: number, y: number, z: number, width: number, height: number): { x: number; y: number } {
+    camera.updateMatrixWorld();
+    projected.set(x, y, z).project(camera);
+    return { x: ((projected.x + 1) / 2) * width, y: ((1 - projected.y) / 2) * height };
+  }
+
+  return { camera, setAspect, update, toScreen };
 }
 
 /** Approximate half size of the ground area the camera sees around its focus. */
