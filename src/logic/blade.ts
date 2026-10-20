@@ -33,6 +33,11 @@ export function cutsToNextSize(size: number): number {
   return config.blade.cutsPerSizeFactor * size;
 }
 
+/** How far the blade is toward its next size, from 0 to 1. */
+export function growthFraction(blade: Blade): number {
+  return blade.growthProgress / cutsToNextSize(blade.size);
+}
+
 export function addCuts(blade: Blade, count: number): number {
   blade.growthProgress += count;
   let sizesGained = 0;

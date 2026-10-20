@@ -1,19 +1,58 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
 import { createRandom } from '../../src/logic/random';
-import { createField, cutInCircle, type Field, type GrassType, type FieldOptions } from '../../src/logic/field';
+import {
+  createField,
+  cutInCircle,
+  GRASS_TYPE_ORDER,
+  levelFieldOptions,
+  type Field,
+  type FieldOptions,
+  type GrassType,
+} from '../../src/logic/field';
+
+const SMALL_WIDTH = 6;
+const SMALL_DEPTH = 4;
+
+/** Cells of `cellSize` covering a field of `width` × `depth`, all of one grass type. */
+function uniformCells(type: GrassType, width = SMALL_WIDTH, depth = SMALL_DEPTH, cellSize = 1): GrassType[] {
+  return new Array<GrassType>(Math.ceil(width / cellSize) * Math.ceil(depth / cellSize)).fill(type);
+}
 
 function createSmallField(overrides: Partial<FieldOptions> = {}) {
   return createField({
-    width: 6,
-    depth: 4,
+    width: SMALL_WIDTH,
+    depth: SMALL_DEPTH,
+    cellSize: 1,
+    cells: uniformCells('green'),
     bladeCount: 200,
     gridCellSize: config.field.gridCellSize,
     seed: config.field.seed,
-    grassType: 'green',
     ...overrides,
   });
 }
+
+/** 3 × 2 cells of 2 m: green, ice and sand in the first row, sand, wheat and green in the second. */
+const MIXED_CELLS: (GrassType | null)[] = ['green', 'ice', null, null, 'wheat', 'green'];
+const MIXED_CELL_SIZE = 2;
+
+function createMixedField(bladeCount = 200) {
+  return createSmallField({ cellSize: MIXED_CELL_SIZE, cells: MIXED_CELLS, bladeCount });
+}
+
+function cellOf(field: Field, blade: number, cellSize: number): number {
+  const columns = Math.ceil(field.width / cellSize);
+  return Math.floor(field.positionsZ[blade]! / cellSize) * columns + Math.floor(field.positionsX[blade]! / cellSize);
+}
+
+describe('levelFieldOptions', () => {
+  it('takes the layout from the level and the blade count, grid and seed from the configuration', () => {
+    const cells: (GrassType | null)[] = ['ice', null];
+    const level = { width: 4, depth: 2, cellSize: 2, cells, target: 'ice' as const, timeSeconds: 10 };
+    const { bladeCount, gridCellSize, seed } = config.field;
+    expect(levelFieldOptions(level)).toEqual({ width: 4, depth: 2, cellSize: 2, cells, bladeCount, gridCellSize, seed });
+  });
+});
 
 describe('createField', () => {
   it('places blades at the same positions for the same seed', () => {
@@ -23,8 +62,39 @@ describe('createField', () => {
     expect(second.positionsZ).toEqual(first.positionsZ);
   });
 
+  it('gives every blade the grass type of the cell it stands in', () => {
+    const field = createMixedField();
+    for (let blade = 0; blade < field.bladeCount; blade++) {
+      const cellType = MIXED_CELLS[cellOf(field, blade, MIXED_CELL_SIZE)];
+      expect(GRASS_TYPE_ORDER[field.types[blade]!], `blade ${blade}`).toBe(cellType);
+    }
+  });
+
+  it('places no blade on sand', () => {
+    const field = createMixedField();
+    const onSand = Array.from(field.types.keys()).filter((blade) => MIXED_CELLS[cellOf(field, blade, MIXED_CELL_SIZE)] === null);
+    expect(onSand).toEqual([]);
+  });
+
+  it('gives every grass cell the same number of blades, give or take one', () => {
+    const field = createMixedField(201);
+    const bladesPerCell = new Map<number, number>();
+    for (let blade = 0; blade < field.bladeCount; blade++) {
+      const cell = cellOf(field, blade, MIXED_CELL_SIZE);
+      bladesPerCell.set(cell, (bladesPerCell.get(cell) ?? 0) + 1);
+    }
+    expect([...bladesPerCell.values()].sort()).toEqual([50, 50, 50, 51]);
+  });
+
+  it('counts the blades of each type', () => {
+    const field = createMixedField(200);
+    const countByName = Object.fromEntries(GRASS_TYPE_ORDER.map((type, index) => [type, field.countByType[index]]));
+    expect(countByName).toEqual({ green: 100, ice: 50, wheat: 50, lavender: 0, bramble: 0 });
+  });
+
   it('places every blade inside the field', () => {
-    const field = createField({ ...config.field, grassType: 'green' });
+    const { width, depth } = config.field;
+    const field = createField({ ...config.field, cellSize: 1, cells: uniformCells('green', width, depth) });
     const inside = (value: number, limit: number) => value >= 0 && value < limit;
     expect(field.positionsX.every((x) => inside(x, field.width))).toBe(true);
     expect(field.positionsZ.every((z) => inside(z, field.depth))).toBe(true);
@@ -33,8 +103,45 @@ describe('createField', () => {
   it('keeps a blade inside the field when its random position rounds up to the edge in 32-bit floats', () => {
     // With this seed, the first random value is 0.99999999511…, and 0.99999999511… * 30 rounds to 30 as a Float32.
     const seedWhoseFirstValueRoundsToTheEdge = 52_078_625;
-    const field = createSmallField({ width: 30, depth: 30, bladeCount: 1, seed: seedWhoseFirstValueRoundsToTheEdge });
+    const field = createSmallField({
+      width: 30,
+      depth: 30,
+      cellSize: 30,
+      cells: ['green'],
+      bladeCount: 1,
+      seed: seedWhoseFirstValueRoundsToTheEdge,
+    });
     expect(field.positionsX[0]).toBeLessThan(field.width);
+  });
+
+  it('keeps the blades of cells cut short by the field edge inside the field', () => {
+    const field = createSmallField({ width: 5, depth: 3, cellSize: 2, cells: uniformCells('green', 5, 3, 2), bladeCount: 600 });
+    expect(Math.max(...field.positionsX)).toBeLessThan(field.width);
+    expect(Math.max(...field.positionsZ)).toBeLessThan(field.depth);
+  });
+
+  it('fills the grass cells in order when there are fewer blades than grass cells', () => {
+    const field = createSmallField({ width: 2, depth: 2, cells: ['ice', null, 'green', 'wheat'], bladeCount: 2 });
+    expect([...field.types].map((type) => GRASS_TYPE_ORDER[type])).toEqual(['ice', 'green']);
+  });
+
+  it('creates an empty field with zero blades', () => {
+    const field = createMixedField(0);
+    expect(field.bladeCount).toBe(0);
+    expect([...field.countByType].every((count) => count === 0)).toBe(true);
+  });
+
+  it.skip('places no blades on a field that is all sand - BUG', () => {
+    /*
+     * ROOT CAUSE: with no grass cells, `blade % grassCells.length` is NaN, so every blade gets
+     *   an undefined cell: NaN positions and type 255 (indexOf(undefined) = -1 in a Uint8Array).
+     * CODE LOCATION: src/logic/field.ts createField, `grassCells[blade % grassCells.length]`
+     * PROPOSED FIX: place no blades when there are no grass cells (bladeCount 0), or throw.
+     * EXPECTED: bladeCount 0, or an error
+     * ACTUAL: bladeCount blades with NaN positions, uncounted in countByType
+     */
+    const field = createSmallField({ width: 2, depth: 2, cells: [null, null, null, null], bladeCount: 10 });
+    expect(field.bladeCount).toBe(0);
   });
 });
 
@@ -92,9 +199,40 @@ describe('cutInCircle', () => {
     expect(cutInCircle(field, centerX, field.positionsZ[0]!, radius, greenMinSize)).toEqual([0]);
   });
 
+  describe('when the debug panel tunes a minimum size', () => {
+    const originalGrassTypes = structuredClone(config.grassTypes);
+    const originalGreenMinSize = originalGrassTypes.green.minSize;
+    const originalBrambleMinSize = originalGrassTypes.bramble.minSize;
+    afterEach(() => {
+      // config is shared by every test: put back the whole table, whatever a test changed.
+      for (const type of GRASS_TYPE_ORDER) Object.assign(config.grassTypes[type], originalGrassTypes[type]);
+    });
+
+    it('lets a small blade cut tough grass once its minimum size is lowered', () => {
+      const field = createSmallField({ bladeCount: 1, cells: uniformCells('bramble') });
+      config.grassTypes.bramble.minSize = 1;
+      expect(cutInCircle(field, field.positionsX[0]!, field.positionsZ[0]!, 0.5, 1)).toEqual([0]);
+    });
+
+    it('leaves the other grass types as they were', () => {
+      const field = createSmallField({ bladeCount: 1 });
+      config.grassTypes.bramble.minSize = originalBrambleMinSize + 10;
+      expect(cutInCircle(field, field.positionsX[0]!, field.positionsZ[0]!, 0.5, originalGreenMinSize)).toEqual([0]);
+    });
+
+    it('uses the new minimum size on the next cut', () => {
+      const field = createSmallField({ bladeCount: 1 });
+      const x = field.positionsX[0]!;
+      const z = field.positionsZ[0]!;
+      config.grassTypes.green.minSize = originalGreenMinSize + 1;
+      expect(cutInCircle(field, x, z, 0.5, originalGreenMinSize)).toEqual([]);
+      expect(cutInCircle(field, x, z, 0.5, originalGreenMinSize + 1)).toEqual([0]);
+    });
+  });
+
   it.each(Object.keys(config.grassTypes) as GrassType[])('cuts %s only when the blade size reaches its minimum size', (grassType) => {
     const minSize = config.grassTypes[grassType].minSize;
-    const field = createSmallField({ bladeCount: 1, grassType });
+    const field = createSmallField({ bladeCount: 1, cells: uniformCells(grassType) });
     const x = field.positionsX[0]!;
     const z = field.positionsZ[0]!;
     expect(cutInCircle(field, x, z, 0.5, minSize - 1)).toEqual([]);
@@ -129,7 +267,14 @@ describe('cutInCircle', () => {
   });
 
   it('matches a brute-force search when the cell size does not divide the field', () => {
-    expectCutsToMatchBruteForce(createSmallField({ width: 5.5, depth: 3.3, bladeCount: 2_000, gridCellSize: 0.7 }), 1.5);
+    const field = createSmallField({
+      width: 5.5,
+      depth: 3.3,
+      cells: uniformCells('green', 5.5, 3.3),
+      bladeCount: 2_000,
+      gridCellSize: 0.7,
+    });
+    expectCutsToMatchBruteForce(field, 1.5);
   });
 
   it('cuts every blade once with a circle covering the whole field', () => {
@@ -141,5 +286,20 @@ describe('cutInCircle', () => {
     expect(field.cutCount).toBe(field.bladeCount);
     cutInCircle(field, centerX, centerZ, radius, greenMinSize);
     expect(field.cutCount).toBe(field.bladeCount);
+  });
+
+  it('counts each cut blade under its own type only', () => {
+    const field = createMixedField();
+    const firstIce = field.types.indexOf(GRASS_TYPE_ORDER.indexOf('ice'));
+    cutInCircle(field, field.positionsX[firstIce]!, field.positionsZ[firstIce]!, 0, config.grassTypes.ice.minSize);
+    const expected = GRASS_TYPE_ORDER.map((type) => (type === 'ice' ? 1 : 0));
+    expect([...field.cutByType]).toEqual(expected);
+  });
+
+  it('cuts every blade of every type with an infinite blade size and a circle covering the whole field', () => {
+    const field = createMixedField();
+    cutInCircle(field, field.width / 2, field.depth / 2, Math.hypot(field.width, field.depth), Infinity);
+    expect(field.cutCount).toBe(field.bladeCount);
+    expect([...field.cutByType]).toEqual([...field.countByType]);
   });
 });
