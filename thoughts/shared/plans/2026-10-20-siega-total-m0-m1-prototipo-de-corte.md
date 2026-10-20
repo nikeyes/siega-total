@@ -198,7 +198,7 @@ Mientras `src/logic/` no tenga archivos, la prueba comprueba una lista vacía. L
 - [x] La compilación termina y `dist/index.html` usa rutas `/siega-total/assets/...`: `make build && grep -q '/siega-total/assets/' dist/index.html`
 
 #### Verificación manual:
-- [ ] `make dev` muestra el suelo verde en el navegador (juicio visual).
+- [x] `make dev` muestra el suelo verde en el navegador (juicio visual).
 
 ---
 
@@ -270,10 +270,10 @@ Si un paso falla, el trabajo `deploy` no se ejecuta.
 - [x] `make check test build` pasa en local
 
 #### Verificación manual:
-- [ ] El usuario crea el repositorio público y hace push: `gh repo create nikeyes/siega-total --public --source . --push` (acción externa: solo con orden del usuario)
-- [ ] El usuario activa Pages con origen «GitHub Actions»: `gh api -X POST repos/nikeyes/siega-total/pages -f build_type=workflow`
-- [ ] La ejecución de Actions en `main` termina en verde
-- [ ] `https://nikeyes.github.io/siega-total/` muestra el suelo verde
+- [x] El usuario crea el repositorio público y hace push: `gh repo create nikeyes/siega-total --public --source . --push` (acción externa: solo con orden del usuario)
+- [x] El usuario activa Pages con origen «GitHub Actions»: `gh api -X POST repos/nikeyes/siega-total/pages -f build_type=workflow`
+- [x] La ejecución de Actions en `main` termina en verde
+- [x] `https://nikeyes.github.io/siega-total/` muestra el suelo verde
 
 ---
 
