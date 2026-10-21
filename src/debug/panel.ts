@@ -1,5 +1,6 @@
 import GUI from 'lil-gui';
 import { campaignSeeds } from '../campaign';
+import { pickCampaign } from '../logic/campaignPicker';
 import { config } from '../config';
 import { cutAllTargets, remainingTargets, type Game } from '../logic/game';
 import { generateLevel } from '../logic/generator';
@@ -207,10 +208,19 @@ function addLevelFolder(gui: GUI, getGame: () => Game, actions: DebugActions): v
     void navigator.clipboard.writeText(line);
   };
 
+  // Also logged, so the whole object can be read from the console.
+  const copyCampaign = () => {
+    const lines = Object.entries(pickCampaign()).map(([number, seed]) => `  ${number}: ${seed},`);
+    const campaign = `{\n${lines.join('\n')}\n}`;
+    console.info(campaign);
+    void navigator.clipboard.writeText(campaign);
+  };
+
   folder.add({ [texts.debug.goToLevel]: goToLevel }, texts.debug.goToLevel);
   folder.add({ [texts.debug.loadSeed]: loadSeed }, texts.debug.loadSeed);
   folder.add({ [texts.debug.anotherSeed]: anotherSeed }, texts.debug.anotherSeed);
   folder.add({ [texts.debug.copySeed]: copySeed }, texts.debug.copySeed);
+  folder.add({ [texts.debug.copyCampaign]: copyCampaign }, texts.debug.copyCampaign);
   levelField.updateDisplay();
 }
 

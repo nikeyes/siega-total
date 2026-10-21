@@ -90,6 +90,12 @@ export const config = {
     /** Free space kept between obstacles, so the blade can pass between them. */
     obstacleGapMeters: 2,
   },
+  campaign: {
+    /** Curated levels; past the last one, levels are generated. */
+    levels: 50,
+    /** The picker never repeats the pattern of this many levels before. */
+    distinctPatternsBehind: 2,
+  },
   collision: {
     /** Passes over the walls each step, so corners between two walls resolve. */
     iterations: 3,
