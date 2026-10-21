@@ -75,6 +75,8 @@ export const config = {
     maxTimeSeconds: 180,
     roundTimeToSeconds: 5,
     startClearingMeters: 3,
+    /** Patterns always split the field at least this much; regions with no grass type left are sand, so even one-grass levels show their shape. */
+    minPatternRegions: 2,
     curveLastLevel: 25,
     unlockLevel: { green: 1, ice: 4, wheat: 7, lavender: 10, rock: 13, fruit: 16, bramble: 19, cactus: 22 },
     grassTypeCount: { first: 1, last: 4 },

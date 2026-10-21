@@ -26,9 +26,11 @@ export function generateLevel(levelNumber: number, seed: number): GeneratedLevel
 
   const patternNames = Object.keys(PATTERNS) as PatternName[];
   const pattern = pick(random, patternNames);
-  const map = PATTERNS[pattern](random, { columns, rows, regionCount: difficulty.grassTypeCount });
+  const regionCount = Math.max(config.generator.minPatternRegions, difficulty.grassTypeCount);
+  const map = PATTERNS[pattern](random, { columns, rows, regionCount });
   const typeOfRegion = grassTypesForRegions(random, difficulty);
-  const cells = Array.from(map.regions, (region): GrassType | null => (region === SAND_REGION ? null : typeOfRegion[region]!));
+  // Regions past the level's grass types are sand.
+  const cells = Array.from(map.regions, (region): GrassType | null => (region === SAND_REGION ? null : (typeOfRegion[region] ?? null)));
   clearStart(cells, CELL_SIZE, columns, rows, config.generator.startClearingMeters);
 
   const obstacles = placeObstacles(random, difficulty, cells, columns);
