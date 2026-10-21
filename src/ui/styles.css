@@ -255,12 +255,12 @@ body,
 }
 
 /* Away from the game, the layers show the field behind them without the HUD. */
-#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-boosters, .hud-size, .hud-float, .hud-blocked, .hud-size-up, .tutorial) {
+#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-boosters, .hud-size, .hud-float, .hud-blocked, .hud-size-up) {
   display: none;
 }
 
 /* The hand only teaches while the level is in play. */
-#app:is([data-screen='paused'], [data-screen='result']) .tutorial {
+#app:not([data-screen='playing']) .tutorial {
   display: none;
 }
 

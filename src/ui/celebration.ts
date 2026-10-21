@@ -18,7 +18,7 @@ export interface CelebrationPiece {
 /** Saturated colors that read over the field: the green, wheat and lavender grass, the coin yellow and a red. */
 const CONFETTI_COLORS = ['#8fe03a', '#f5d76e', '#9b6dd6', '#ffd23f', '#e53935'] as const;
 const COIN_COLOR = '#ffd23f';
-/** The slowest a piece crosses the screen; the rest take up to the end of the celebration. */
+/** The fastest a piece crosses the screen; the rest take up to the end of the celebration. */
 const MIN_FALL_SECONDS = 1.2;
 const MAX_DRIFT_PERCENT = 10;
 const MAX_SPIN_DEGREES = 720;

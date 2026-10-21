@@ -13,7 +13,7 @@ const SIZE_PILL_OFFSET_PX = 34;
 /** «Necesitas más tamaño» floats this far above the blade's center on screen. */
 const BLOCKED_NOTICE_OFFSET_PX = 70;
 /** «¡Tamaño N!» floats this far above the blade's center on screen, above «Necesitas más tamaño». */
-const SIZE_UP_OFFSET_PX = 90;
+const SIZE_UP_OFFSET_PX = 110;
 /** A «+N» starts this far above the blade's center on screen and rises from there. */
 const COIN_FLOAT_OFFSET_PX = 40;
 /** «+N» elements reused in turn; each lives 0.6 s and one comes out at most every 0.2 s, so they never run out. */

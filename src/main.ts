@@ -57,6 +57,8 @@ import './ui/styles.css';
 const MAX_FRAME_SECONDS = 0.05;
 /** Burst pieces thrown when a piece of each kind is cut; a cactus is bigger, so it throws more. */
 const BURST_PIECES = { watermelon: 12, strawberry: 12, cactus: 24 } as const;
+/** The frame rate the clippings' pool is sized for. */
+const CLIPPING_POOL_FRAMES_PER_SECOND = 60;
 const SIZE_UP_RING_COLOR = 0xffffff;
 const WAVE_RING_COLOR = 0xfff3b0;
 const WAVE_RING_OPACITY = 0.8;
@@ -94,9 +96,10 @@ container.addEventListener('click', (event) => {
 
 const gameScene = createGameScene(container, config.field.width, config.field.depth);
 const burst = createBurstView(gameScene.scene);
-// Bits of cut grass: flat, smaller and lower than the fruit burst; the per-frame cap keeps the pool enough.
+// Bits of cut grass: flat, smaller and lower than the fruit burst.
+// The pool holds a whole lifetime of clippings at the per-frame cap, so none is reused mid-flight during the win wave.
 const clippings = createBurstView(gameScene.scene, {
-  poolSize: 400,
+  poolSize: Math.ceil(config.effects.maxClippingsPerFrame * config.effects.clippingSeconds * CLIPPING_POOL_FRAMES_PER_SECOND),
   geometry: 'flat',
   pieceSize: 0.14,
   lifetimeSeconds: config.effects.clippingSeconds,
@@ -150,7 +153,6 @@ const homeScreen = createHomeScreen(container, {
     if (game.level.number === save.level) restart();
     else loadLevel(save.level);
     showScreen('playing');
-    if (!save.tutorialDone) tutorialHint.show();
   },
   onShop: () => openShop('home'),
   onSettings: () => openSettings('home'),
@@ -273,8 +275,9 @@ function playLevel(level: LevelDefinition): void {
   sizeUpAge = Infinity;
   // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
   feedback.track(game);
-  // A new level hides the hand; «Jugar» shows it again until the first move.
-  tutorialHint.hide();
+  // Until the first move, every new level brings the hand back; the CSS only shows it while playing.
+  if (save.tutorialDone) tutorialHint.hide();
+  else tutorialHint.show();
   grass = createGrassView(gameScene.scene, game.field, level.seed);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);

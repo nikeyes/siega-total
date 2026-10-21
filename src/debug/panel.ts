@@ -24,8 +24,8 @@ const READ_ON_RESTART = new Set([
 ]);
 /** Upgrade settings that apply when the game is built again. */
 const UPGRADE_SETTINGS_READ_ON_RESTART = /^upgrades\.\w+\.(basePrice|priceGrowth|perLevel)$/;
-/** Settings that need the field built again, so the panel leaves them out. */
-const NOT_TUNABLE = new Set(['level.stripeWidthMeters']);
+/** Settings read only once, when the field or the clippings' pool is built, so the panel leaves them out. */
+const NOT_TUNABLE = new Set(['level.stripeWidthMeters', 'effects.clippingSeconds']);
 
 export interface DebugPanel {
   update(dt: number): void;

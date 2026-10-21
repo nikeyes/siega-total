@@ -3,6 +3,7 @@ import {
   Color,
   DoubleSide,
   DynamicDrawUsage,
+  FrontSide,
   InstancedMesh,
   Matrix4,
   MeshLambertMaterial,
@@ -61,16 +62,16 @@ interface Piece {
 
 /** A fixed pool of small pieces in one InstancedMesh, with a color per instance. */
 export function createBurstView(scene: Scene, options: Partial<BurstOptions> = {}): BurstView {
-  const { poolSize, pieceSize, lifetimeSeconds, minUpSpeed, maxUpSpeed, maxSideSpeed, spinSpeed } = {
+  const { poolSize, geometry: shape, pieceSize, lifetimeSeconds, minUpSpeed, maxUpSpeed, maxSideSpeed, spinSpeed } = {
     ...DEFAULT_OPTIONS,
     ...options,
   };
-  const flat = options.geometry === 'flat';
+  const flat = shape === 'flat';
   const geometry: BufferGeometry = flat
     ? new PlaneGeometry(pieceSize, pieceSize * FLAT_PIECE_LENGTH)
     : new BoxGeometry(pieceSize, pieceSize, pieceSize);
   // A flat piece spins, so both of its faces show.
-  const material = flat ? new MeshLambertMaterial({ side: DoubleSide }) : new MeshLambertMaterial();
+  const material = new MeshLambertMaterial({ side: flat ? DoubleSide : FrontSide });
   const mesh = new InstancedMesh(geometry, material, poolSize);
   mesh.instanceMatrix.setUsage(DynamicDrawUsage);
   // Pieces fly anywhere around the field; skipping the culling avoids recomputing bounds every frame.
