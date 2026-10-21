@@ -9,6 +9,27 @@ import { validateLevel } from '../../src/logic/validation';
 const LEVELS = Array.from({ length: 60 }, (_, index) => index + 1);
 const { maxAttempts, maxTimeSeconds } = config.generator;
 
+function isValidAttempt(levelNumber: number, attempt: number): boolean {
+  return validateLevel(generateLevel(levelNumber, attemptSeed(levelNumber, attempt))).valid;
+}
+
+/** Runs `check` with the generator allowed only `attempts` tries per level. */
+function withMaxAttempts(attempts: number, check: () => void): void {
+  const original = config.generator.maxAttempts;
+  config.generator.maxAttempts = attempts;
+  try {
+    check();
+  } finally {
+    config.generator.maxAttempts = original;
+  }
+}
+
+function levelNeedingMostAttempts(): { number: number; attempt: number } {
+  return LEVELS.map((number) => ({ number, attempt: firstValidLevel(number).attempt })).reduce((most, level) =>
+    level.attempt > most.attempt ? level : most,
+  );
+}
+
 describe('attemptSeed', () => {
   it('is deterministic', () => {
     expect(attemptSeed(12, 3)).toBe(attemptSeed(12, 3));
@@ -20,7 +41,12 @@ describe('attemptSeed', () => {
   });
 
   it('gives 32-bit unsigned seeds', () => {
-    for (const level of [1, 30, 60]) expect(Number.isInteger(attemptSeed(level, 0)) && attemptSeed(level, 0) >= 0 && attemptSeed(level, 0) < 2 ** 32).toBe(true);
+    for (const level of [1, 30, 60]) {
+      const seed = attemptSeed(level, 0);
+      expect(Number.isInteger(seed), `level ${level}`).toBe(true);
+      expect(seed).toBeGreaterThanOrEqual(0);
+      expect(seed).toBeLessThan(2 ** 32);
+    }
   });
 });
 
@@ -39,23 +65,50 @@ describe('levelFor', () => {
     expect(levelFor(3, { 3: 1234 })).toEqual(generateLevel(3, 1234));
   });
 
-  it('generates the levels the campaign does not list', () => {
-    expect(levelFor(4, { 3: 1234 })).toEqual(levelFor(4));
+  it('generates the first valid level from attempt 0 for the levels the campaign does not list', () => {
+    const { attempt } = firstValidLevel(4);
+    expect(levelFor(4, { 3: 1234 })).toEqual(generateLevel(4, attemptSeed(4, attempt)));
+  });
+
+  it('gives the fallback level when no seed validates', () => {
+    withMaxAttempts(0, () => {
+      expect(levelFor(10)).toEqual(fallbackLevel(10));
+    });
   });
 });
 
 describe('firstValidLevel', () => {
-  it('is the first attempt from firstAttempt on that validates', () => {
-    const { attempt, ...level } = firstValidLevel(10);
-    expect(level).toEqual(generateLevel(10, attemptSeed(10, attempt)));
-    for (let earlier = 0; earlier < attempt; earlier++) {
-      expect(validateLevel(generateLevel(10, attemptSeed(10, earlier))).valid).toBe(false);
+  it('is the first attempt from attempt 0 on that validates, at every level', () => {
+    for (const number of LEVELS) {
+      const { attempt, ...level } = firstValidLevel(number);
+      expect(level, `level ${number}`).toEqual(generateLevel(number, attemptSeed(number, attempt)));
+      for (let earlier = 0; earlier < attempt; earlier++) {
+        expect(isValidAttempt(number, earlier), `level ${number}, attempt ${earlier}`).toBe(false);
+      }
     }
   });
 
   it('starts looking at firstAttempt', () => {
     const first = firstValidLevel(10);
+    expect(firstValidLevel(10, first.attempt).attempt).toBe(first.attempt);
     expect(firstValidLevel(10, first.attempt + 1).attempt).toBeGreaterThan(first.attempt);
+  });
+
+  describe('with only a few attempts', () => {
+    const { number, attempt: firstValid } = levelNeedingMostAttempts();
+
+    it('still finds a valid level at the last attempt allowed', () => {
+      withMaxAttempts(firstValid + 1, () => {
+        expect(firstValidLevel(number)).toEqual({ ...generateLevel(number, attemptSeed(number, firstValid)), attempt: firstValid });
+      });
+    });
+
+    it('gives the fallback level, with the last attempt tried, when none of them validates', () => {
+      expect(firstValid, 'needs a level whose first two attempts fail').toBeGreaterThanOrEqual(2);
+      withMaxAttempts(firstValid, () => {
+        expect(firstValidLevel(number)).toEqual({ ...fallbackLevel(number), attempt: firstValid - 1 });
+      });
+    });
   });
 });
 

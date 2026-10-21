@@ -694,10 +694,10 @@ export function levelFor(levelNumber: number, campaign?: Readonly<Record<number,
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Las pruebas de dificultad, generador, validación, progresión y arquitectura pasan: `make test`
-- [ ] La suite de pruebas sigue por debajo de 30 s: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Las pruebas de dificultad, generador, validación, progresión y arquitectura pasan: `make test`
+- [x] La suite de pruebas sigue por debajo de 30 s: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 
