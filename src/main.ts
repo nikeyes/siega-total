@@ -1,6 +1,6 @@
 import { createCutRhythm } from './audio/cutRhythm';
 import { createSoundPlayer, type SoundName } from './audio/sounds';
-import { createVibration } from './audio/vibration';
+import { canVibrate, createVibration } from './audio/vibration';
 import { campaignSeeds } from './campaign';
 import { config } from './config';
 import type { DebugPanel } from './debug/panel';
@@ -128,7 +128,7 @@ const homeScreen = createHomeScreen(container, {
     showScreen('playing');
   },
   onShop: () => openShop('home'),
-  onSettings: () => showScreen('settings'),
+  onSettings: () => openSettings('home'),
 });
 const shopScreen = createShopScreen(container, {
   onBuyUpgrade: (kind) => {
@@ -149,22 +149,37 @@ const pauseScreen = createPauseScreen(container, {
     restart();
     showScreen('playing');
   },
+  onSettings: () => openSettings('paused'),
   onHome: () => {
     // Leaving drops the coins of this attempt: only the end of a level banks them.
     restart();
     showScreen('home');
   },
 });
-const settingsScreen = createSettingsScreen(container, {
-  onClearProgress: clearProgress,
-  onBack: () => showScreen('home'),
-});
+const settingsScreen = createSettingsScreen(
+  container,
+  {
+    onToggleSound: () => {
+      save.settings.sound = !save.settings.sound;
+      saveSettings();
+    },
+    onToggleVibration: () => {
+      save.settings.vibration = !save.settings.vibration;
+      saveSettings();
+    },
+    onClearProgress: clearProgress,
+    onBack: () => showScreen(settingsReturnsTo),
+  },
+  canVibrate(),
+);
 
 /** What the player sees; the game only steps while it is 'playing' or showing the result. */
 type Screen = 'home' | 'playing' | 'paused' | 'result' | 'shop' | 'settings';
 let screen: Screen = 'home';
 /** The shop's «Volver» goes back to where it was opened from. */
 let shopReturnsTo: 'home' | 'result' = 'home';
+/** The settings' «Volver» goes back to where they were opened from, so a paused level stays paused. */
+let settingsReturnsTo: 'home' | 'paused' = 'home';
 const SCREEN_LAYERS: Partial<Record<Screen, HTMLElement>> = {
   home: homeScreen.layer,
   paused: pauseScreen.layer,
@@ -186,10 +201,16 @@ function openShop(from: 'home' | 'result'): void {
   showScreen('shop');
 }
 
-/** Redraws what shows the save: the balance and level on the home screen and the shop rows. */
+function openSettings(from: 'home' | 'paused'): void {
+  settingsReturnsTo = from;
+  showScreen('settings');
+}
+
+/** Redraws what shows the save: the balance and level on the home screen, the shop rows and the switches. */
 function renderSave(): void {
   homeScreen.render(save);
   shopScreen.render(save);
+  settingsScreen.render(save);
 }
 
 let save = readSave();
@@ -199,6 +220,13 @@ applySettings();
 function applySettings(): void {
   soundPlayer.setEnabled(save.settings.sound);
   vibration.setEnabled(save.settings.vibration);
+}
+
+/** Keeps a flipped switch: saves it, applies it at once and redraws the switches. */
+function saveSettings(): void {
+  writeSave(save);
+  applySettings();
+  renderSave();
 }
 
 let game: Game;

@@ -67,6 +67,8 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   addNumberFolder(gui, 'economy', config.economy);
   addNumberFolder(gui, 'upgrades', config.upgrades);
   addNumberFolder(gui, 'boosters', config.boosters);
+  addNumberFolder(gui, 'audio', config.audio);
+  addNumberFolder(gui, 'vibration', config.vibration);
   addNumberFolder(gui, 'generator', config.generator, () => {}, texts.debug.onGenerate);
 
   addLevelFolder(gui, getGame, actions);
