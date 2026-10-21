@@ -1,6 +1,6 @@
 import { config } from '../config';
 
-export type UpgradeKind = 'startSize' | 'speed' | 'extraTime' | 'growth';
+export type UpgradeKind = Exclude<keyof typeof config.upgrades, 'priceRoundTo'>;
 export type BoosterKind = keyof typeof config.boosters;
 
 const UPGRADE_KINDS: readonly UpgradeKind[] = ['startSize', 'speed', 'extraTime', 'growth'];
@@ -68,16 +68,22 @@ function sanitize(data: Partial<SaveData>): SaveData {
     version: SAVE_VERSION,
     level: wholeNumberAtLeast(1, data.level, defaults.level),
     coins: wholeNumberAtLeast(0, data.coins, defaults.coins),
-    upgrades: sanitizeCounts(data.upgrades, defaults.upgrades),
+    upgrades: sanitizeCounts(data.upgrades, defaults.upgrades, (kind) => config.upgrades[kind].max),
     boosters: sanitizeCounts(data.boosters, defaults.boosters),
   };
 }
 
-/** A whole number ≥ 0 for each key of `defaults`, kept from `stored` when valid. */
-function sanitizeCounts<Kind extends string>(stored: unknown, defaults: Record<Kind, number>): Record<Kind, number> {
+/** A whole number from 0 to `maxOf(kind)` for each key of `defaults`, kept from `stored` when valid. */
+function sanitizeCounts<Kind extends string>(
+  stored: unknown,
+  defaults: Record<Kind, number>,
+  maxOf: (kind: Kind) => number = () => Infinity,
+): Record<Kind, number> {
   const counts = (stored ?? {}) as Partial<Record<Kind, unknown>>;
   const kinds = Object.keys(defaults) as Kind[];
-  return Object.fromEntries(kinds.map((kind) => [kind, wholeNumberAtLeast(0, counts[kind], defaults[kind])])) as Record<Kind, number>;
+  return Object.fromEntries(
+    kinds.map((kind) => [kind, Math.min(maxOf(kind), wholeNumberAtLeast(0, counts[kind], defaults[kind]))]),
+  ) as Record<Kind, number>;
 }
 
 function wholeNumberAtLeast(min: number, value: unknown, fallback: number): number {

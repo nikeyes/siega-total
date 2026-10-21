@@ -53,7 +53,11 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   addNumberFolder(gui, 'blade', config.blade);
   addNumberFolder(gui, 'camera', config.camera);
   addNumberFolder(gui, 'level', config.level, (path, value) => {
-    if (path === 'level.timeSeconds') getGame().level.timeSeconds = value;
+    if (path !== 'level.timeSeconds') return;
+    const game = getGame();
+    game.level.timeSeconds = value;
+    // A game not started yet shows the new time at once; one in play keeps its clock until it restarts.
+    if (game.status === 'ready') game.timeLeft = game.timeTotal = value + game.bonuses.extraSeconds;
   });
   addNumberFolder(gui, 'grassTypes', config.grassTypes);
   addNumberFolder(gui, 'obstacles', config.obstacles);

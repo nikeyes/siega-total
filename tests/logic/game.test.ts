@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
-import { addCuts, bladeRadius, createBlade, type Direction } from '../../src/logic/blade';
+import { addCuts, bladeRadius, createBlade, cutsToNextSize, type Direction } from '../../src/logic/blade';
 import { cutInCircle, GRASS_TYPE_ORDER, type Field, type GrassType } from '../../src/logic/field';
 import {
   createGame,
@@ -17,6 +17,7 @@ import {
 import { obstacleRadius } from '../../src/logic/obstacles';
 import { sampleLevel, stripesLevel, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
 import { levelFromRows } from './levelFixtures';
+import { noBonuses, type GameBonuses } from '../../src/logic/upgrades';
 
 const { width, depth } = config.field;
 const { startSize } = config.blade;
@@ -883,5 +884,101 @@ describe('cutAllTargets (debug)', () => {
     const game = createGame(levelFromRows(HALVES, { obstacles, targets: ['cactus'] }));
     expect(cutAllTargets(game)).toEqual({ blades: [], obstacles: [1] });
     expect(game.field.cutCount).toBe(0);
+  });
+});
+
+describe('playing with upgrade bonuses', () => {
+  /** 20 × 2 m of sand with one ice cell, the target, in the west corner: room to drive east for a second without winning. */
+  const OPEN_SAND = ['i' + '.'.repeat(19), '.'.repeat(20)];
+
+  function withBonuses(changes: Partial<GameBonuses>): GameBonuses {
+    return { ...noBonuses(), ...changes };
+  }
+
+  it('starts the blade at the bonus size, also after a restart', () => {
+    const game = createGame(levelFromRows(HALVES), withBonuses({ startSize: 3 }));
+    expect(game.blade.size).toBe(3);
+    game.blade.size = 5;
+    resetGame(game);
+    expect(game.blade.size).toBe(3);
+  });
+
+  it('drives farther in the same time with the speed bonus', () => {
+    const base = createGame(levelFromRows(OPEN_SAND));
+    const faster = createGame(levelFromRows(OPEN_SAND), withBonuses({ speedMultiplier: 1.5 }));
+    const startX = base.blade.x;
+    driveForSeconds(base, EAST, 1);
+    driveForSeconds(faster, EAST, 1);
+    expect(faster.blade.x - startX).toBeCloseTo(1.5 * (base.blade.x - startX), 9);
+  });
+
+  it('starts with the extra seconds on top of the level time, also after a restart', () => {
+    const level = levelFromRows(HALVES);
+    const game = createGame(level, withBonuses({ extraSeconds: 10 }));
+    expect([game.timeLeft, game.timeTotal]).toEqual([level.timeSeconds + 10, level.timeSeconds + 10]);
+    game.timeLeft = 1;
+    resetGame(game);
+    expect([game.timeLeft, game.timeTotal]).toEqual([level.timeSeconds + 10, level.timeSeconds + 10]);
+  });
+
+  it('counts each cut more toward the next size with the growth bonus', () => {
+    /** 30 × 30 m of green spreads the blades thin, so the first cut stays well short of the next size. */
+    const allGreen = levelFromRows(Array<string>(30).fill('g'.repeat(30)), { targets: ['green'] });
+    const base = createGame(allGreen);
+    const growingFaster = createGame(allGreen, withBonuses({ growthMultiplier: 2 }));
+    const { cutIndices } = stepGame(base, EAST, 0);
+    stepGame(growingFaster, EAST, 0);
+    expect(cutIndices.length).toBeGreaterThan(0);
+    expect(base.blade.growthProgress).toBe(cutIndices.length);
+    expect(growingFaster.blade.growthProgress).toBe(2 * cutIndices.length);
+  });
+
+  it('brakes to a stop in the same time with the speed bonus', () => {
+    const faster = createGame(levelFromRows(OPEN_SAND), withBonuses({ speedMultiplier: 1.6 }));
+    driveForSeconds(faster, EAST, 0.2);
+    driveForSeconds(faster, null, config.blade.brakeSeconds + SIXTY_FPS_FRAME);
+    expect(faster.blade.speed).toBe(0);
+  });
+
+  it('brakes to a stop in the same time with the speed bonus once the level is lost', () => {
+    const game = createGame(levelFromRows(OPEN_SAND, { timeSeconds: 0.2 }), withBonuses({ speedMultiplier: 1.6 }));
+    driveUntil(game, EAST, () => false);
+    expect(game.status).toBe('lost');
+    driveForSeconds(game, EAST, config.blade.brakeSeconds + SIXTY_FPS_FRAME);
+    expect(game.blade.speed).toBe(0);
+  });
+
+  it('restarts with the full time of the level as it is now, bonus seconds included', () => {
+    const level = levelFromRows(HALVES);
+    const game = createGame(level, withBonuses({ extraSeconds: 10 }));
+    level.timeSeconds = 30;
+    resetGame(game);
+    expect([game.timeLeft, game.timeTotal]).toEqual([40, 40]);
+  });
+
+  it('grows past a size with a fractional growth bonus', () => {
+    const allGreen = levelFromRows(Array<string>(30).fill('g'.repeat(30)), { targets: ['green'] });
+    const game = createGame(allGreen, withBonuses({ growthMultiplier: 1.1 }));
+    game.blade.growthProgress = cutsToNextSize(game.blade.size) - 0.5;
+    const { sizesGained, cutIndices } = stepGame(game, EAST, 0);
+    expect(cutIndices.length).toBeGreaterThan(0);
+    expect(sizesGained).toBe(1);
+    expect(game.blade.size).toBe(config.blade.startSize + 1);
+  });
+
+  it('keeps the start size and the extra seconds when the time runs out and the level restarts', () => {
+    const level = levelFromRows(ICE_ON_THE_EAST_EDGE, { timeSeconds: SHORT_TIME_SECONDS });
+    const game = createGame(level, withBonuses({ startSize: 2, extraSeconds: 0 }));
+    driveUntil(game, WEST, () => false);
+    expect(game.status).toBe('lost');
+    resetGame(game);
+    expect([game.blade.size, game.timeLeft]).toEqual([2, SHORT_TIME_SECONDS]);
+  });
+
+  it('leaves the level as it was, so every player gets the same level', () => {
+    const level = levelFromRows(HALVES, { obstacles: [{ type: 'strawberry', x: 1, z: 1 }], targets: ['ice', 'strawberry'] });
+    const before = structuredClone(level);
+    createGame(level, { startSize: 4, speedMultiplier: 1.6, extraSeconds: 50, growthMultiplier: 2 });
+    expect(level).toEqual(before);
   });
 });
