@@ -3,6 +3,7 @@ import { config } from './config';
 import type { DebugPanel } from './debug/panel';
 import { bladeRadius, growthFraction } from './logic/blade';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
+import { bankCoins } from './logic/economy';
 import {
   createGame,
   remainingByTarget,
@@ -14,6 +15,7 @@ import {
 } from './logic/game';
 import type { LevelDefinition } from './logic/levels';
 import { levelFor } from './logic/progression';
+import { defaultSave } from './logic/save';
 import { createBurstView } from './render/burst';
 import { OBSTACLE_COLORS } from './render/obstacleColors';
 import { loadObstacleModels, placeholderObstacleModels, type ObstacleModels } from './render/obstacleModels';
@@ -27,7 +29,9 @@ import { createHud } from './ui/hud';
 import { createJoystick } from './ui/joystick';
 import { createKeyboard } from './ui/keyboard';
 import { createBlockedNotice } from './ui/blockedNotice';
+import { createCoinFloats } from './ui/coinFloats';
 import { createResultOverlay } from './ui/result';
+import { clearSave, readSave, writeSave } from './ui/storage';
 import './ui/styles.css';
 
 /** Longest step the game takes, so coming back to the tab does not make the blade jump. */
@@ -41,12 +45,15 @@ if (!container) throw new Error('Missing #app container');
 const gameScene = createGameScene(container, config.field.width, config.field.depth);
 const burst = createBurstView(gameScene.scene);
 const blockedNotice = createBlockedNotice();
+const coinFloats = createCoinFloats();
 const bladeView = createBladeView(gameScene.scene);
 const cameraRig = createCameraRig();
 const joystick = createJoystick(container);
 const keyboard = createKeyboard();
 const hud = createHud(container);
-const resultOverlay = createResultOverlay(container, { onNext: () => loadLevel(game.level.number + 1), onRetry: restart });
+const resultOverlay = createResultOverlay(container, { onNext: () => loadLevel(save.level), onRetry: restart });
+
+let save = readSave();
 
 let game: Game;
 let grass: GrassView | null = null;
@@ -67,7 +74,7 @@ function playLevel(level: LevelDefinition): void {
   resultOverlay.hide();
 }
 
-/** Plays level `levelNumber` of the progression; there is no saving, so a reload starts at level 1 again. */
+/** Plays level `levelNumber` of the progression. */
 function loadLevel(levelNumber: number): void {
   playLevel(levelFor(levelNumber, campaignSeeds));
 }
@@ -81,12 +88,26 @@ function restart(): void {
   resultOverlay.hide();
 }
 
+/** Adds what the level earned to the balance and, after a win, moves the saved level on. */
+function saveLevelEnd(): void {
+  save.coins += bankCoins(game);
+  if (game.status === 'won' && game.level.number >= 1) save.level = game.level.number + 1;
+  writeSave(save);
+}
+
+/** Debug only: forgets the saved game and starts over from level 1. */
+function clearProgress(): void {
+  clearSave();
+  save = defaultSave();
+  loadLevel(1);
+}
+
 function focusOnBlade(): void {
   const { blade } = game;
   Object.assign(focus, createCameraFocus(blade.x, blade.z, blade.size));
 }
 
-loadLevel(1);
+loadLevel(save.level);
 
 loadObstacleModels(import.meta.env.BASE_URL + 'models/').then(
   (loaded) => {
@@ -111,6 +132,11 @@ if (new URLSearchParams(location.search).has('debug')) {
         obstacleView!.markCut(obstacles);
       },
       playLevel,
+      giveCoins: (amount) => {
+        save.coins += amount;
+        writeSave(save);
+      },
+      clearSave: clearProgress,
     });
   });
 }
@@ -144,7 +170,8 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   burst.update(dt);
   grass!.setHighlight(shouldHighlightTargets(game) ? targetGrassTypes(game) : []);
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
-    resultOverlay.show(game.status);
+    saveLevelEnd();
+    resultOverlay.show(game.status, { levelCoins: game.levelCoins, bonusCoins: game.bonusCoins });
   }
 
   followBlade(focus, blade.x, blade.z, blade.size, dt);
@@ -167,6 +194,9 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     sizeLabelX: bladeOnScreen.x,
     sizeLabelY: bladeOnScreen.y,
     showBlocked: blockedNotice.step(result.blocked, dt),
+    // Banked coins are already in the balance, so only the rest of the level is added on top.
+    coins: save.coins + game.levelCoins + game.bonusCoins - game.bankedCoins,
+    floatCoins: coinFloats.step(result.coins, dt),
   });
 
   debugPanel?.update(realSeconds);
