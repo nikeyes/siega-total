@@ -92,14 +92,14 @@ export const config = {
   },
   audio: {
     /** The zip plays at most once every this many seconds while the blade cuts. */
-    cutMinIntervalSeconds: 0.06,
+    cutMinIntervalSeconds: 0.15,
     /** Each zip in a streak plays this much higher than the one before… */
-    cutPitchStep: 0.03,
+    cutPitchStep: 0.01,
     /** …up to this playback rate. */
     cutMaxPitch: 2,
     /** A pause in cutting this long ends the streak and the pitch goes back to 1. */
     cutStreakResetSeconds: 0.3,
-    volume: { cut: 0.4, sizeUp: 0.8, bounce: 0.8, obstacleCut: 0.7, win: 0.8, lose: 0.8, tap: 0.5, coins: 0.7 },
+    volume: { cut: 0.2, sizeUp: 0.8, bounce: 0.8, obstacleCut: 0.7, win: 0.8, lose: 0.8, tap: 0.5, coins: 0.7 },
   },
   vibration: {
     milliseconds: 10,
