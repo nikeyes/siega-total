@@ -7,11 +7,13 @@ export interface SoundPlayer {
   play(name: SoundName, rate?: number): void;
   /** Muting also stops the sounds that are playing. */
   setEnabled(enabled: boolean): void;
+  /** The audio context the breeze and the music play in too, so one gesture unlocks them all; null without WebAudio. */
+  readonly context: AudioContext | null;
 }
 
 const SOUND_NAMES = Object.keys(config.audio.volume) as SoundName[];
 /** The player of a browser without WebAudio: the game just plays in silence. */
-const SILENT_PLAYER: SoundPlayer = { play: () => {}, setEnabled: () => {} };
+const SILENT_PLAYER: SoundPlayer = { play: () => {}, setEnabled: () => {}, context: null };
 
 /** Plays Kenney's sounds from `baseUrl` (one `<name>.mp3` each); `onPlayed` hears every sound actually sent out. */
 export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, rate: number) => void): SoundPlayer {
@@ -75,5 +77,5 @@ export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, 
     playing.clear();
   }
 
-  return { play, setEnabled };
+  return { play, setEnabled, context };
 }

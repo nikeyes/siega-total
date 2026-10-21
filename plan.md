@@ -181,7 +181,8 @@ Victoria, Derrota y Pausa también vuelven a Inicio. En Derrota, el reloj sigue 
 2. Victoria muestra monedas ganadas y bonus. Botón principal: Siguiente. Botón secundario: Tienda.
 3. Pausa automática al perder el foco de la pestaña (`visibilitychange`).
 4. Primera partida: al pulsar Jugar por primera vez, una mano animada enseña el joystick. Desaparece con el primer movimiento.
-5. Ajustes: sonido, vibración, calidad, borrar progreso (con confirmación).
+5. Ajustes: sonido, música, vibración, calidad, borrar progreso (con confirmación).
+6. La música suena salvo en Pausa o con la pestaña oculta, con fundidos al entrar y salir.
 
 ### Guardado
 
@@ -189,12 +190,12 @@ Un objeto JSON versionado en `localStorage`:
 
 ```ts
 interface SaveData {
-  version: 3;
+  version: 4;
   level: number;
   coins: number;
   upgrades: { startSize: number; speed: number; extraTime: number; growth: number };
   boosters: { upgrade: number; compass: number; clock: number };
-  settings: { sound: boolean; vibration: boolean; quality: 'auto' | 'high' | 'medium' | 'low' };
+  settings: { sound: boolean; music: boolean; vibration: boolean; quality: 'auto' | 'high' | 'medium' | 'low' };
   tutorialDone: boolean;
 }
 ```
@@ -235,7 +236,7 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | --- | --- |
 | Restos | Trozos del color de la hierba salen despedidos y caen al suelo. En Alto se quedan en el suelo; en Medio se desvanecen; en Bajo hay menos. |
 | "+N" flotante | Agrupado: un texto cada 0,2 s con la suma del intervalo. |
-| Sonido de corte | "Zip" corto; el tono sube con cortes seguidos. Máximo 1 cada 60 ms. |
+| Sonido de corte | Brisa continua y suave («shhh» grave) que entra al cortar y se desvanece al parar. Sin pulsos y sin subir de tono, para que no canse. |
 | Subida de tamaño | Destello, sonido ascendente, texto "Tamaño N". |
 | Obstáculo duro | Rebote, sonido sordo, vibración corta, texto "Necesitas más tamaño". |
 | Victoria | Onda que corta el campo restante desde la cuchilla, confeti, lluvia de monedas. |
@@ -248,8 +249,8 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | Briznas, cuchilla, restos, suelo | Código |
 | Obstáculos (cactus, rocas, frutas) | Paquetes CC0 en glTF (Kenney, Quaternius) |
 | Iconos de interfaz | Paquetes CC0 (Kenney) |
-| Efectos de sonido | Paquetes CC0 (Kenney), en MP3 |
-| Música | Ninguna en la v1.0 |
+| Efectos de sonido | Paquetes CC0 (Kenney), en MP3; la brisa del corte se genera en código |
+| Música | Lo-fi relajante generada en código mientras suena: piano eléctrico, bajo, bombo y escobillas |
 
 Regla de estilo: colores planos y saturados, sin texturas fotográficas. Fuente redondeada y gruesa con contorno en la interfaz.
 
@@ -280,7 +281,7 @@ siega-total/
 │   │   └── save.ts        # esquema, migración, valores por defecto
 │   ├── render/            # Three.js: hierba, cuchilla, restos, cámara
 │   ├── ui/                # pantallas HTML + CSS, HUD, joystick
-│   ├── audio/             # sonidos con límite de frecuencia
+│   ├── audio/             # efectos, brisa del corte y música lo-fi generada
 │   └── debug/             # panel lil-gui (solo con ?debug)
 ├── tests/                 # Vitest sobre src/logic y las partes puras de render/ui/audio
 ├── public/                # glTF y sonidos CC0
@@ -328,6 +329,6 @@ M1 va primero porque es el mayor riesgo: si cortar no es satisfactorio o no rind
 ### Preguntas abiertas
 
 - Valores concretos de equilibrio (tiempos, precios, radios): se fijan en M2–M6 con el panel de depuración.
-- Música: ninguna en la v1.0.
+- Música: lo-fi generada en código desde la v1.1.
 - Fase 2 (anuncios, dominio propio, portales): fuera de esta especificación.
 
