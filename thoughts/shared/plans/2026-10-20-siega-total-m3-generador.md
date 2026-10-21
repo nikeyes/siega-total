@@ -790,11 +790,11 @@ Se descargan de las URL de «Hallazgos clave», se copian con el nombre de la ta
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] Los modelos llegan a la compilación: `make build && ls dist/models/rock.glb dist/models/cactus.glb dist/models/watermelon.glb dist/models/strawberry.glb dist/models/Textures/colormap.png`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
-- [ ] `CREDITS.md` cita los dos paquetes: `grep -q 'Nature Kit' CREDITS.md && grep -q 'Food Kit' CREDITS.md`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] Los modelos llegan a la compilación: `make build && ls dist/models/rock.glb dist/models/cactus.glb dist/models/watermelon.glb dist/models/strawberry.glb dist/models/Textures/colormap.png`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] `CREDITS.md` cita los dos paquetes: `grep -q 'Nature Kit' CREDITS.md && grep -q 'Food Kit' CREDITS.md`
 
 #### Verificación manual:
 - [ ] Los modelos se ven del tamaño de su círculo de choque. La cuchilla no atraviesa visualmente la roca (juicio visual).

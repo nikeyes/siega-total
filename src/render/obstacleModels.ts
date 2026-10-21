@@ -1,12 +1,16 @@
 import {
+  Box3,
   BufferGeometry,
   ConeGeometry,
   CylinderGeometry,
   IcosahedronGeometry,
   Material,
+  Matrix4,
+  Mesh,
   MeshLambertMaterial,
   SphereGeometry,
 } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { ObstacleType } from '../logic/levels';
 import { obstacleRadius } from '../logic/obstacles';
 import { OBSTACLE_COLORS } from './obstacleColors';
@@ -54,4 +58,57 @@ export function placeholderObstacleModels(): ObstacleModels {
     watermelon: [{ geometry: watermelonGeometry, material: new MeshLambertMaterial({ color: 0x2e7d32 }) }],
     strawberry: [{ geometry: strawberryGeometry, material: new MeshLambertMaterial({ color: OBSTACLE_COLORS.strawberry }) }],
   };
+}
+
+interface Vector {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * The uniform scale and the offset (applied after scaling) that give a model with bounding box `box`
+ * a footprint of `radius` (half its longest side on the ground), centered on the origin and standing on y = 0.
+ */
+export function normalizedScale(box: { min: Vector; max: Vector }, radius: number): { scale: number; offset: Vector } {
+  const footprint = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
+  const scale = radius / footprint;
+  return {
+    scale,
+    offset: {
+      x: (-(box.min.x + box.max.x) / 2) * scale,
+      y: -box.min.y * scale,
+      z: (-(box.min.z + box.max.z) / 2) * scale,
+    },
+  };
+}
+
+/** Kenney's CC0 models, one file per obstacle type in `baseUrl`. */
+const MODEL_FILES: Record<ObstacleType, string> = {
+  rock: 'rock.glb',
+  cactus: 'cactus.glb',
+  watermelon: 'watermelon.glb',
+  strawberry: 'strawberry.glb',
+};
+
+/** Loads the models and turns each mesh into a part, already placed and scaled to its obstacle's footprint. */
+export async function loadObstacleModels(baseUrl: string): Promise<ObstacleModels> {
+  const loader = new GLTFLoader();
+  const load = (type: ObstacleType) => loadParts(loader, baseUrl + MODEL_FILES[type], obstacleRadius(type));
+  const [rock, cactus, watermelon, strawberry] = await Promise.all([load('rock'), load('cactus'), load('watermelon'), load('strawberry')]);
+  return { rock, cactus, watermelon, strawberry };
+}
+
+async function loadParts(loader: GLTFLoader, url: string, radius: number): Promise<ObstacleModelPart[]> {
+  const { scene } = await loader.loadAsync(url);
+  scene.updateMatrixWorld(true);
+  const { scale, offset } = normalizedScale(new Box3().setFromObject(scene), radius);
+  const normalize = new Matrix4().makeTranslation(offset.x, offset.y, offset.z).multiply(new Matrix4().makeScale(scale, scale, scale));
+  const parts: ObstacleModelPart[] = [];
+  scene.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    const geometry = (object.geometry as BufferGeometry).clone().applyMatrix4(object.matrixWorld).applyMatrix4(normalize);
+    parts.push({ geometry, material: object.material as Material });
+  });
+  return parts;
 }

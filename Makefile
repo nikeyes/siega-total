@@ -1,4 +1,4 @@
-.PHONY: install dev check test build preview
+.PHONY: install dev check test build size preview
 
 install:
 	npm ci
@@ -14,6 +14,9 @@ test:
 
 build:
 	npm run build
+
+size: build
+	node scripts/check-size.mjs
 
 preview:
 	npm run preview
