@@ -16,6 +16,7 @@ import {
 } from '../../src/logic/game';
 import { obstacleRadius } from '../../src/logic/obstacles';
 import { sampleLevel, stripesLevel, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
+import { levelFromRows } from './levelFixtures';
 
 const { width, depth } = config.field;
 const { startSize } = config.blade;
@@ -24,27 +25,6 @@ const EAST: Direction = { x: 1, z: 0 };
 const WEST: Direction = { x: -1, z: 0 };
 const NORTH: Direction = { x: 0, z: -1 };
 const SOUTH: Direction = { x: 0, z: 1 };
-
-const GRASS_BY_LETTER: Record<string, GrassType | null> = { g: 'green', i: 'ice', w: 'wheat', l: 'lavender', b: 'bramble', '.': null };
-
-/**
- * A level of 1 m cells drawn row by row, north to south: `g` green, `i` ice, `w` wheat,
- * `l` lavender, `b` bramble and `.` sand. Ice is the target unless `overrides` says otherwise.
- */
-function levelFromRows(rows: string[], overrides: Partial<LevelDefinition> = {}): LevelDefinition {
-  return {
-    number: 0,
-    seed: config.field.seed,
-    width: rows[0]!.length,
-    depth: rows.length,
-    cellSize: 1,
-    cells: rows.flatMap((row) => [...row].map((letter) => GRASS_BY_LETTER[letter]!)),
-    obstacles: [],
-    targets: ['ice'],
-    timeSeconds: config.level.timeSeconds,
-    ...overrides,
-  };
-}
 
 /** The M2 stripes level: green and ice, no obstacles. */
 function stripesGame(): Game {

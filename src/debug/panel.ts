@@ -10,6 +10,8 @@ import { texts } from '../texts';
 
 /** The FPS shown is the average over this window. */
 const FPS_WINDOW_SECONDS = 0.5;
+/** Coins the «Dar monedas» button adds, enough to buy a few upgrades. */
+const DEBUG_GIFT_COINS = 10_000;
 
 /** Settings read only when the level restarts; the panel labels them so. */
 const READ_ON_RESTART = new Set([
@@ -33,6 +35,10 @@ export interface DebugActions {
   markCut(cut: { blades: number[]; obstacles: number[] }): void;
   /** Plays `level` as level `level.number`. */
   playLevel(level: LevelDefinition): void;
+  /** Adds `amount` to the saved balance. */
+  giveCoins(amount: number): void;
+  /** Forgets the saved game and starts again from level 1. */
+  clearSave(): void;
 }
 
 /** A nested group of numeric settings, like `config.generator`. */
@@ -52,6 +58,7 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   addNumberFolder(gui, 'grassTypes', config.grassTypes);
   addNumberFolder(gui, 'obstacles', config.obstacles);
   addNumberFolder(gui, 'collision', config.collision);
+  addNumberFolder(gui, 'economy', config.economy);
   addNumberFolder(gui, 'generator', config.generator, () => {}, texts.debug.onGenerate);
 
   addLevelFolder(gui, getGame, actions);
@@ -59,6 +66,8 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   gui.add({ [texts.debug.win]: () => actions.markCut(cutAllTargets(getGame())) }, texts.debug.win);
   gui.add({ [texts.debug.threeSeconds]: () => (getGame().timeLeft = 3) }, texts.debug.threeSeconds);
   gui.add({ [texts.debug.restart]: () => actions.restart() }, texts.debug.restart);
+  gui.add({ [texts.debug.giveCoins]: () => actions.giveCoins(DEBUG_GIFT_COINS) }, texts.debug.giveCoins);
+  gui.add({ [texts.debug.clearSave]: () => actions.clearSave() }, texts.debug.clearSave);
   gui.add(
     { [texts.debug.copyConfig]: () => void navigator.clipboard.writeText(JSON.stringify(config, null, 2)) },
     texts.debug.copyConfig,

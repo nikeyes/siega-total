@@ -9,6 +9,9 @@ export const texts = {
     wonButton: 'Siguiente',
     lostTitle: '¡Se acabó el tiempo!',
     lostButton: 'Reintentar',
+    coins: 'Monedas',
+    timeBonus: 'Bonus de tiempo',
+    total: 'Total',
   },
   debug: {
     fps: 'FPS',
@@ -18,6 +21,8 @@ export const texts = {
     win: 'Ganar',
     threeSeconds: 'Tiempo 3 s',
     restart: 'Reiniciar',
+    giveCoins: 'Dar monedas',
+    clearSave: 'Borrar guardado',
     copyConfig: 'Copiar config',
     onRestart: '(al reiniciar)',
     onGenerate: '(al generar)',

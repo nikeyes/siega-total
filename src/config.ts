@@ -15,9 +15,19 @@ export const config = {
   },
   obstacles: {
     rock: { radius: 1.0 },
-    cactus: { radius: 1.4, minSize: 4, growthCuts: 20 },
-    watermelon: { radius: 0.45, minSize: 2, growthCuts: 5 },
-    strawberry: { radius: 0.25, minSize: 2, growthCuts: 5 },
+    cactus: { radius: 1.4, minSize: 4, growthCuts: 20, coins: 500 },
+    watermelon: { radius: 0.45, minSize: 2, growthCuts: 5, coins: 300 },
+    strawberry: { radius: 0.25, minSize: 2, growthCuts: 5, coins: 100 },
+  },
+  economy: {
+    coinsPerSecondLeft: 100,
+    /** The floating «+N» shows the coins of this interval added together. */
+    floatIntervalSeconds: 0.2,
+  },
+  boosters: {
+    upgrade: { price: 3000, startUses: 2 },
+    compass: { price: 2000, startUses: 2 },
+    clock: { price: 3000, startUses: 2 },
   },
   blade: {
     startSize: 1,

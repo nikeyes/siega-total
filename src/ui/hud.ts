@@ -4,11 +4,16 @@ import { GRASS_COLORS } from '../render/grassColors';
 import { OBSTACLE_COLORS } from '../render/obstacleColors';
 import { texts } from '../texts';
 import { formatClock } from './clock';
+import { formatCount } from './formatCount';
 
 /** The size pill hangs this far below the blade's center on screen, clear of the blade itself. */
 const SIZE_PILL_OFFSET_PX = 34;
 /** «Necesitas más tamaño» floats this far above the blade's center on screen. */
 const BLOCKED_NOTICE_OFFSET_PX = 70;
+/** A «+N» starts this far above the blade's center on screen and rises from there. */
+const COIN_FLOAT_OFFSET_PX = 40;
+/** «+N» elements reused in turn; each lives 0.6 s and one comes out at most every 0.2 s, so they never run out. */
+const COIN_FLOAT_COUNT = 6;
 const ICON_SPIKES = 5;
 
 export interface HudState {
@@ -23,6 +28,10 @@ export interface HudState {
   sizeLabelY: number;
   /** Starts «Necesitas más tamaño» above the blade. */
   showBlocked: boolean;
+  /** The balance with what this level has earned so far. */
+  coins: number;
+  /** Starts a «+N» above the blade with these coins. */
+  floatCoins: number | null;
 }
 
 /** What the HUD shows, rounded to what the player can tell apart, so equal displays need no DOM writes. */
@@ -35,21 +44,21 @@ export interface HudDisplay {
   growthPercent: number;
   sizeLabelX: number;
   sizeLabelY: number;
+  coinsLabel: string;
 }
 
 export function hudDisplay(state: HudState): HudDisplay {
   return {
     clock: formatClock(state.timeLeft),
     timePercent: toPercent(state.timeLeft / state.timeTotal),
-    targetCounts: state.remainingByTarget.map((remaining) => countFormat.format(remaining)),
+    targetCounts: state.remainingByTarget.map(formatCount),
     sizeLabel: `${texts.hud.size} ${state.size}`,
     growthPercent: toPercent(state.growthFraction),
     sizeLabelX: Math.round(state.sizeLabelX),
     sizeLabelY: Math.round(state.sizeLabelY),
+    coinsLabel: formatCount(state.coins),
   };
 }
-
-const countFormat = new Intl.NumberFormat('es-ES');
 
 export function levelLabel(levelNumber: number): string {
   return `${texts.hud.level} ${levelNumber}`;
@@ -65,7 +74,10 @@ export interface Hud {
   showLevel(level: LevelDefinition): void;
 }
 
-/** Timer and target card at the top left, the size pill that follows the blade and the blocked notice above it. */
+/**
+ * Timer and target card at the top left, coins at the top right, the size pill that follows the blade,
+ * and the blocked notice and the «+N» of the coins above it.
+ */
 export function createHud(container: HTMLElement): Hud {
   const top = element('div', 'hud');
   const timer = element('div', 'hud-timer');
@@ -83,7 +95,13 @@ export function createHud(container: HTMLElement): Hud {
   pill.append(pillFill, pillText);
   const blockedNotice = element('div', 'hud-blocked');
   blockedNotice.textContent = texts.hud.needBiggerSize;
-  container.append(top, pill, blockedNotice);
+  const coins = element('div', 'hud-coins');
+  coins.innerHTML = coinIconSvg();
+  const coinsText = element('span', 'hud-coins-text');
+  coins.append(coinsText);
+  const coinFloats = Array.from({ length: COIN_FLOAT_COUNT }, () => element('div', 'hud-float'));
+  let nextCoinFloat = 0;
+  container.append(top, coins, pill, blockedNotice, ...coinFloats);
 
   let counters: HTMLElement[] = [];
   let shown: Partial<HudDisplay> = {};
@@ -116,6 +134,14 @@ export function createHud(container: HTMLElement): Hud {
       blockedNotice.style.transform = `translate(calc(${display.sizeLabelX}px - 50%), ${display.sizeLabelY - BLOCKED_NOTICE_OFFSET_PX}px)`;
     }
     if (state.showBlocked) restartAnimation(blockedNotice, 'visible');
+    if (display.coinsLabel !== shown.coinsLabel) coinsText.textContent = display.coinsLabel;
+    if (state.floatCoins !== null) {
+      const float = coinFloats[nextCoinFloat]!;
+      nextCoinFloat = (nextCoinFloat + 1) % COIN_FLOAT_COUNT;
+      float.textContent = `+${formatCount(state.floatCoins)}`;
+      float.style.transform = `translate(calc(${display.sizeLabelX}px - 50%), ${display.sizeLabelY - COIN_FLOAT_OFFSET_PX}px)`;
+      restartAnimation(float, 'visible');
+    }
     shown = display;
   }
 
@@ -154,6 +180,15 @@ function tuftIconSvg(type: GrassType): string {
       <stop offset="0" stop-color="${hexColor(base)}" /><stop offset="1" stop-color="${hexColor(tip)}" />
     </linearGradient></defs>
     <g fill="url(#${gradientId})" stroke="#16324f" stroke-width="2" stroke-linejoin="round">${spikes}</g>
+  </svg>`;
+}
+
+/** A gold coin with a darker rim and a shine. */
+function coinIconSvg(): string {
+  return `<svg class="hud-coins-icon" viewBox="0 0 40 40" aria-hidden="true">
+    <circle cx="20" cy="20" r="17" fill="#f5a623" stroke="#16324f" stroke-width="3" />
+    <circle cx="20" cy="20" r="11" fill="#ffd23f" stroke="#c77c0e" stroke-width="2" />
+    <path d="M15 14 a8 8 0 0 1 8 -3" fill="none" stroke="#fff6c8" stroke-width="3" stroke-linecap="round" />
   </svg>`;
 }
 
