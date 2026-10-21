@@ -3,7 +3,7 @@ import { campaignSeeds } from '../../src/campaign';
 import { config } from '../../src/config';
 import { createGame, remainingTargets } from '../../src/logic/game';
 import { fallbackLevel, generateLevel } from '../../src/logic/generator';
-import { attemptSeed, firstValidLevel, levelFor } from '../../src/logic/progression';
+import { attemptSeed, firstValidLevel, levelFor, rebuildsFromSeed } from '../../src/logic/progression';
 import { validateLevel } from '../../src/logic/validation';
 
 const LEVELS = Array.from({ length: 60 }, (_, index) => index + 1);
@@ -123,5 +123,15 @@ describe('campaignSeeds', () => {
 describe('fallbackLevel', () => {
   it('is valid at every level', () => {
     for (const number of [1, 13, 25, 60]) expect(validateLevel(fallbackLevel(number)), `level ${number}`).toEqual({ valid: true });
+  });
+});
+
+describe('rebuildsFromSeed', () => {
+  it('is true for a generated level, so its seed can go into the campaign', () => {
+    expect(rebuildsFromSeed(firstValidLevel(12))).toBe(true);
+  });
+
+  it('is false for the fallback level, whose seed gives a different level', () => {
+    expect(rebuildsFromSeed(fallbackLevel(12))).toBe(false);
   });
 });

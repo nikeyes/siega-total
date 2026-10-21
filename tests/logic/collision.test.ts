@@ -249,18 +249,7 @@ function depthIntoCell(x: number, z: number, radius: number, column: number, row
 }
 
 describe('resolveCollisions between a rock and a wall', () => {
-  it.skip('keeps the blade out of a wheat wall when a rock squeezes it against the wall - BUG', () => {
-    /*
-     * ROOT CAUSE: each pass pushes out of cells first and obstacles last, so when a rock and a hard wall
-     * leave a gap narrower than the blade, the final rock push leaves the circle inside the wall.
-     * The same happens between a rock and the field edge (a few cm of overlap with the rock).
-     * CODE LOCATION: src/logic/collision.ts:30-35
-     * PROPOSED FIX: none for now; 3 projection passes cannot satisfy two walls that are closer than the
-     * blade's diameter. The overlap stays below the per-frame step (about 1 cm at 60 fps, 4 cm at 0.25 m)
-     * and the blade never gets through, so it is cosmetic.
-     * EXPECTED: the circle never enters the wheat cells
-     * ACTUAL: it sinks about 0.006 m into the wheat at x = 4
-     */
+  it('keeps the blade out of a wheat wall when a rock squeezes it against the wall', () => {
     // The rock's east edge is 0.5 m from the wheat at x = 4: too narrow for the blade.
     const level = levelFromRows(['ggggww', 'ggggww', 'ggggww', 'ggggww', 'ggggww', 'ggggww'], [{ type: 'rock', x: 2.5, z: 3 }]);
     const world = worldOf(level);

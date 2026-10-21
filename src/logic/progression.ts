@@ -1,5 +1,6 @@
 import { config } from '../config';
 import { fallbackLevel, generateLevel, type GeneratedLevel } from './generator';
+import type { LevelDefinition } from './levels';
 import { validateLevel } from './validation';
 
 /** Deterministic seed for attempt `attempt` of level `levelNumber`: both numbers mixed by an integer hash. */
@@ -29,4 +30,12 @@ export function levelFor(levelNumber: number, campaign: Readonly<Record<number, 
   if (seed !== undefined) return generateLevel(levelNumber, seed);
   const { attempt: _attempt, ...level } = firstValidLevel(levelNumber);
   return level;
+}
+
+/** True when generating the level's number and seed gives this same level back, so the seed can go into the campaign. */
+export function rebuildsFromSeed(level: LevelDefinition): boolean {
+  const rebuilt = generateLevel(level.number, level.seed);
+  return (
+    JSON.stringify([rebuilt.cells, rebuilt.obstacles, rebuilt.targets]) === JSON.stringify([level.cells, level.obstacles, level.targets])
+  );
 }
