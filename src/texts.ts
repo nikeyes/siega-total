@@ -1,6 +1,7 @@
 export const texts = {
   hud: {
     size: 'Tamaño',
+    needBiggerSize: 'Necesitas más tamaño',
   },
   result: {
     wonTitle: '¡Nivel completado!',

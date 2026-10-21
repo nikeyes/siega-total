@@ -105,8 +105,10 @@ export interface GrassView {
   markCut(indices: number[], time: number): void;
   /** Puts every blade back to standing. */
   reset(): void;
-  /** Makes the standing blades of `type` (an index into GRASS_TYPE_ORDER) glow; null turns it off. */
-  setHighlight(type: number | null): void;
+  /** Makes the standing blades of `types` (indices into GRASS_TYPE_ORDER) glow; empty turns it off. */
+  setHighlight(types: readonly number[]): void;
+  /** Takes the grass out of the scene and frees its geometry and materials. */
+  dispose(): void;
 }
 
 interface LayerView {
@@ -148,11 +150,21 @@ export function createGrassView(scene: Scene, field: Field, seed: number): Grass
     }
   }
 
-  function setHighlight(type: number | null): void {
-    for (const layer of layers) layer.material.uniforms.highlight!.value = layer.type === type ? 1 : 0;
+  function setHighlight(types: readonly number[]): void {
+    for (const layer of layers) layer.material.uniforms.highlight!.value = types.includes(layer.type) ? 1 : 0;
   }
 
-  return { setTime, markCut, reset, setHighlight };
+  function dispose(): void {
+    for (const { mesh, material } of layers) {
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+      material.dispose();
+      mesh.dispose();
+    }
+    geometry.dispose();
+  }
+
+  return { setTime, markCut, reset, setHighlight, dispose };
 }
 
 function createLayerView(tuftGeometry: BufferGeometry, type: number, instanceCount: number): LayerView {

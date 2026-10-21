@@ -10,6 +10,7 @@ import {
   type FieldOptions,
   type GrassType,
 } from '../../src/logic/field';
+import type { LevelDefinition } from '../../src/logic/levels';
 
 const SMALL_WIDTH = 6;
 const SMALL_DEPTH = 4;
@@ -45,12 +46,49 @@ function cellOf(field: Field, blade: number, cellSize: number): number {
   return Math.floor(field.positionsZ[blade]! / cellSize) * columns + Math.floor(field.positionsX[blade]! / cellSize);
 }
 
+/** A small all-green level; only the fields under test need overriding. */
+function smallLevel(overrides: Partial<LevelDefinition> = {}): LevelDefinition {
+  return {
+    number: 1,
+    seed: config.field.seed,
+    width: SMALL_WIDTH,
+    depth: SMALL_DEPTH,
+    cellSize: 1,
+    cells: uniformCells('green'),
+    obstacles: [],
+    targets: ['green'],
+    timeSeconds: 10,
+    ...overrides,
+  };
+}
+
 describe('levelFieldOptions', () => {
-  it('takes the layout from the level and the blade count, grid and seed from the configuration', () => {
+  it('takes the layout and seed from the level, and the blade count and grid from the configuration', () => {
     const cells: (GrassType | null)[] = ['ice', null];
-    const level = { width: 4, depth: 2, cellSize: 2, cells, target: 'ice' as const, timeSeconds: 10 };
-    const { bladeCount, gridCellSize, seed } = config.field;
-    expect(levelFieldOptions(level)).toEqual({ width: 4, depth: 2, cellSize: 2, cells, bladeCount, gridCellSize, seed });
+    const level = smallLevel({ seed: 777, width: 4, depth: 2, cellSize: 2, cells });
+    const { bladeCount, gridCellSize } = config.field;
+    expect(levelFieldOptions(level)).toEqual({ width: 4, depth: 2, cellSize: 2, cells, bladeCount, gridCellSize, seed: 777 });
+  });
+
+  it('keeps a level seed of 0 instead of falling back to the configured seed', () => {
+    expect(levelFieldOptions(smallLevel({ seed: 0 })).seed).toBe(0);
+  });
+
+  describe('with levels that differ only in seed', () => {
+    const levelWithSeed = (seed: number) => smallLevel({ seed });
+
+    it('places the blades differently', () => {
+      const first = createField(levelFieldOptions(levelWithSeed(1)));
+      const second = createField(levelFieldOptions(levelWithSeed(2)));
+      expect([...second.positionsX]).not.toEqual([...first.positionsX]);
+    });
+
+    it('places the blades at the same positions for the same level seed', () => {
+      const first = createField(levelFieldOptions(levelWithSeed(42)));
+      const second = createField(levelFieldOptions(levelWithSeed(42)));
+      expect([...second.positionsX]).toEqual([...first.positionsX]);
+      expect([...second.positionsZ]).toEqual([...first.positionsZ]);
+    });
   });
 });
 
@@ -131,17 +169,42 @@ describe('createField', () => {
     expect([...field.countByType].every((count) => count === 0)).toBe(true);
   });
 
-  it.skip('places no blades on a field that is all sand - BUG', () => {
-    /*
-     * ROOT CAUSE: with no grass cells, `blade % grassCells.length` is NaN, so every blade gets
-     *   an undefined cell: NaN positions and type 255 (indexOf(undefined) = -1 in a Uint8Array).
-     * CODE LOCATION: src/logic/field.ts createField, `grassCells[blade % grassCells.length]`
-     * PROPOSED FIX: place no blades when there are no grass cells (bladeCount 0), or throw.
-     * EXPECTED: bladeCount 0, or an error
-     * ACTUAL: bladeCount blades with NaN positions, uncounted in countByType
-     */
-    const field = createSmallField({ width: 2, depth: 2, cells: [null, null, null, null], bladeCount: 10 });
+  describe('on a field that is all sand', () => {
+    const allSand = () => createSmallField({ width: 2, depth: 2, cells: [null, null, null, null], bladeCount: 10 });
+
+    it('places no blades even when blades are requested', () => {
+      expect(allSand().bladeCount).toBe(0);
+    });
+
+    it('has empty blade arrays and counts', () => {
+      const field = allSand();
+      expect([field.positionsX.length, field.positionsZ.length, field.types.length, field.cut.length]).toEqual([0, 0, 0, 0]);
+      expect([...field.countByType].every((count) => count === 0)).toBe(true);
+      expect(field.cutCount).toBe(0);
+    });
+
+    it('has a spatial grid with no blades in any cell', () => {
+      const { grid } = allSand();
+      expect(grid.cellBlades.length).toBe(0);
+      expect([...grid.cellStart].every((start) => start === 0)).toBe(true);
+    });
+
+    it('cuts nothing with a circle covering the whole field', () => {
+      const field = allSand();
+      expect(cutInCircle(field, 1, 1, 10, Infinity)).toEqual([]);
+      expect(field.cutCount).toBe(0);
+    });
+  });
+
+  it('places no blades on a field with no cells at all', () => {
+    const field = createSmallField({ cells: [], bladeCount: 10 });
     expect(field.bladeCount).toBe(0);
+  });
+
+  it('places blades on a field with a single grass cell among sand', () => {
+    const field = createSmallField({ width: 2, depth: 2, cells: [null, null, null, 'bramble'], bladeCount: 5 });
+    expect(field.bladeCount).toBe(5);
+    expect(field.countByType[GRASS_TYPE_ORDER.indexOf('bramble')]).toBe(5);
   });
 });
 

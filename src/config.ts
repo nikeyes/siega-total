@@ -13,6 +13,12 @@ export const config = {
     lavender: { minSize: 3, coins: 3 },
     bramble: { minSize: 4, coins: 4 },
   },
+  obstacles: {
+    rock: { radius: 1.0 },
+    cactus: { radius: 1.4, minSize: 4, growthCuts: 20 },
+    watermelon: { radius: 0.45, minSize: 2, growthCuts: 5 },
+    strawberry: { radius: 0.25, minSize: 2, growthCuts: 5 },
+  },
   blade: {
     startSize: 1,
     baseRadius: 0.5,
@@ -27,6 +33,11 @@ export const config = {
     stripeWidthMeters: 3,
     winWaveSpeed: 25,
     highlightBelow: 10,
+  },
+  collision: {
+    /** Passes over the walls each step, so corners between two walls resolve. */
+    iterations: 3,
+    blockedMessageSeconds: 1,
   },
   input: {
     joystickDeadZonePx: 10,

@@ -5,11 +5,12 @@ import { hudDisplay, type HudState } from '../../src/ui/hud';
 const STATE: HudState = {
   timeLeft: 45.3,
   timeTotal: 90,
-  remainingFraction: 0.5,
+  remainingByTarget: [1284, 3],
   size: 3,
   growthFraction: 0.25,
   sizeLabelX: 195,
   sizeLabelY: 422,
+  showBlocked: false,
 };
 
 describe('hudDisplay', () => {
@@ -19,8 +20,16 @@ describe('hudDisplay', () => {
     expect(display.timePercent).toBe(50);
   });
 
-  it('fills the target bar with the target grass still standing', () => {
-    expect(hudDisplay({ ...STATE, remainingFraction: 0.5 }).targetPercent).toBe(50);
+  it('shows one counter per target, in the order of the level', () => {
+    expect(hudDisplay(STATE).targetCounts).toEqual(['1284', '3']);
+  });
+
+  it('keeps showing 0 for a target already cleared while others remain', () => {
+    expect(hudDisplay({ ...STATE, remainingByTarget: [0, 3] }).targetCounts).toEqual(['0', '3']);
+  });
+
+  it('groups thousands the Spanish way from five digits', () => {
+    expect(hudDisplay({ ...STATE, remainingByTarget: [12840] }).targetCounts).toEqual(['12.840']);
   });
 
   it('labels the size pill with the blade size and fills it toward the next size', () => {
@@ -39,10 +48,8 @@ describe('hudDisplay', () => {
     expect(hudDisplay(later)).toEqual(hudDisplay(STATE));
   });
 
-  it('shows a full ring and an empty bar at the extremes', () => {
-    const display = hudDisplay({ ...STATE, timeLeft: STATE.timeTotal, remainingFraction: 0 });
-    expect(display.timePercent).toBe(100);
-    expect(display.targetPercent).toBe(0);
+  it('shows a full ring when no time has passed', () => {
+    expect(hudDisplay({ ...STATE, timeLeft: STATE.timeTotal }).timePercent).toBe(100);
   });
 
   it('shows an empty ring and 0:00 when the time is over', () => {
@@ -54,8 +61,7 @@ describe('hudDisplay', () => {
   it.each([
     [0.333, 33],
     [0.666, 67],
-  ])('rounds a bar at %s to the nearest whole percent, %s', (fraction, percent) => {
-    const display = hudDisplay({ ...STATE, remainingFraction: fraction, growthFraction: fraction });
-    expect([display.targetPercent, display.growthPercent]).toEqual([percent, percent]);
+  ])('rounds the size pill at %s to the nearest whole percent, %s', (fraction, percent) => {
+    expect(hudDisplay({ ...STATE, growthFraction: fraction }).growthPercent).toBe(percent);
   });
 });
