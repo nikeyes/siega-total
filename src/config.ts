@@ -10,17 +10,17 @@ interface QualityLevelSettings {
 
 /** One clipping flies for every bladesPerClipping blades cut, and no more than maxClippingsPerFrame in one frame. */
 const qualityLevels = {
-  high: { bladeCount: 20_000, maxPixelRatio: 2, shadow: true, clippings: 'persistent', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
-  medium: { bladeCount: 12_000, maxPixelRatio: 1.5, shadow: true, clippings: 'fade', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
-  low: { bladeCount: 6_000, maxPixelRatio: 1, shadow: false, clippings: 'fade', bladesPerClipping: 9, maxClippingsPerFrame: 10 },
+  high: { bladeCount: 10_800, maxPixelRatio: 2, shadow: true, clippings: 'persistent', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
+  medium: { bladeCount: 6_500, maxPixelRatio: 1.5, shadow: true, clippings: 'fade', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
+  low: { bladeCount: 3_200, maxPixelRatio: 1, shadow: false, clippings: 'fade', bladesPerClipping: 9, maxClippingsPerFrame: 10 },
 } satisfies Record<string, QualityLevelSettings>;
 
 export const config = {
   field: {
-    width: 30,
-    depth: 30,
+    width: 22,
+    depth: 22,
     /** The blade count the game rules are tuned for; each blade cut counts referenceBladeCount / bladeCount of it. */
-    referenceBladeCount: 12_000,
+    referenceBladeCount: 6_500,
     gridCellSize: 1,
     seed: 1,
   },
