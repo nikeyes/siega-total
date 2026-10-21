@@ -590,9 +590,9 @@ export function sizeUpRing(age: number, bladeRadius: number): { radius: number; 
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 
@@ -669,9 +669,9 @@ export function createCelebration(container: HTMLElement): Celebration;
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 
@@ -742,21 +742,21 @@ Ninguna prueba nueva de la interfaz: `createTutorialHint` es solo DOM. El evento
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
-- [ ] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
 
 #### Verificación en Chrome (agente, `?debug`, GIF `m5-b-efectos.gif`). Es el criterio de salida automatizable de M5:
-- [ ] **Tutorial:**
+- [x] **Tutorial:**
   - con `localStorage` vacío, la página abre en Inicio; al pulsar «Jugar», `.tutorial` es visible y una captura muestra la mano y el texto;
   - al pulsar D, `.tutorial` se oculta y `localStorage` tiene `tutorialDone: true`;
   - tras recargar y pulsar «Jugar», no aparece.
-- [ ] «Reiniciar tutorial» y después «Jugar» vuelven a mostrar la mano. Con «Borrar progreso», también.
-- [ ] **Subida de tamaño:** el booster Mejora hace visible «¡Tamaño N!» en `.hud-size-up` y pone la clase `pulse` en la píldora. Una captura en ese momento muestra el anillo en el suelo.
-- [ ] **Restos:** una captura con D pulsada sobre la hierba muestra trozos de su color en el aire.
-- [ ] **Victoria:** «Ganar» con la captura durante la onda muestra el anillo de la onda. Al abrir la Victoria, `.celebration` tiene 80 piezas y una captura muestra el confeti y las monedas. Los botones «Siguiente» y «Tienda» siguen respondiendo durante la caída. A los 3 s, `.celebration` está vacío.
-- [ ] Se juegan los niveles 1 → 5 con «Ganar» y «Siguiente», sin errores en la consola.
+- [x] «Reiniciar tutorial» y después «Jugar» vuelven a mostrar la mano. Con «Borrar progreso», también.
+- [x] **Subida de tamaño:** el booster Mejora hace visible «¡Tamaño N!» en `.hud-size-up` y pone la clase `pulse` en la píldora. Una captura en ese momento muestra el anillo en el suelo.
+- [x] **Restos:** una captura con D pulsada sobre la hierba muestra trozos de su color en el aire.
+- [x] **Victoria:** «Ganar» con la captura durante la onda muestra el anillo de la onda. Al abrir la Victoria, `.celebration` tiene 80 piezas y una captura muestra el confeti y las monedas. Los botones «Siguiente» y «Tienda» siguen respondiendo durante la caída. A los 3 s, `.celebration` está vacío.
+- [x] Se juegan los niveles 1 → 5 con «Ganar» y «Siguiente», sin errores en la consola.
 
 #### Verificación manual (usuario):
 - [ ] La mano se entiende sin texto en el móvil (juicio visual).

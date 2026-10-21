@@ -3,6 +3,7 @@ export const texts = {
     size: 'Tamaño',
     level: 'Nivel',
     needBiggerSize: 'Necesitas más tamaño',
+    sizeUp: '¡Tamaño {size}!',
   },
   result: {
     wonTitle: '¡Nivel completado!',
@@ -45,6 +46,10 @@ export const texts = {
     confirmClear: '¿Seguro? Toca otra vez',
     back: 'Volver',
   },
+  tutorial: {
+    drag: 'Arrastra para mover',
+    keys: 'o usa WASD / flechas',
+  },
   shop: {
     title: 'Tienda',
     upgrades: 'Mejoras',
@@ -71,6 +76,7 @@ export const texts = {
     restart: 'Reiniciar',
     giveCoins: 'Dar monedas',
     clearSave: 'Borrar guardado',
+    resetTutorial: 'Reiniciar tutorial',
     copyConfig: 'Copiar config',
     onRestart: '(al reiniciar)',
     onGenerate: '(al generar)',

@@ -36,7 +36,7 @@ El juego usa TypeScript + Vite + Three.js, sin motor. Godot queda descartado par
 
 **Configuración obligatoria:** en `vite.config.ts`, `base: '/siega-total/'`.
 
-**Objetivo de carga inicial:** menos de 2 MB comprimidos, sin contar sonidos.
+**Objetivo de carga inicial:** menos de 2 MB comprimidos, sonidos incluidos.
 
 ## Reglas del juego
 
@@ -180,7 +180,7 @@ Victoria, Derrota y Pausa también vuelven a Inicio. En Derrota, el reloj sigue 
 1. Progresión lineal: Jugar abre el siguiente nivel. No hay selector de niveles.
 2. Victoria muestra monedas ganadas y bonus. Botón principal: Siguiente. Botón secundario: Tienda.
 3. Pausa automática al perder el foco de la pestaña (`visibilitychange`).
-4. Primera partida: el nivel 1 empieza directo, con una mano animada que enseña el joystick.
+4. Primera partida: al pulsar Jugar por primera vez, una mano animada enseña el joystick. Desaparece con el primer movimiento.
 5. Ajustes: sonido, vibración, calidad, borrar progreso (con confirmación).
 
 ### Guardado
@@ -247,8 +247,8 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | Briznas, cuchilla, restos, suelo | Código |
 | Obstáculos (cactus, rocas, frutas) | Paquetes CC0 en glTF (Kenney, Quaternius) |
 | Iconos de interfaz | Paquetes CC0 (Kenney) |
-| Efectos de sonido | Paquetes CC0 (Kenney) + generador tipo jsfxr |
-| Música | Pista CC0 en bucle, o ninguna en la v1.0 |
+| Efectos de sonido | Paquetes CC0 (Kenney), en MP3 |
+| Música | Ninguna en la v1.0 |
 
 Regla de estilo: colores planos y saturados, sin texturas fotográficas. Fuente redondeada y gruesa con contorno en la interfaz.
 
@@ -322,6 +322,6 @@ M1 va primero porque es el mayor riesgo: si cortar no es satisfactorio o no rind
 ### Preguntas abiertas
 
 - Valores concretos de equilibrio (tiempos, precios, radios): se fijan en M2–M6 con el panel de depuración.
-- Música: pista CC0 o ninguna en la v1.0.
+- Música: ninguna en la v1.0.
 - Fase 2 (anuncios, dominio propio, portales): fuera de esta especificación.
 

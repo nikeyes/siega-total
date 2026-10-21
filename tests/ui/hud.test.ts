@@ -13,6 +13,7 @@ const STATE: HudState = {
   showBlocked: false,
   coins: 345,
   floatCoins: null,
+  sizeUp: null,
   boosters: {
     upgrade: { uses: 2, usable: true },
     compass: { uses: 0, usable: true },
@@ -47,6 +48,14 @@ describe('hudDisplay', () => {
     const display = hudDisplay(STATE);
     expect(display.sizeLabel).toBe(`${texts.hud.size} 3`);
     expect(display.growthPercent).toBe(25);
+  });
+
+  it('announces the new size in the frame the blade grows', () => {
+    expect(hudDisplay({ ...STATE, sizeUp: 3 }).sizeUpLabel).toBe(texts.hud.sizeUp.replace('{size}', '3'));
+  });
+
+  it('announces no size when the blade did not grow this frame', () => {
+    expect(hudDisplay(STATE).sizeUpLabel).toBeNull();
   });
 
   it('places the size pill on whole pixels, so subpixel blade moves need no DOM write', () => {

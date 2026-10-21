@@ -255,7 +255,12 @@ body,
 }
 
 /* Away from the game, the layers show the field behind them without the HUD. */
-#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-boosters, .hud-size, .hud-float, .hud-blocked) {
+#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-boosters, .hud-size, .hud-float, .hud-blocked, .hud-size-up) {
+  display: none;
+}
+
+/* The hand only teaches while the level is in play. */
+#app:not([data-screen='playing']) .tutorial {
   display: none;
 }
 
@@ -326,7 +331,59 @@ body,
   pointer-events: none;
   text-align: center;
   font-family: var(--hud-font);
-  will-change: transform;
+  will-change: translate, scale;
+}
+
+.hud-size.pulse {
+  animation: hud-size-pulse 0.4s ease-out;
+}
+
+@keyframes hud-size-pulse {
+  0% {
+    scale: 1;
+    filter: brightness(1);
+  }
+  40% {
+    scale: 1.25;
+    filter: brightness(1.4);
+  }
+  100% {
+    scale: 1;
+    filter: brightness(1);
+  }
+}
+
+.hud-size-up {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #fff;
+  font: 900 24px var(--hud-font);
+  text-shadow: var(--hud-outline);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  will-change: translate, scale, opacity;
+}
+
+.hud-size-up.visible {
+  animation: hud-size-up-rise 0.8s ease-out forwards;
+}
+
+@keyframes hud-size-up-rise {
+  0% {
+    opacity: 1;
+    margin-top: 0;
+    scale: 0.8;
+  }
+  30% {
+    scale: 1.2;
+  }
+  100% {
+    opacity: 0;
+    margin-top: -40px;
+    scale: 1;
+  }
 }
 
 .hud-size-fill {
@@ -569,4 +626,182 @@ body,
 .result-continue-icon {
   width: 22px;
   height: 22px;
+}
+
+/* Above the layers, but every touch goes through to their buttons. */
+.celebration {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.celebration-piece {
+  position: absolute;
+  left: var(--left);
+  top: 0;
+  translate: 0 -10vh;
+  opacity: 0;
+  animation: celebration-fall var(--fall) linear var(--delay) forwards;
+}
+
+.celebration-confetti {
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--color);
+}
+
+.celebration-coin-icon {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+
+@keyframes celebration-fall {
+  0% {
+    opacity: 1;
+    translate: 0 -10vh;
+    rotate: 0deg;
+  }
+  100% {
+    opacity: 1;
+    translate: var(--drift) 110vh;
+    rotate: var(--spin);
+  }
+}
+
+
+/* Centred in the lower half; touches go through it to the joystick. */
+.tutorial {
+  position: absolute;
+  left: 50%;
+  top: 72%;
+  translate: -50% -50%;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  font-family: var(--hud-font);
+}
+
+.tutorial.visible {
+  display: flex;
+}
+
+.tutorial-stage {
+  position: relative;
+  width: 140px;
+  height: 140px;
+}
+
+/* Like the joystick base, under the finger while it presses. */
+.tutorial-touch {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  opacity: 0;
+  animation: tutorial-touch 2.4s ease-in-out infinite;
+}
+
+/* The fingertip, at (17, 3) of the icon box, sits on the centre of the stage. */
+.tutorial-hand {
+  position: absolute;
+  left: calc(50% - 20.4px);
+  top: calc(50% - 3.6px);
+  width: 48px;
+  height: 48px;
+  transform-origin: 20.4px 3.6px;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.3));
+  animation: tutorial-drag 2.4s ease-in-out infinite;
+}
+
+.tutorial-text,
+.tutorial-keys {
+  margin: 4px 0 0;
+  color: #fff;
+  font-weight: 900;
+  text-shadow: var(--hud-outline);
+  white-space: nowrap;
+}
+
+.tutorial-text {
+  font-size: 22px;
+}
+
+.tutorial-keys {
+  display: none;
+  font-size: 16px;
+}
+
+@media (pointer: fine) {
+  .tutorial-keys {
+    display: block;
+  }
+}
+
+/* Presses at the centre, draws a 60 px circle around it and lifts. */
+@keyframes tutorial-drag {
+  0% {
+    transform: translate(0, 0) scale(1.25);
+  }
+  12% {
+    transform: translate(0, 0) scale(1);
+  }
+  20% {
+    transform: translate(30px, 0) scale(1);
+  }
+  27.5% {
+    transform: translate(21px, 21px) scale(1);
+  }
+  35% {
+    transform: translate(0, 30px) scale(1);
+  }
+  42.5% {
+    transform: translate(-21px, 21px) scale(1);
+  }
+  50% {
+    transform: translate(-30px, 0) scale(1);
+  }
+  57.5% {
+    transform: translate(-21px, -21px) scale(1);
+  }
+  65% {
+    transform: translate(0, -30px) scale(1);
+  }
+  72.5% {
+    transform: translate(21px, -21px) scale(1);
+  }
+  80% {
+    transform: translate(30px, 0) scale(1);
+  }
+  88% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(0, 0) scale(1.25);
+  }
+}
+
+@keyframes tutorial-touch {
+  0%,
+  8% {
+    opacity: 0;
+  }
+  14%,
+  86% {
+    opacity: 1;
+  }
+  94%,
+  100% {
+    opacity: 0;
+  }
 }

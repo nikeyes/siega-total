@@ -12,6 +12,8 @@ import { boosterIconSvg, coinIconSvg, pauseIconSvg } from './icons';
 const SIZE_PILL_OFFSET_PX = 34;
 /** «Necesitas más tamaño» floats this far above the blade's center on screen. */
 const BLOCKED_NOTICE_OFFSET_PX = 70;
+/** «¡Tamaño N!» floats this far above the blade's center on screen, above «Necesitas más tamaño». */
+const SIZE_UP_OFFSET_PX = 110;
 /** A «+N» starts this far above the blade's center on screen and rises from there. */
 const COIN_FLOAT_OFFSET_PX = 40;
 /** «+N» elements reused in turn; each lives 0.6 s and one comes out at most every 0.2 s, so they never run out. */
@@ -34,6 +36,8 @@ export interface HudState {
   coins: number;
   /** Starts a «+N» above the blade with these coins. */
   floatCoins: number | null;
+  /** The new size in the frame the blade grows, null in the others. */
+  sizeUp: number | null;
   /** Uses left of each booster, and whether the game lets it be used now. */
   boosters: Record<BoosterKind, { uses: number; usable: boolean }>;
 }
@@ -49,6 +53,8 @@ export interface HudDisplay {
   sizeLabelX: number;
   sizeLabelY: number;
   coinsLabel: string;
+  /** «¡Tamaño N!» in the frame the blade grows. */
+  sizeUpLabel: string | null;
 }
 
 export function hudDisplay(state: HudState): HudDisplay {
@@ -61,6 +67,7 @@ export function hudDisplay(state: HudState): HudDisplay {
     sizeLabelX: Math.round(state.sizeLabelX),
     sizeLabelY: Math.round(state.sizeLabelY),
     coinsLabel: formatCount(state.coins),
+    sizeUpLabel: state.sizeUp === null ? null : texts.hud.sizeUp.replace('{size}', String(state.sizeUp)),
   };
 }
 
@@ -101,7 +108,7 @@ export interface Hud {
 
 /**
  * Timer and target card at the top left, coins and the pause button at the top right, the boosters at the bottom right, the size pill that follows the blade,
- * and the blocked notice and the «+N» of the coins above it.
+ * and the blocked notice, «¡Tamaño N!» and the «+N» of the coins above it.
  */
 export function createHud(container: HTMLElement, actions: HudActions): Hud {
   const top = element('div', 'hud');
@@ -120,6 +127,7 @@ export function createHud(container: HTMLElement, actions: HudActions): Hud {
   pill.append(pillFill, pillText);
   const blockedNotice = element('div', 'hud-blocked');
   blockedNotice.textContent = texts.hud.needBiggerSize;
+  const sizeUpNotice = element('div', 'hud-size-up');
   const corner = element('div', 'hud-corner');
   const coins = element('div', 'hud-coins');
   coins.innerHTML = coinIconSvg('hud-coins-icon');
@@ -149,7 +157,7 @@ export function createHud(container: HTMLElement, actions: HudActions): Hud {
   });
   const coinFloats = Array.from({ length: COIN_FLOAT_COUNT }, () => element('div', 'hud-float'));
   let nextCoinFloat = 0;
-  container.append(top, corner, boosters, pill, blockedNotice, ...coinFloats);
+  container.append(top, corner, boosters, pill, blockedNotice, sizeUpNotice, ...coinFloats);
 
   let counters: HTMLElement[] = [];
   let shown: Partial<HudDisplay> = {};
@@ -178,10 +186,17 @@ export function createHud(container: HTMLElement, actions: HudActions): Hud {
     if (display.sizeLabel !== shown.sizeLabel) pillText.textContent = display.sizeLabel;
     if (display.growthPercent !== shown.growthPercent) pillFill.style.width = `${display.growthPercent}%`;
     if (display.sizeLabelX !== shown.sizeLabelX || display.sizeLabelY !== shown.sizeLabelY) {
-      pill.style.transform = `translate(calc(${display.sizeLabelX}px - 50%), ${display.sizeLabelY + SIZE_PILL_OFFSET_PX}px)`;
+      // The `translate` property, not `transform`: the pulse and the size-up animate `scale`, which would scale a `transform` offset too.
+      pill.style.translate = `calc(${display.sizeLabelX}px - 50%) ${display.sizeLabelY + SIZE_PILL_OFFSET_PX}px`;
       blockedNotice.style.transform = `translate(calc(${display.sizeLabelX}px - 50%), ${display.sizeLabelY - BLOCKED_NOTICE_OFFSET_PX}px)`;
+      sizeUpNotice.style.translate = `calc(${display.sizeLabelX}px - 50%) ${display.sizeLabelY - SIZE_UP_OFFSET_PX}px`;
     }
     if (state.showBlocked) restartAnimation(blockedNotice, 'visible');
+    if (display.sizeUpLabel !== null) {
+      sizeUpNotice.textContent = display.sizeUpLabel;
+      restartAnimation(sizeUpNotice, 'visible');
+      restartAnimation(pill, 'pulse');
+    }
     if (display.coinsLabel !== shown.coinsLabel) coinsText.textContent = display.coinsLabel;
     boosterButtons(state).forEach(({ usesLabel, disabled }, index) => {
       const { button, uses } = boosterElements[index]!;

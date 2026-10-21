@@ -5,6 +5,7 @@ import { campaignSeeds } from './campaign';
 import { config } from './config';
 import type { DebugPanel } from './debug/panel';
 import { bladeRadius, growthFraction } from './logic/blade';
+import { GRASS_TYPE_ORDER } from './logic/field';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
 import { buyBooster, canUseBooster, continueWithClock, nearestTarget, useBooster } from './logic/boosters';
 import { bankCoins } from './logic/economy';
@@ -23,6 +24,10 @@ import { levelFor } from './logic/progression';
 import { defaultSave, type BoosterKind } from './logic/save';
 import { bonusesFor, buyUpgrade } from './logic/upgrades';
 import { createBurstView } from './render/burst';
+import { clippingBlades } from './render/clippings';
+import { GRASS_COLORS } from './render/grassColors';
+import { createGroundRing } from './render/groundRing';
+import { sizeUpRing } from './render/ringMath';
 import { OBSTACLE_COLORS } from './render/obstacleColors';
 import { loadObstacleModels, placeholderObstacleModels, type ObstacleModels } from './render/obstacleModels';
 import { createObstacleView, type ObstacleView } from './render/obstacles';
@@ -36,6 +41,7 @@ import { createHud } from './ui/hud';
 import { createJoystick } from './ui/joystick';
 import { createKeyboard } from './ui/keyboard';
 import { createBlockedNotice } from './ui/blockedNotice';
+import { createCelebration } from './ui/celebration';
 import { createCoinFloats } from './ui/coinFloats';
 import { createHomeScreen } from './ui/home';
 import { setLayerVisible } from './ui/layer';
@@ -44,12 +50,18 @@ import { createResultOverlay } from './ui/result';
 import { createSettingsScreen } from './ui/settings';
 import { createShopScreen } from './ui/shop';
 import { clearSave, readSave, writeSave } from './ui/storage';
+import { createTutorialHint } from './ui/tutorial';
 import './ui/styles.css';
 
 /** Longest step the game takes, so coming back to the tab does not make the blade jump. */
 const MAX_FRAME_SECONDS = 0.05;
 /** Burst pieces thrown when a piece of each kind is cut; a cactus is bigger, so it throws more. */
 const BURST_PIECES = { watermelon: 12, strawberry: 12, cactus: 24 } as const;
+/** The frame rate the clippings' pool is sized for. */
+const CLIPPING_POOL_FRAMES_PER_SECOND = 60;
+const SIZE_UP_RING_COLOR = 0xffffff;
+const WAVE_RING_COLOR = 0xfff3b0;
+const WAVE_RING_OPACITY = 0.8;
 /** Entries kept in the ?debug feedback log. */
 const FEEDBACK_LOG_LENGTH = 200;
 
@@ -84,6 +96,21 @@ container.addEventListener('click', (event) => {
 
 const gameScene = createGameScene(container, config.field.width, config.field.depth);
 const burst = createBurstView(gameScene.scene);
+// Bits of cut grass: flat, smaller and lower than the fruit burst.
+// The pool holds a whole lifetime of clippings at the per-frame cap, so none is reused mid-flight during the win wave.
+const clippings = createBurstView(gameScene.scene, {
+  poolSize: Math.ceil(config.effects.maxClippingsPerFrame * config.effects.clippingSeconds * CLIPPING_POOL_FRAMES_PER_SECOND),
+  geometry: 'flat',
+  pieceSize: 0.14,
+  lifetimeSeconds: config.effects.clippingSeconds,
+  minUpSpeed: 1.5,
+  maxUpSpeed: 3,
+  maxSideSpeed: 1.8,
+});
+const sizeUpRingView = createGroundRing(gameScene.scene, SIZE_UP_RING_COLOR);
+const waveRingView = createGroundRing(gameScene.scene, WAVE_RING_COLOR);
+/** Seconds since the blade last grew; Infinity when its ring is not showing. */
+let sizeUpAge = Infinity;
 const blockedNotice = createBlockedNotice();
 const coinFloats = createCoinFloats();
 const bladeView = createBladeView(gameScene.scene);
@@ -172,6 +199,9 @@ const settingsScreen = createSettingsScreen(
   },
   canVibrate(),
 );
+const tutorialHint = createTutorialHint(container);
+// Last in the container, so the confetti falls over the result layer.
+const celebration = createCelebration(container);
 
 /** What the player sees; the game only steps while it is 'playing' or showing the result. */
 type Screen = 'home' | 'playing' | 'paused' | 'result' | 'shop' | 'settings';
@@ -192,6 +222,7 @@ function showScreen(next: Screen): void {
   screen = next;
   // The CSS hides the HUD on the screens away from the game.
   container!.dataset.screen = next;
+  if (next !== 'result') celebration.clear();
   for (const [name, layer] of Object.entries(SCREEN_LAYERS)) setLayerVisible(layer, name === next);
   renderSave();
 }
@@ -241,8 +272,12 @@ function playLevel(level: LevelDefinition): void {
   grass?.dispose();
   obstacleView?.dispose();
   game = createGame(level, bonusesFor(save.upgrades));
+  sizeUpAge = Infinity;
   // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
   feedback.track(game);
+  // Until the first move, every new level brings the hand back; the CSS only shows it while playing.
+  if (save.tutorialDone) tutorialHint.hide();
+  else tutorialHint.show();
   grass = createGrassView(gameScene.scene, game.field, level.seed);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);
@@ -324,6 +359,10 @@ if (debugging) {
         renderSave();
       },
       clearSave: clearProgress,
+      resetTutorial: () => {
+        save.tutorialDone = false;
+        writeSave(save);
+      },
     });
   });
 }
@@ -363,6 +402,7 @@ function playFeedback(event: FeedbackEvent): void {
       soundPlayer.play('obstacleCut');
       break;
     case 'sizeUp':
+      sizeUpAge = 0;
       soundPlayer.play('sizeUp');
       vibration.pulse();
       break;
@@ -371,12 +411,18 @@ function playFeedback(event: FeedbackEvent): void {
       break;
     case 'won':
       soundPlayer.play('coins');
+      celebration.play(game.level.seed);
       break;
     case 'lost':
       soundPlayer.play('lose');
       break;
-    case 'cut':
     case 'started':
+      if (save.tutorialDone) break;
+      tutorialHint.hide();
+      save.tutorialDone = true;
+      writeSave(save);
+      break;
+    case 'cut':
       break;
   }
 }
@@ -401,6 +447,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const zipRate = cutRhythm.step(events.some((event) => event.kind === 'cut'), dt);
   if (zipRate !== null) soundPlayer.play('cut', zipRate);
   for (const event of events) playFeedback(event);
+  const sizeUpEvent = events.find((event) => event.kind === 'sizeUp');
   const showBlocked = blockedNotice.step(result.blocked, dt);
   if (showBlocked) {
     soundPlayer.play('bounce');
@@ -413,6 +460,13 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     if (type !== 'rock') burst.spawn(x, z, OBSTACLE_COLORS[type], BURST_PIECES[type]);
   }
   burst.update(dt);
+  // The wave's cuts throw clippings too; the per-frame cap keeps it cheap.
+  const { bladesPerClipping, maxClippingsPerFrame } = config.effects;
+  for (const index of clippingBlades(result.cutIndices, bladesPerClipping, maxClippingsPerFrame)) {
+    const tip = GRASS_COLORS[GRASS_TYPE_ORDER[field.types[index]!]!].tip;
+    clippings.spawn(field.positionsX[index]!, field.positionsZ[index]!, tip, 1);
+  }
+  clippings.update(dt);
   grass!.setHighlight(shouldHighlightTargets(game) ? targetGrassTypes(game) : []);
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
     saveLevelEnd();
@@ -426,6 +480,11 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   clampFocus(focus, field.width, field.depth, halfVisibleX, halfVisibleZ, edgeMargin);
 
   bladeView.update(blade, dt);
+  sizeUpAge += dt;
+  const ring = sizeUpRing(sizeUpAge, bladeRadius(blade.size));
+  sizeUpRingView.show(blade.x, blade.z, ring?.radius ?? 0, ring?.opacity ?? 0);
+  const wave = game.status === 'winWave' ? game.winWave : null;
+  waveRingView.show(wave?.x ?? 0, wave?.z ?? 0, wave?.radius ?? 0, wave ? WAVE_RING_OPACITY : 0);
   compassView.update(blade, compassTarget(dt));
   cameraRig.update(focus);
   grass!.setTime(elapsedSeconds);
@@ -444,6 +503,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     // Banked coins are already in the balance, so only the rest of the level is added on top.
     coins: save.coins + game.levelCoins + game.bonusCoins - game.bankedCoins,
     floatCoins: coinFloats.step(result.coins, dt),
+    sizeUp: sizeUpEvent?.size ?? null,
     boosters: {
       upgrade: boosterState('upgrade'),
       compass: boosterState('compass'),

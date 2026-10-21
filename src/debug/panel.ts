@@ -24,8 +24,8 @@ const READ_ON_RESTART = new Set([
 ]);
 /** Upgrade settings that apply when the game is built again. */
 const UPGRADE_SETTINGS_READ_ON_RESTART = /^upgrades\.\w+\.(basePrice|priceGrowth|perLevel)$/;
-/** Settings that need the field built again, so the panel leaves them out. */
-const NOT_TUNABLE = new Set(['level.stripeWidthMeters']);
+/** Settings read only once, when the field or the clippings' pool is built, so the panel leaves them out. */
+const NOT_TUNABLE = new Set(['level.stripeWidthMeters', 'effects.clippingSeconds']);
 
 export interface DebugPanel {
   update(dt: number): void;
@@ -41,6 +41,8 @@ export interface DebugActions {
   giveCoins(amount: number): void;
   /** Forgets the saved game and starts again from level 1. */
   clearSave(): void;
+  /** Makes the next «Jugar» show the tutorial hand again. */
+  resetTutorial(): void;
 }
 
 /** A nested group of numeric settings, like `config.generator`. */
@@ -69,6 +71,7 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   addNumberFolder(gui, 'boosters', config.boosters);
   addNumberFolder(gui, 'audio', config.audio);
   addNumberFolder(gui, 'vibration', config.vibration);
+  addNumberFolder(gui, 'effects', config.effects);
   addNumberFolder(gui, 'generator', config.generator, () => {}, texts.debug.onGenerate);
 
   addLevelFolder(gui, getGame, actions);
@@ -78,6 +81,7 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   gui.add({ [texts.debug.restart]: () => actions.restart() }, texts.debug.restart);
   gui.add({ [texts.debug.giveCoins]: () => actions.giveCoins(DEBUG_GIFT_COINS) }, texts.debug.giveCoins);
   gui.add({ [texts.debug.clearSave]: () => actions.clearSave() }, texts.debug.clearSave);
+  gui.add({ [texts.debug.resetTutorial]: () => actions.resetTutorial() }, texts.debug.resetTutorial);
   gui.add(
     { [texts.debug.copyConfig]: () => void navigator.clipboard.writeText(JSON.stringify(config, null, 2)) },
     texts.debug.copyConfig,
