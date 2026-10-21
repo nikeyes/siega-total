@@ -20,6 +20,7 @@ interface ObstacleSettings {
   /** Missing for obstacles that are never cut. */
   minSize?: number;
   growthCuts?: number;
+  coins?: number;
 }
 
 /** Read on every call, so values tuned from the debug panel apply at once. */
@@ -39,6 +40,11 @@ export function obstacleCutSize(type: ObstacleType): number {
 /** Cuts toward the next blade size that cutting one `type` is worth. */
 export function obstacleGrowthCuts(type: ObstacleType): number {
   return settingsOf(type).growthCuts ?? 0;
+}
+
+/** Coins that cutting one `type` is worth; 0 for rocks. */
+export function obstacleCoins(type: ObstacleType): number {
+  return settingsOf(type).coins ?? 0;
 }
 
 /** Rocks are never cut, whatever the size, even by the win wave's infinite size. */
