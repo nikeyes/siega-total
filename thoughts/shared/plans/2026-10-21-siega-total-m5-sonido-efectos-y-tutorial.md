@@ -742,10 +742,10 @@ Ninguna prueba nueva de la interfaz: `createTutorialHint` es solo DOM. El evento
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
-- [ ] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
 
 #### Verificación en Chrome (agente, `?debug`, GIF `m5-b-efectos.gif`). Es el criterio de salida automatizable de M5:
 - [ ] **Tutorial:**

@@ -50,6 +50,7 @@ import { createResultOverlay } from './ui/result';
 import { createSettingsScreen } from './ui/settings';
 import { createShopScreen } from './ui/shop';
 import { clearSave, readSave, writeSave } from './ui/storage';
+import { createTutorialHint } from './ui/tutorial';
 import './ui/styles.css';
 
 /** Longest step the game takes, so coming back to the tab does not make the blade jump. */
@@ -149,6 +150,7 @@ const homeScreen = createHomeScreen(container, {
     if (game.level.number === save.level) restart();
     else loadLevel(save.level);
     showScreen('playing');
+    if (!save.tutorialDone) tutorialHint.show();
   },
   onShop: () => openShop('home'),
   onSettings: () => openSettings('home'),
@@ -195,6 +197,7 @@ const settingsScreen = createSettingsScreen(
   },
   canVibrate(),
 );
+const tutorialHint = createTutorialHint(container);
 // Last in the container, so the confetti falls over the result layer.
 const celebration = createCelebration(container);
 
@@ -270,6 +273,8 @@ function playLevel(level: LevelDefinition): void {
   sizeUpAge = Infinity;
   // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
   feedback.track(game);
+  // A new level hides the hand; «Jugar» shows it again until the first move.
+  tutorialHint.hide();
   grass = createGrassView(gameScene.scene, game.field, level.seed);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);
@@ -351,6 +356,10 @@ if (debugging) {
         renderSave();
       },
       clearSave: clearProgress,
+      resetTutorial: () => {
+        save.tutorialDone = false;
+        writeSave(save);
+      },
     });
   });
 }
@@ -404,8 +413,13 @@ function playFeedback(event: FeedbackEvent): void {
     case 'lost':
       soundPlayer.play('lose');
       break;
-    case 'cut':
     case 'started':
+      if (save.tutorialDone) break;
+      tutorialHint.hide();
+      save.tutorialDone = true;
+      writeSave(save);
+      break;
+    case 'cut':
       break;
   }
 }

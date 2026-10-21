@@ -26,3 +26,14 @@ export function boosterIconSvg(kind: 'upgrade' | 'compass' | 'clock'): string {
   };
   return `<svg viewBox="0 0 40 40" aria-hidden="true">${shapes[kind]}</svg>`;
 }
+
+/** A hand pointing up with the index finger, its tip at (17, 3) of the 40 × 40 box. */
+export function handIconSvg(className: string): string {
+  return `<svg class="${className}" viewBox="0 0 40 40" aria-hidden="true">
+    <rect x="5" y="22" width="11" height="7" rx="3.5" fill="#ffd2a8" ${OUTLINE} />
+    <rect x="20" y="15" width="7" height="10" rx="3.5" fill="#ffd2a8" ${OUTLINE} />
+    <rect x="26" y="17" width="7" height="10" rx="3.5" fill="#ffd2a8" ${OUTLINE} />
+    <rect x="11" y="19" width="23" height="18" rx="7" fill="#ffd2a8" ${OUTLINE} />
+    <rect x="13.5" y="1.5" width="7" height="24" rx="3.5" fill="#ffd2a8" ${OUTLINE} />
+  </svg>`;
+}
