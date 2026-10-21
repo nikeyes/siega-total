@@ -1,5 +1,6 @@
 import { texts } from '../texts';
 import { formatCount } from './formatCount';
+import { createLayer, layerButton, layerTitle } from './layer';
 
 export type Outcome = 'won' | 'lost';
 
@@ -10,14 +11,12 @@ export interface ResultSummary {
 }
 
 export interface ResultOverlay {
+  readonly layer: HTMLElement;
+  /** Fills the layer for `outcome`; showing it is up to the screen flow. */
   show(outcome: Outcome, summary: ResultSummary): void;
-  hide(): void;
 }
 
-const TITLES: Record<Outcome, { title: string; button: string }> = {
-  won: { title: texts.result.wonTitle, button: texts.result.wonButton },
-  lost: { title: texts.result.lostTitle, button: texts.result.lostButton },
-};
+const TITLES: Record<Outcome, string> = { won: texts.result.wonTitle, lost: texts.result.lostTitle };
 
 /** A win shows the coins cut, the time bonus and their total; a defeat, only the coins cut. */
 export function resultLines(outcome: Outcome, { levelCoins, bonusCoins }: ResultSummary): string[] {
@@ -31,29 +30,33 @@ export interface ResultActions {
   onNext(): void;
   /** Defeat: plays the same level again. */
   onRetry(): void;
+  /** Victory: opens the shop, which comes back here. */
+  onShop(): void;
+  /** Leaves for the home screen. */
+  onHome(): void;
 }
 
-/** The layer shown when the level ends, with its coins and one button: next level after a win, retry after a loss. */
+/** The layer shown when the level ends, with its coins: «Siguiente», «Tienda» and «Inicio» after a win, «Reintentar» and «Inicio» after a loss. */
 export function createResultOverlay(container: HTMLElement, actions: ResultActions): ResultOverlay {
-  const layer = document.createElement('div');
-  layer.className = 'result';
-  const title = document.createElement('h1');
-  title.className = 'result-title';
+  const layer = createLayer(container, 'result');
+  const title = layerTitle('');
   const lines = document.createElement('div');
   lines.className = 'result-lines';
-  const button = document.createElement('button');
-  button.className = 'result-button';
-  button.type = 'button';
-  layer.append(title, lines, button);
-  container.append(layer);
-
-  // The joystick listens on the container; touches on this layer belong to its button.
-  layer.addEventListener('pointerdown', (event) => event.stopPropagation());
-  let shownOutcome: Outcome = 'lost';
-  button.addEventListener('click', () => (shownOutcome === 'won' ? actions.onNext() : actions.onRetry()));
+  const buttons = document.createElement('div');
+  buttons.className = 'layer-buttons';
+  layer.append(title, lines, buttons);
+  const buttonsFor: Record<Outcome, HTMLButtonElement[]> = {
+    won: [
+      layerButton(texts.result.wonButton, 'primary', actions.onNext),
+      layerButton(texts.result.shop, 'secondary', actions.onShop),
+      layerButton(texts.result.home, 'secondary', actions.onHome),
+    ],
+    lost: [layerButton(texts.result.lostButton, 'primary', actions.onRetry), layerButton(texts.result.home, 'secondary', actions.onHome)],
+  };
 
   function show(outcome: Outcome, summary: ResultSummary): void {
-    title.textContent = TITLES[outcome].title;
+    title.textContent = TITLES[outcome];
+    layer.dataset.outcome = outcome;
     lines.replaceChildren(
       ...resultLines(outcome, summary).map((text) => {
         const line = document.createElement('p');
@@ -62,15 +65,8 @@ export function createResultOverlay(container: HTMLElement, actions: ResultActio
         return line;
       }),
     );
-    button.textContent = TITLES[outcome].button;
-    layer.dataset.outcome = outcome;
-    shownOutcome = outcome;
-    layer.classList.add('visible');
+    buttons.replaceChildren(...buttonsFor[outcome]);
   }
 
-  function hide(): void {
-    layer.classList.remove('visible');
-  }
-
-  return { show, hide };
+  return { layer, show };
 }

@@ -6,8 +6,6 @@ import type { ObstacleModels } from './obstacleModels';
 export interface ObstacleView {
   /** Hides the given obstacles. */
   markCut(indices: number[]): void;
-  /** Shows every obstacle again. */
-  reset(): void;
   /** Takes the meshes out of the scene; the shared models stay loaded. */
   dispose(): void;
 }
@@ -45,7 +43,7 @@ export function createObstacleView(scene: Scene, obstacles: readonly Obstacle[],
     }
   }
 
-  function reset(): void {
+  function showAllStanding(): void {
     standingMatrices.forEach((matrix, index) => setMatrix(index, matrix));
     for (const { meshes } of byType.values()) for (const mesh of meshes) mesh.computeBoundingSphere();
   }
@@ -63,6 +61,6 @@ export function createObstacleView(scene: Scene, obstacles: readonly Obstacle[],
     }
   }
 
-  reset();
-  return { markCut, reset, dispose };
+  showAllStanding();
+  return { markCut, dispose };
 }
