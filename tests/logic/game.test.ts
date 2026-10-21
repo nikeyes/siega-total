@@ -14,6 +14,7 @@ import {
   type Game,
   type StepResult,
 } from '../../src/logic/game';
+import { obstacleRadius } from '../../src/logic/obstacles';
 import { sampleLevel, stripesLevel, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
 
 const { width, depth } = config.field;
@@ -386,14 +387,59 @@ describe('stepGame', () => {
     expect(atCorner.every((blade) => game.field.cut[blade] === 1)).toBe(true);
   });
 
-  it('reports no blocking while ready, playing or in the win wave', () => {
+  it('reports no blocking while ready or in the win wave, even against a rock', () => {
     const game = sandGameWith([{ type: 'rock', x: 2.5, z: 1 }, { type: 'cactus', x: 1, z: 1 }], ['cactus'], startSize);
     expect(stepGame(game, null, 0).blocked).toBe(false);
-    expect(stepGame(game, EAST, SIXTY_FPS_FRAME).blocked).toBe(false);
     cutAllTargets(game);
-    expect(stepGame(game, EAST, SIXTY_FPS_FRAME).blocked).toBe(false);
+    stepGame(game, EAST, SIXTY_FPS_FRAME);
     expect(game.status).toBe('winWave');
     expect(stepGame(game, EAST, SIXTY_FPS_FRAME).blocked).toBe(false);
+  });
+});
+
+describe('collisions in play', () => {
+  /** 8 × 3 m of sand with a wheat stripe from x = 5 to x = 7; the blade starts at x = 4 and has nothing to grow on. */
+  const WHEAT_AHEAD = ['.....ww.', '.....ww.', '.....ww.'];
+  const WHEAT_WEST_EDGE = 5;
+  /** A target in the northwest corner, off the blade's path, so the level stays in play. */
+  const OFF_PATH_TARGET = { obstacles: [{ type: 'strawberry', x: 0.3, z: 0.3 } as Obstacle], targets: ['strawberry'] as const };
+
+  it('stops a blade too small for wheat at the edge of the stripe and reports it blocked', () => {
+    const game = createGame(levelFromRows(WHEAT_AHEAD, OFF_PATH_TARGET));
+    let blocked = false;
+    driveForSeconds(game, EAST, 1, (result) => (blocked ||= result.blocked));
+    expect(game.blade.size).toBe(startSize);
+    expect(game.blade.x).toBeCloseTo(WHEAT_WEST_EDGE - bladeRadius(startSize), 9);
+    expect(blocked).toBe(true);
+    expect(stepGame(game, EAST, SIXTY_FPS_FRAME).blocked).toBe(true);
+  });
+
+  it('lets a blade big enough for wheat drive through the stripe', () => {
+    const game = createGame(levelFromRows(WHEAT_AHEAD, OFF_PATH_TARGET));
+    game.blade.size = config.grassTypes.wheat.minSize;
+    driveForSeconds(game, EAST, 1);
+    expect(game.blade.x).toBe(game.field.width);
+  });
+
+  it('blocks a blade too small for a fruit, and cuts the fruit in the same step once big enough', () => {
+    const fruit: Obstacle = { type: 'watermelon', x: 2.3, z: 1 };
+    const small = sandGameWith([fruit], ['watermelon'], config.obstacles.watermelon.minSize - 1);
+    expect(stepGame(small, EAST, SIXTY_FPS_FRAME).blocked).toBe(true);
+    expect(remainingTargets(small)).toBe(1);
+
+    const big = sandGameWith([fruit], ['watermelon'], config.obstacles.watermelon.minSize);
+    const result = stepGame(big, EAST, SIXTY_FPS_FRAME);
+    expect(result.blocked).toBe(false);
+    expect(result.cutObstacles).toEqual([0]);
+  });
+
+  it('keeps the blade out of a rock in every frame of two seconds driving into it', () => {
+    const rock: Obstacle = { type: 'rock', x: 6, z: 1.5 };
+    const game = createGame(levelFromRows(WHEAT_AHEAD.map((row) => row.replaceAll('w', '.')), { obstacles: [rock], targets: ['strawberry'] }));
+    const minDistance = bladeRadius(startSize) + obstacleRadius('rock');
+    const distances: number[] = [];
+    driveForSeconds(game, EAST, 2, () => distances.push(Math.hypot(game.blade.x - rock.x, game.blade.z - rock.z)));
+    expect(Math.min(...distances)).toBeGreaterThanOrEqual(minDistance - 1e-9);
   });
 });
 
@@ -525,7 +571,9 @@ describe('winning', () => {
 
   it('wins with a rock standing, since rocks are never targets', () => {
     const game = createGame(levelFromRows(HALVES, { obstacles: [{ type: 'rock', x: 0.5, z: 0.5 }] }));
-    mowInZigzag(game);
+    stepGame(game, WEST, 0);
+    cutAllTargets(game);
+    stepGame(game, null, SIXTY_FPS_FRAME);
     stepThroughWinWave(game);
     expect(game.status).toBe('won');
     expect(game.obstacles.cut[0]).toBe(0);
@@ -565,13 +613,15 @@ describe('win wave', () => {
     const { strawberry, cactus } = config.obstacles;
     const wideSand = ['........', '........'];
     const lastTarget: Obstacle = { type: 'strawberry', x: 4, z: 1 };
-    const cactusBesideIt: Obstacle = { type: 'cactus', x: 4, z: 1 };
+    // Just out of the blade's collision reach, so it does not push the blade away from the strawberry.
+    const cactusBesideIt: Obstacle = { type: 'cactus', x: 4 + bladeRadius(strawberry.minSize) + cactus.radius + 0.1, z: 1 };
     const game = createGame(levelFromRows(wideSand, { obstacles: [lastTarget, cactusBesideIt], targets: ['strawberry'] }));
     game.blade.size = strawberry.minSize;
     expect(game.blade.size).toBeLessThan(cactus.minSize);
     stepGame(game, EAST, 0);
     expect(game.status).toBe('winWave');
-    expect(stepGame(game, null, SIXTY_FPS_FRAME).cutObstacles).toEqual([1]);
+    const waveStepReachingTheCactus = 0.1;
+    expect(stepGame(game, null, waveStepReachingTheCactus).cutObstacles).toEqual([1]);
   });
 
   it('finishes in a single long step, cutting all the grass and every piece but rocks', () => {

@@ -34,6 +34,11 @@ export const config = {
     winWaveSpeed: 25,
     highlightBelow: 10,
   },
+  collision: {
+    /** Passes over the walls each step, so corners between two walls resolve. */
+    iterations: 3,
+    blockedMessageSeconds: 1,
+  },
   input: {
     joystickDeadZonePx: 10,
   },

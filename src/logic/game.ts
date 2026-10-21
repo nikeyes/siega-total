@@ -1,5 +1,6 @@
 import { config } from '../config';
 import { addCuts, bladeRadius, createBlade, moveBlade, type Blade, type Direction } from './blade';
+import { resolveCollisions } from './collision';
 import { createField, cutBlade, cutInCircle, GRASS_TYPE_ORDER, levelFieldOptions, type Field } from './field';
 import { isObstacleType, sampleLevel, type LevelDefinition, type TargetKind } from './levels';
 import {
@@ -87,6 +88,9 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   }
   game.timeLeft -= dt;
   moveBlade(blade, direction, dt, field.width, field.depth);
+  const { x, z, blocked } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
+  blade.x = x;
+  blade.z = z;
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
   const cutObstacles = cutObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size);
@@ -98,7 +102,7 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
     game.timeLeft = 0;
     game.status = 'lost';
   }
-  return { cutIndices, cutObstacles, sizesGained, blocked: false };
+  return { cutIndices, cutObstacles, sizesGained, blocked };
 }
 
 function growthCutsOf(obstacles: ObstacleField, indices: number[]): number {
