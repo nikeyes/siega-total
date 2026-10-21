@@ -476,17 +476,17 @@ export function createSettingsScreen(
 - [x] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
 
 #### Verificación en Chrome (agente, `?debug`, GIF `m5-a-sonido.gif`):
-- [ ] Antes de tocar nada, `window.__siegaFeedback` está vacío.
-- [ ] Al pulsar «Jugar» aparece `{ kind: 'sound', name: 'tap' }`.
-- [ ] Al mantener D sobre la hierba aparecen entradas `cut`, separadas como mínimo 60 ms, con `rate` creciente hasta como mucho 2.
-- [ ] Al chocar con una roca o una hierba más alta aparecen a la vez `bounce` y el texto «Necesitas más tamaño».
-- [ ] El booster Mejora deja una entrada `sizeUp`.
-- [ ] «Ganar» deja `win` y después `coins`. «Tiempo 3 s» deja `lose`.
-- [ ] Ajustes → «Sonido: No»: `localStorage` tiene `settings.sound: false` y cortar ya no añade entradas de sonido. Tras recargar sigue en «No».
-- [ ] Pausa → «Ajustes» → «Volver» regresa a Pausa.
-- [ ] En Chrome de escritorio (sin `navigator.vibrate` según la plataforma), «Vibración» aparece u oculta según `canVibrate()`, y las entradas `vibration` coinciden con ese soporte.
-- [ ] Con un guardado v1 de M4 en `localStorage` y recargando: Inicio muestra el mismo nivel y saldo, y el guardado pasa a `version: 2` con `tutorialDone: true` al siguiente `writeSave`.
-- [ ] No hay errores en la consola (`read_console_messages`).
+- [x] Antes de tocar nada, `window.__siegaFeedback` está vacío.
+- [x] Al pulsar «Jugar» aparece `{ kind: 'sound', name: 'tap' }`.
+- [x] Al mantener D sobre la hierba aparecen entradas `cut`, separadas como mínimo 60 ms, con `rate` creciente hasta como mucho 2.
+- [x] Al chocar con una roca o una hierba más alta aparecen a la vez `bounce` y el texto «Necesitas más tamaño».
+- [x] El booster Mejora deja una entrada `sizeUp`.
+- [x] «Ganar» deja `win` y después `coins`. «Tiempo 3 s» deja `lose`.
+- [x] Ajustes → «Sonido: No»: `localStorage` tiene `settings.sound: false` y cortar ya no añade entradas de sonido. Tras recargar sigue en «No».
+- [x] Pausa → «Ajustes» → «Volver» regresa a Pausa.
+- [x] En Chrome de escritorio (sin `navigator.vibrate` según la plataforma), «Vibración» aparece u oculta según `canVibrate()`, y las entradas `vibration` coinciden con ese soporte.
+- [x] Con un guardado v1 de M4 en `localStorage` y recargando: Inicio muestra el mismo nivel y saldo, y el guardado pasa a `version: 2` con `tutorialDone: true` al siguiente `writeSave`.
+- [x] No hay errores en la consola (`read_console_messages`).
 
 #### Verificación manual (usuario):
 - [ ] Los 8 sonidos encajan con el estilo y el volumen está equilibrado (de oído).
