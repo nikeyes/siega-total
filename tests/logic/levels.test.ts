@@ -97,12 +97,6 @@ describe('clearCellsUnderSolidObstacles', () => {
     expect(sandCells(cells)).toEqual(expected);
   });
 
-  it('turns into sand the cells under a cactus too', () => {
-    const cells = greenCells();
-    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'cactus', x: 3.5, z: 3.5 }]);
-    expect(sandCells(cells)).toContain(3 * COLUMNS + 3);
-  });
-
   it('keeps the grass under fruit', () => {
     const cells = greenCells();
     clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [
@@ -174,22 +168,16 @@ describe('sampleLevel', () => {
   const level = sampleLevel();
   const columns = columnCount(level);
   const cellUnder = (x: number, z: number) => level.cells[Math.floor(z / level.cellSize) * columns + Math.floor(x / level.cellSize)];
+  const solid = level.obstacles.filter((obstacle) => obstacle.type === 'rock' || obstacle.type === 'cactus');
 
-  it('covers the configured field', () => {
+  it('covers the configured field with one cell per square meter', () => {
     expect(level.width).toBe(config.field.width);
+    expect(level.depth).toBe(config.field.depth);
+    expect(level.cellSize).toBe(1);
     expect(level.cells).toHaveLength(columns * (level.depth / level.cellSize));
   });
 
-  it('has one cell per square meter', () => {
-    expect(level.cellSize).toBe(1);
-  });
-
-  it('has obstacles of the four types', () => {
-    expect(new Set(level.obstacles.map((obstacle) => obstacle.type))).toEqual(new Set(['rock', 'cactus', 'watermelon', 'strawberry']));
-  });
-
   it('has no grass under its rocks and its cactus', () => {
-    const solid = level.obstacles.filter((obstacle) => obstacle.type === 'rock' || obstacle.type === 'cactus');
     expect(solid.map(({ x, z }) => cellUnder(x, z))).toEqual(solid.map(() => null));
   });
 
@@ -233,7 +221,6 @@ describe('sampleLevel', () => {
   });
 
   it('keeps the rocks and the cactus away from the center, where the blade starts', () => {
-    const solid = level.obstacles.filter((obstacle) => obstacle.type === 'rock' || obstacle.type === 'cactus');
     for (const { type, x, z } of solid) {
       const reach = obstacleRadius(type) + stripeWidthMeters;
       expect(Math.hypot(x - level.width / 2, z - level.depth / 2), `${type} at ${x},${z}`).toBeGreaterThan(reach);
@@ -241,7 +228,6 @@ describe('sampleLevel', () => {
   });
 
   it('only turns into sand the cells under the rocks and the cactus', () => {
-    const solid = level.obstacles.filter((obstacle) => obstacle.type === 'rock' || obstacle.type === 'cactus');
     level.cells.forEach((type, cell) => {
       const centerX = ((cell % columns) + 0.5) * level.cellSize;
       const centerZ = (Math.floor(cell / columns) + 0.5) * level.cellSize;

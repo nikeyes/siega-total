@@ -10,6 +10,7 @@ import {
   type FieldOptions,
   type GrassType,
 } from '../../src/logic/field';
+import type { LevelDefinition } from '../../src/logic/levels';
 
 const SMALL_WIDTH = 6;
 const SMALL_DEPTH = 4;
@@ -45,27 +46,36 @@ function cellOf(field: Field, blade: number, cellSize: number): number {
   return Math.floor(field.positionsZ[blade]! / cellSize) * columns + Math.floor(field.positionsX[blade]! / cellSize);
 }
 
+/** A small all-green level; only the fields under test need overriding. */
+function smallLevel(overrides: Partial<LevelDefinition> = {}): LevelDefinition {
+  return {
+    number: 1,
+    seed: config.field.seed,
+    width: SMALL_WIDTH,
+    depth: SMALL_DEPTH,
+    cellSize: 1,
+    cells: uniformCells('green'),
+    obstacles: [],
+    targets: ['green'],
+    timeSeconds: 10,
+    ...overrides,
+  };
+}
+
 describe('levelFieldOptions', () => {
   it('takes the layout and seed from the level, and the blade count and grid from the configuration', () => {
     const cells: (GrassType | null)[] = ['ice', null];
-    const seed = 777;
-    const level = { number: 0, seed, width: 4, depth: 2, cellSize: 2, cells, obstacles: [], targets: ['ice' as const], timeSeconds: 10 };
+    const level = smallLevel({ seed: 777, width: 4, depth: 2, cellSize: 2, cells });
     const { bladeCount, gridCellSize } = config.field;
-    expect(levelFieldOptions(level)).toEqual({ width: 4, depth: 2, cellSize: 2, cells, bladeCount, gridCellSize, seed });
+    expect(levelFieldOptions(level)).toEqual({ width: 4, depth: 2, cellSize: 2, cells, bladeCount, gridCellSize, seed: 777 });
+  });
+
+  it('keeps a level seed of 0 instead of falling back to the configured seed', () => {
+    expect(levelFieldOptions(smallLevel({ seed: 0 })).seed).toBe(0);
   });
 
   describe('with levels that differ only in seed', () => {
-    const levelWithSeed = (seed: number) => ({
-      number: 1,
-      seed,
-      width: SMALL_WIDTH,
-      depth: SMALL_DEPTH,
-      cellSize: 1,
-      cells: uniformCells('green'),
-      obstacles: [],
-      targets: ['green' as const],
-      timeSeconds: 10,
-    });
+    const levelWithSeed = (seed: number) => smallLevel({ seed });
 
     it('places the blades differently', () => {
       const first = createField(levelFieldOptions(levelWithSeed(1)));
@@ -78,11 +88,6 @@ describe('levelFieldOptions', () => {
       const second = createField(levelFieldOptions(levelWithSeed(42)));
       expect([...second.positionsX]).toEqual([...first.positionsX]);
       expect([...second.positionsZ]).toEqual([...first.positionsZ]);
-    });
-
-    it('accepts a level seed of 0', () => {
-      const field = createField(levelFieldOptions(levelWithSeed(0)));
-      expect([...field.positionsX].every(Number.isFinite)).toBe(true);
     });
   });
 });
@@ -164,13 +169,12 @@ describe('createField', () => {
     expect([...field.countByType].every((count) => count === 0)).toBe(true);
   });
 
-  it('places no blades on a field that is all sand', () => {
-    const field = createSmallField({ width: 2, depth: 2, cells: [null, null, null, null], bladeCount: 10 });
-    expect(field.bladeCount).toBe(0);
-  });
-
   describe('on a field that is all sand', () => {
     const allSand = () => createSmallField({ width: 2, depth: 2, cells: [null, null, null, null], bladeCount: 10 });
+
+    it('places no blades even when blades are requested', () => {
+      expect(allSand().bladeCount).toBe(0);
+    });
 
     it('has empty blade arrays and counts', () => {
       const field = allSand();

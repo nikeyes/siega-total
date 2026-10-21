@@ -13,6 +13,7 @@ import {
 } from '../../src/logic/obstacles';
 
 const { watermelon, cactus } = config.obstacles;
+const cuttableTypes = ['strawberry', 'watermelon', 'cactus'] as const;
 
 /** One obstacle of `type` at (5, 5). */
 function fieldWithOne(type: ObstacleType) {
@@ -26,33 +27,91 @@ function cutOverlapping(field: ReturnType<typeof createObstacleField>, type: Obs
 }
 
 describe('cutObstaclesInCircle', () => {
-  it('cuts a fruit that touches the circle once the blade is big enough', () => {
-    const field = fieldWithOne('watermelon');
-    expect(cutOverlapping(field, 'watermelon', watermelon.minSize - 1)).toEqual([]);
-    expect(cutOverlapping(field, 'watermelon', watermelon.minSize)).toEqual([0]);
+  describe('blade size', () => {
+    it.each(cuttableTypes)('cuts a %s once the blade reaches its configured minSize', (type) => {
+      const field = fieldWithOne(type);
+      const { minSize } = config.obstacles[type];
+      expect(cutOverlapping(field, type, minSize - 1)).toEqual([]);
+      expect(cutOverlapping(field, type, minSize)).toEqual([0]);
+    });
+
+    it('never cuts a rock, not even with an infinite size', () => {
+      expect(cutOverlapping(fieldWithOne('rock'), 'rock', Infinity)).toEqual([]);
+    });
+
+    it('lets the win wave (infinite size) cut a cactus', () => {
+      expect(cutOverlapping(fieldWithOne('cactus'), 'cactus', Infinity)).toEqual([0]);
+    });
+
+    it('applies a minSize tuned at runtime (debug panel) without recreating the field', () => {
+      const field = fieldWithOne('watermelon');
+      const original = watermelon.minSize;
+      try {
+        watermelon.minSize = original + 1;
+        expect(cutOverlapping(field, 'watermelon', original)).toEqual([]);
+        expect(cutOverlapping(field, 'watermelon', original + 1)).toEqual([0]);
+      } finally {
+        watermelon.minSize = original;
+      }
+    });
   });
 
-  it('cuts a cactus only from its own minimum size', () => {
-    const field = fieldWithOne('cactus');
-    expect(cutOverlapping(field, 'cactus', cactus.minSize - 1)).toEqual([]);
-    expect(cutOverlapping(field, 'cactus', cactus.minSize)).toEqual([0]);
-  });
-
-  it('never cuts a rock, not even with an infinite size', () => {
-    expect(cutOverlapping(fieldWithOne('rock'), 'rock', Infinity)).toEqual([]);
-  });
-
-  it('does not cut an obstacle out of reach of the circle', () => {
-    const field = fieldWithOne('strawberry');
+  describe('reach', () => {
     const radius = 1;
-    const justOutOfReach = 5 - obstacleRadius('strawberry') - radius - 0.01;
-    expect(cutObstaclesInCircle(field, justOutOfReach, 5, radius, Infinity)).toEqual([]);
+
+    it.each(['strawberry', 'cactus'] as const)('reaches a %s up to circle radius plus its configured radius', (type) => {
+      const reach = radius + config.obstacles[type].radius;
+      expect(cutObstaclesInCircle(fieldWithOne(type), 5 - reach - 0.01, 5, radius, Infinity)).toEqual([]);
+      expect(cutObstaclesInCircle(fieldWithOne(type), 5 - reach + 0.01, 5, radius, Infinity)).toEqual([0]);
+    });
+
+    it('cuts an obstacle that exactly touches the circle edge', () => {
+      const exactlyTouching = 5 - obstacleRadius('strawberry') - radius;
+      expect(cutObstaclesInCircle(fieldWithOne('strawberry'), exactlyTouching, 5, radius, Infinity)).toEqual([0]);
+    });
+
+    it('measures reach along z as well as x', () => {
+      const reach = radius + obstacleRadius('watermelon');
+      expect(cutObstaclesInCircle(fieldWithOne('watermelon'), 5, 5 + reach + 0.01, radius, Infinity)).toEqual([]);
+      expect(cutObstaclesInCircle(fieldWithOne('watermelon'), 5, 5 + reach - 0.01, radius, Infinity)).toEqual([0]);
+    });
+
+    it('measures reach diagonally, not per axis', () => {
+      const offsetPerAxis = (radius + obstacleRadius('watermelon')) * 0.8;
+      // Each axis offset is within reach, but the Euclidean distance is not.
+      expect(cutObstaclesInCircle(fieldWithOne('watermelon'), 5 + offsetPerAxis, 5 + offsetPerAxis, radius, Infinity)).toEqual([]);
+    });
   });
 
-  it('does not return an obstacle that is already cut', () => {
-    const field = fieldWithOne('strawberry');
-    cutOverlapping(field, 'strawberry', Infinity);
-    expect(cutOverlapping(field, 'strawberry', Infinity)).toEqual([]);
+  describe('field state', () => {
+    it('returns every cuttable obstacle in the circle, in index order, skipping rocks and too-big ones', () => {
+      const field = createObstacleField([
+        { type: 'strawberry', x: 5, z: 5 },
+        { type: 'rock', x: 5.2, z: 5 },
+        { type: 'cactus', x: 4.8, z: 5 },
+        { type: 'watermelon', x: 5, z: 5.2 },
+      ]);
+      expect(cutObstaclesInCircle(field, 5, 5, 1, watermelon.minSize)).toEqual([0, 3]);
+      expect(standingCount(field, 'cactus')).toBe(1);
+      expect(standingCount(field, 'rock')).toBe(1);
+    });
+
+    it('returns nothing on an empty field', () => {
+      expect(cutObstaclesInCircle(createObstacleField([]), 5, 5, 100, Infinity)).toEqual([]);
+    });
+
+    it('does not return an obstacle that is already cut', () => {
+      const field = fieldWithOne('strawberry');
+      cutOverlapping(field, 'strawberry', Infinity);
+      expect(cutOverlapping(field, 'strawberry', Infinity)).toEqual([]);
+    });
+
+    it('cuts again after resetObstacleField', () => {
+      const field = fieldWithOne('strawberry');
+      cutOverlapping(field, 'strawberry', Infinity);
+      resetObstacleField(field);
+      expect(cutOverlapping(field, 'strawberry', Infinity)).toEqual([0]);
+    });
   });
 });
 
@@ -70,75 +129,9 @@ describe('standingCount', () => {
     resetObstacleField(field);
     expect(standingCount(field, 'strawberry')).toBe(2);
   });
-});
 
-describe('cutObstaclesInCircle edge cases', () => {
-  it('cuts an obstacle that exactly touches the circle edge', () => {
-    const field = fieldWithOne('strawberry');
-    const radius = 1;
-    const exactlyTouching = 5 - obstacleRadius('strawberry') - radius;
-    expect(cutObstaclesInCircle(field, exactlyTouching, 5, radius, Infinity)).toEqual([0]);
-  });
-
-  it('measures reach along z as well as x', () => {
-    const radius = 1;
-    const reach = radius + obstacleRadius('watermelon');
-    expect(cutObstaclesInCircle(fieldWithOne('watermelon'), 5, 5 + reach + 0.01, radius, Infinity)).toEqual([]);
-    expect(cutObstaclesInCircle(fieldWithOne('watermelon'), 5, 5 + reach - 0.01, radius, Infinity)).toEqual([0]);
-  });
-
-  it('measures reach diagonally, not per axis', () => {
-    const radius = 1;
-    const offsetPerAxis = (radius + obstacleRadius('watermelon')) * 0.8;
-    // Each axis offset is within reach, but the Euclidean distance is not.
-    expect(cutObstaclesInCircle(fieldWithOne('watermelon'), 5 + offsetPerAxis, 5 + offsetPerAxis, radius, Infinity)).toEqual([]);
-  });
-
-  it('returns every cuttable obstacle in the circle, in index order, skipping rocks and too-big ones', () => {
-    const field = createObstacleField([
-      { type: 'strawberry', x: 5, z: 5 },
-      { type: 'rock', x: 5.2, z: 5 },
-      { type: 'cactus', x: 4.8, z: 5 },
-      { type: 'watermelon', x: 5, z: 5.2 },
-    ]);
-    const bladeSize = watermelon.minSize;
-    expect(cutObstaclesInCircle(field, 5, 5, 1, bladeSize)).toEqual([0, 3]);
-    expect(standingCount(field, 'cactus')).toBe(1);
-    expect(standingCount(field, 'rock')).toBe(1);
-  });
-
-  it('lets the win wave (infinite size) cut a cactus', () => {
-    expect(cutOverlapping(fieldWithOne('cactus'), 'cactus', Infinity)).toEqual([0]);
-  });
-
-  it('cuts later with a bigger blade an obstacle that was too big before', () => {
-    const field = fieldWithOne('cactus');
-    cutOverlapping(field, 'cactus', cactus.minSize - 1);
-    expect(standingCount(field, 'cactus')).toBe(1);
-    expect(cutOverlapping(field, 'cactus', cactus.minSize)).toEqual([0]);
-  });
-
-  it('returns nothing on an empty field', () => {
-    expect(cutObstaclesInCircle(createObstacleField([]), 5, 5, 100, Infinity)).toEqual([]);
-  });
-
-  it('cuts again after resetObstacleField', () => {
-    const field = fieldWithOne('strawberry');
-    cutOverlapping(field, 'strawberry', Infinity);
-    resetObstacleField(field);
-    expect(cutOverlapping(field, 'strawberry', Infinity)).toEqual([0]);
-  });
-
-  it('applies a minSize tuned at runtime (debug panel) without recreating the field', () => {
-    const field = fieldWithOne('watermelon');
-    const original = watermelon.minSize;
-    try {
-      watermelon.minSize = original + 1;
-      expect(cutOverlapping(field, 'watermelon', original)).toEqual([]);
-      expect(cutOverlapping(field, 'watermelon', original + 1)).toEqual([0]);
-    } finally {
-      watermelon.minSize = original;
-    }
+  it('is zero for a type absent from the field', () => {
+    expect(standingCount(fieldWithOne('rock'), 'cactus')).toBe(0);
   });
 });
 
@@ -154,21 +147,11 @@ describe('obstacle settings', () => {
     expect(obstacleGrowthCuts('cactus')).toBe(cactus.growthCuts);
   });
 
-  it('each type reaches as far as its configured radius', () => {
-    const radius = 1;
-    const reach = radius + cactus.radius;
-    expect(cutObstaclesInCircle(fieldWithOne('cactus'), 5 - reach - 0.01, 5, radius, Infinity)).toEqual([]);
-    expect(cutObstaclesInCircle(fieldWithOne('cactus'), 5 - reach + 0.01, 5, radius, Infinity)).toEqual([0]);
+  it('a rock, though never cut, still reads its radius from config', () => {
     expect(obstacleRadius('rock')).toBe(config.obstacles.rock.radius);
   });
 
   it('a NaN blade size cuts nothing', () => {
     expect(canCutObstacle('strawberry', Number.NaN)).toBe(false);
-  });
-});
-
-describe('standingCount edge cases', () => {
-  it('is zero for a type absent from the field', () => {
-    expect(standingCount(fieldWithOne('rock'), 'cactus')).toBe(0);
   });
 });
