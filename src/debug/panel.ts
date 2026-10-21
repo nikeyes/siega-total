@@ -19,6 +19,8 @@ export interface DebugActions {
   restart(): void;
   /** Shows the given blades as cut on the field. */
   markCut(indices: number[]): void;
+  /** Hides the given obstacles from the field. */
+  markObstaclesCut(indices: number[]): void;
 }
 
 /** lil-gui panel to tune `config` live, jump to the end of the level and watch the game. */
@@ -34,7 +36,12 @@ export function createDebugPanel(game: Game, actions: DebugActions): DebugPanel 
   for (const [type, settings] of Object.entries(config.grassTypes)) addNumberFolder(grassFolder, type, settings);
   grassFolder.close();
 
-  gui.add({ [texts.debug.win]: () => actions.markCut(cutAllTargets(game).blades) }, texts.debug.win);
+  const win = () => {
+    const { blades, obstacles } = cutAllTargets(game);
+    actions.markCut(blades);
+    actions.markObstaclesCut(obstacles);
+  };
+  gui.add({ [texts.debug.win]: win }, texts.debug.win);
   gui.add({ [texts.debug.threeSeconds]: () => (game.timeLeft = 3) }, texts.debug.threeSeconds);
   gui.add({ [texts.debug.restart]: () => actions.restart() }, texts.debug.restart);
   gui.add(

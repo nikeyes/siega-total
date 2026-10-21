@@ -52,6 +52,17 @@ export function clearCellsUnderSolidObstacles(
   }
 }
 
+/** Turns into sand every cell whose center lies within `meters / 2` of the field center, where the blade starts. */
+export function clearStart(cells: (GrassType | null)[], cellSize: number, columns: number, rows: number, meters: number): void {
+  const centerX = (columns * cellSize) / 2;
+  const centerZ = (rows * cellSize) / 2;
+  cells.forEach((_, cell) => {
+    const cellX = ((cell % columns) + 0.5) * cellSize;
+    const cellZ = (Math.floor(cell / columns) + 0.5) * cellSize;
+    if (Math.hypot(cellX - centerX, cellZ - centerZ) <= meters / 2) cells[cell] = null;
+  });
+}
+
 /** Vertical stripes of green and ice across the configured field; ice is the target. */
 export function stripesLevel(): LevelDefinition {
   const { width, depth } = config.field;
@@ -87,6 +98,8 @@ const SAMPLE_WATERMELON_ROWS = [5, 15, 25];
 const SAMPLE_STRAWBERRY_COLUMNS = [4.5, 13.5];
 const SAMPLE_STRAWBERRY_ROWS = [2, 5, 8, 11, 14, 17, 20, 23, 26, 29];
 const SAMPLE_STRIPE_TYPES: readonly GrassType[] = ['green', 'ice', 'wheat'];
+/** The start sits on the edge of a wheat stripe, so a sand clearing keeps the blade free to move at first. */
+const SAMPLE_START_CLEARING_METERS = 3;
 
 /** Hand-made level to play obstacles before the generator exists: stripes of green, ice and wheat. */
 export function sampleLevel(): LevelDefinition {
@@ -105,6 +118,7 @@ export function sampleLevel(): LevelDefinition {
   ];
   const cells = Array.from({ length: columns * rows }, (_, cell): GrassType | null => stripeTypeOfCell(cell));
   clearCellsUnderSolidObstacles(cells, cellSize, columns, obstacles);
+  clearStart(cells, cellSize, columns, rows, SAMPLE_START_CLEARING_METERS);
   return {
     number: 0,
     seed: config.field.seed,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
 import type { GrassType } from '../../src/logic/field';
+import { bladeRadius } from '../../src/logic/blade';
 import { obstacleRadius } from '../../src/logic/obstacles';
 import {
   clearCellsUnderSolidObstacles,
@@ -12,6 +13,8 @@ import {
 } from '../../src/logic/levels';
 
 const { stripeWidthMeters } = config.level;
+/** The sample level clears the start like the generator will. */
+const SAMPLE_START_CLEARING_METERS = 3;
 
 function columnCount(level: LevelDefinition): number {
   return level.width / level.cellSize;
@@ -227,13 +230,22 @@ describe('sampleLevel', () => {
     }
   });
 
-  it('only turns into sand the cells under the rocks and the cactus', () => {
+  it('only turns into sand the cells under the rocks and the cactus, and the start clearing', () => {
     level.cells.forEach((type, cell) => {
       const centerX = ((cell % columns) + 0.5) * level.cellSize;
       const centerZ = (Math.floor(cell / columns) + 0.5) * level.cellSize;
       const underSolid = solid.some(({ type: kind, x, z }) => Math.hypot(centerX - x, centerZ - z) < obstacleRadius(kind));
-      expect(type === null, `cell ${cell}`).toBe(underSolid);
+      const inClearing = Math.hypot(centerX - level.width / 2, centerZ - level.depth / 2) <= SAMPLE_START_CLEARING_METERS / 2;
+      expect(type === null, `cell ${cell}`).toBe(underSolid || inClearing);
     });
+  });
+
+  it('starts the blade on sand, clear of every wall', () => {
+    const radius = bladeRadius(config.blade.startSize);
+    const center = { x: level.width / 2, z: level.depth / 2 };
+    for (const dx of [-radius, 0, radius]) {
+      for (const dz of [-radius, 0, radius]) expect(cellUnder(center.x + dx * 0.99, center.z + dz * 0.99)).toBeNull();
+    }
   });
 
   it('builds a fresh level on every call, so clearing cells in one does not touch another', () => {
