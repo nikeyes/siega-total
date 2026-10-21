@@ -22,6 +22,8 @@ interface Board {
   readonly rows: number;
   /** Blades `createField` puts in each cell. */
   readonly bladesInCell: Int32Array;
+  /** Blades in an average grass cell; 0 when there is no grass. */
+  readonly bladesPerGrassCell: number;
   readonly startCell: number;
   /** Cell under each obstacle's center. */
   readonly obstacleCell: Int32Array;
@@ -46,16 +48,14 @@ export function analyzeLevel(level: LevelDefinition): LevelAnalysis {
  */
 export function estimateSeconds(level: LevelDefinition): number {
   const board = boardOf(level);
-  const { cellsToSweep } = analyzeBoard(board);
-  const grassCells = board.bladesInCell.filter((blades) => blades > 0).length;
-  const bladesPerCell = grassCells === 0 ? 0 : config.field.bladeCount / grassCells;
+  const sweptCells = cellsToSweep(board);
   const cellArea = level.cellSize * level.cellSize;
   let size = config.blade.startSize;
   let growth = 0;
   let seconds = 0;
-  for (let cell = 0; cell < cellsToSweep; cell++) {
+  for (let cell = 0; cell < sweptCells; cell++) {
     seconds += cellArea / (2 * bladeRadius(size) * config.blade.maxSpeed);
-    growth += bladesPerCell;
+    growth += board.bladesPerGrassCell;
     while (growth >= cutsToNextSize(size)) {
       growth -= cutsToNextSize(size);
       size++;
@@ -70,11 +70,14 @@ function boardOf(level: LevelDefinition): Board {
   const rows = Math.ceil(level.depth / level.cellSize);
   const cellAt = (x: number, z: number) =>
     Math.min(rows - 1, Math.floor(z / level.cellSize)) * columns + Math.min(columns - 1, Math.floor(x / level.cellSize));
+  const bladesInCell = bladesInCells(level.cells);
+  const grassCells = bladesInCell.filter((blades) => blades > 0).length;
   return {
     level,
     columns,
     rows,
-    bladesInCell: bladesInCells(level.cells),
+    bladesInCell,
+    bladesPerGrassCell: grassCells === 0 ? 0 : config.field.bladeCount / grassCells,
     startCell: cellAt(level.width / 2, level.depth / 2),
     obstacleCell: Int32Array.from(level.obstacles, ({ x, z }) => cellAt(x, z)),
   };
@@ -147,10 +150,12 @@ function neighbors(board: Board, cell: number): number[] {
   return found;
 }
 
-/** An obstacle the blade can touch: its cell, or a neighbor of it, is reached. */
+/**
+ * An obstacle the blade can touch: its own cell is reached. A reached neighbor is not enough,
+ * since the cell the obstacle sits on is then a wall that keeps the blade away from it.
+ */
 function isWithinReach(board: Board, obstacle: number, reached: Uint8Array): boolean {
-  const cell = board.obstacleCell[obstacle]!;
-  return reached[cell] === 1 || neighbors(board, cell).some((next) => reached[next] === 1);
+  return reached[board.obstacleCell[obstacle]!] === 1;
 }
 
 function reachableCuts(board: Board, reached: Uint8Array, size: number): number {
@@ -190,14 +195,13 @@ function unitsOf(board: Board, target: TargetKind): number {
 
 /** The target cells, plus enough cells of average grass to grow to the biggest size the targets ask for. */
 function cellsToSweep(board: Board): number {
-  const { level, bladesInCell } = board;
+  const { level, bladesPerGrassCell } = board;
   const targetCells = level.cells.filter((type) => type !== null && level.targets.includes(type)).length;
   const neededSize = Math.max(config.blade.startSize, ...level.targets.map(minSizeOf));
   let cutsToGrow = 0;
   for (let size = config.blade.startSize; size < neededSize; size++) cutsToGrow += cutsToNextSize(size);
-  const grassCells = bladesInCell.filter((blades) => blades > 0).length;
-  const bladesPerCell = grassCells === 0 ? 0 : config.field.bladeCount / grassCells;
-  const growthCells = cutsToGrow === 0 ? 0 : Math.ceil(cutsToGrow / bladesPerCell);
+  // Without grass there is nothing to grow on; validation rejects such levels, the estimate just skips growth.
+  const growthCells = cutsToGrow === 0 || bladesPerGrassCell === 0 ? 0 : Math.ceil(cutsToGrow / bladesPerGrassCell);
   return targetCells + growthCells;
 }
 

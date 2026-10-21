@@ -22,6 +22,7 @@ describe('difficultyFor', () => {
   it('has only green grass and no obstacles in levels 1 to 3', () => {
     for (const level of [1, 2, 3]) {
       const difficulty = difficultyFor(level);
+      expect(difficulty.levelNumber).toBe(level);
       expect(difficulty.grassTypes).toEqual(['green']);
       expect(difficulty.obstacleTypes).toEqual([]);
       expect([difficulty.rockCount, difficulty.fruitCount, difficulty.cactusCount]).toEqual([0, 0, 0]);
@@ -64,12 +65,22 @@ describe('difficultyFor', () => {
     }
   });
 
-  it('has no obstacles of a kind before it is unlocked', () => {
-    expect(difficultyFor(unlockLevel.rock - 1).rockCount).toBe(0);
-    expect(difficultyFor(unlockLevel.rock).rockCount).toBeGreaterThan(0);
-    expect(difficultyFor(unlockLevel.fruit - 1).fruitCount).toBe(0);
-    expect(difficultyFor(unlockLevel.cactus - 1).cactusCount).toBe(0);
-    expect(difficultyFor(unlockLevel.cactus).cactusCount).toBeGreaterThan(0);
+  it('rounds the curve to the nearest whole for the grass type and target counts', () => {
+    const { grassTypeCount, targetCount } = config.generator;
+    for (const level of LEVELS) {
+      const difficulty = difficultyFor(level);
+      expect(difficulty.grassTypeCount, `level ${level}`).toBe(Math.min(Math.round(curveValue(grassTypeCount, level)), difficulty.grassTypes.length));
+      expect(difficulty.targetCount, `level ${level}`).toBe(Math.round(curveValue(targetCount, level)));
+    }
+  });
+
+  it.each(['rock', 'fruit', 'cactus'] as const)('has no %s before it unlocks, then the curve rounded to the nearest whole', (kind) => {
+    const range = config.generator[`${kind}Count`];
+    for (const level of LEVELS) {
+      const expected = level < unlockLevel[kind] ? 0 : Math.round(curveValue(range, level));
+      expect(difficultyFor(level)[`${kind}Count`], `level ${level}`).toBe(expected);
+    }
+    expect(difficultyFor(unlockLevel[kind])[`${kind}Count`]).toBeGreaterThan(0);
   });
 
   it('shrinks the time margin from first to last', () => {
