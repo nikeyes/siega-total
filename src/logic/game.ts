@@ -34,6 +34,8 @@ export interface Game {
   /** The full time of this game, for the timer ring: the level's time plus the bonus seconds. */
   timeTotal: number;
   winWave: WinWave | null;
+  /** Seconds the compass booster still points for; 0 when it is off. */
+  compassLeft: number;
   /** Coins cut in this attempt, the win wave's included. */
   levelCoins: number;
   /** Bonus for the time left, set when the win wave starts. */
@@ -71,6 +73,7 @@ export function createGame(level: LevelDefinition = sampleLevel(), bonuses: Game
     timeLeft: startingTime(level, bonuses),
     timeTotal: startingTime(level, bonuses),
     winWave: null,
+    compassLeft: 0,
     levelCoins: 0,
     bonusCoins: 0,
     bankedCoins: 0,
@@ -96,6 +99,7 @@ export function resetGame(game: Game): void {
   game.timeLeft = game.timeTotal = startingTime(level, game.bonuses);
   game.status = 'ready';
   game.winWave = null;
+  game.compassLeft = 0;
   game.levelCoins = 0;
   game.bonusCoins = 0;
   game.bankedCoins = 0;
@@ -113,6 +117,7 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
     return nothingHappened();
   }
   game.timeLeft = Math.max(0, game.timeLeft - dt);
+  game.compassLeft = Math.max(0, game.compassLeft - dt);
   moveBlade(blade, direction, dt, field.width, field.depth, maxSpeedOf(game));
   const { x, z, blocked } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
   blade.x = x;
@@ -128,8 +133,10 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
     game.status = 'winWave';
     game.bonusCoins = timeBonus(game.timeLeft);
     game.winWave = { x: blade.x, z: blade.z, radius: 0 };
+    game.compassLeft = 0;
   } else if (game.timeLeft === 0) {
     game.status = 'lost';
+    game.compassLeft = 0;
   }
   return { cutIndices, cutObstacles, sizesGained, coins, blocked };
 }

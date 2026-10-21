@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { texts } from '../../src/texts';
-import { hudDisplay, levelLabel, type HudState } from '../../src/ui/hud';
+import { boosterButtons, hudDisplay, levelLabel, type HudState } from '../../src/ui/hud';
 
 const STATE: HudState = {
   timeLeft: 45.3,
@@ -13,6 +13,11 @@ const STATE: HudState = {
   showBlocked: false,
   coins: 345,
   floatCoins: null,
+  boosters: {
+    upgrade: { uses: 2, usable: true },
+    compass: { uses: 0, usable: true },
+    clock: { uses: 3, usable: false },
+  },
 };
 
 describe('hudDisplay', () => {
@@ -75,5 +80,15 @@ describe('hudDisplay', () => {
 describe('levelLabel', () => {
   it('names the level by its number', () => {
     expect(levelLabel(7)).toBe(`${texts.hud.level} 7`);
+  });
+});
+
+describe('boosterButtons', () => {
+  it('shows the uses left of each booster and turns off one without uses or that cannot be used now', () => {
+    expect(boosterButtons(STATE)).toEqual([
+      { kind: 'upgrade', usesLabel: '2', disabled: false },
+      { kind: 'compass', usesLabel: '0', disabled: true },
+      { kind: 'clock', usesLabel: '3', disabled: true },
+    ]);
   });
 });

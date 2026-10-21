@@ -1,5 +1,5 @@
 import { config } from '../config';
-import type { SaveData, UpgradeKind } from '../logic/save';
+import type { BoosterKind, SaveData, UpgradeKind } from '../logic/save';
 import { upgradePrice } from '../logic/upgrades';
 import { texts } from '../texts';
 import { formatCount } from './formatCount';
@@ -36,6 +36,43 @@ export function shopUpgradeRows(save: SaveData): ShopUpgradeRow[] {
   });
 }
 
+const BOOSTER_ORDER: readonly BoosterKind[] = ['upgrade', 'compass', 'clock'];
+
+export interface ShopBoosterRow {
+  kind: BoosterKind;
+  label: string;
+  /** What one use does, like «Flecha 15 s». */
+  effectLabel: string;
+  /** «Usos N». */
+  usesLabel: string;
+  price: string;
+  canBuy: boolean;
+}
+
+/** One row per booster, in the order of the HUD buttons. */
+export function shopBoosterRows(save: SaveData): ShopBoosterRow[] {
+  return BOOSTER_ORDER.map((kind) => ({
+    kind,
+    label: texts.boosters[kind],
+    effectLabel: boosterEffect(kind),
+    usesLabel: `${texts.shop.uses} ${formatCount(save.boosters[kind])}`,
+    price: formatCount(config.boosters[kind].price),
+    canBuy: save.coins >= config.boosters[kind].price,
+  }));
+}
+
+function boosterEffect(kind: BoosterKind): string {
+  const { boosters } = config;
+  switch (kind) {
+    case 'upgrade':
+      return `+${boosters.upgrade.sizes} ${texts.shop.sizeEffect}`;
+    case 'compass':
+      return `${texts.boosters.compassEffect} ${boosters.compass.seconds} s`;
+    case 'clock':
+      return `+${boosters.clock.seconds} s`;
+  }
+}
+
 /** Read from the config on every call, so effects tuned in the debug panel show at once. */
 function upgradeEffect(kind: UpgradeKind): string {
   const { perLevel } = config.upgrades[kind];
@@ -57,6 +94,7 @@ function asPercent(fraction: number): number {
 
 export interface ShopActions {
   onBuyUpgrade(kind: UpgradeKind): void;
+  onBuyBooster(kind: BoosterKind): void;
   onBack(): void;
 }
 
@@ -66,7 +104,7 @@ export interface ShopScreen {
   render(save: SaveData): void;
 }
 
-/** The balance and one row per upgrade: name, level, effect and a price button, off without coins. */
+/** The balance, one row per upgrade (name, level, effect, price) and one per booster (name, uses, effect, price); buttons are off without coins. */
 export function createShopScreen(container: HTMLElement, actions: ShopActions): ShopScreen {
   const layer = createLayer(container, 'shop');
   const coins = document.createElement('div');
@@ -79,32 +117,56 @@ export function createShopScreen(container: HTMLElement, actions: ShopActions): 
   heading.textContent = texts.shop.upgrades;
   const list = document.createElement('div');
   list.className = 'shop-list';
-  layer.append(layerTitle(texts.shop.title), coins, heading, list, layerButton(texts.shop.back, 'secondary', actions.onBack));
+  const boostersHeading = document.createElement('h2');
+  boostersHeading.className = 'shop-heading';
+  boostersHeading.textContent = texts.shop.boosters;
+  const boosterList = document.createElement('div');
+  boosterList.className = 'shop-list';
+  layer.append(
+    layerTitle(texts.shop.title),
+    coins,
+    heading,
+    list,
+    boostersHeading,
+    boosterList,
+    layerButton(texts.shop.back, 'secondary', actions.onBack),
+  );
 
   function render(save: SaveData): void {
     coinsText.textContent = formatCount(save.coins);
-    list.replaceChildren(...shopUpgradeRows(save).map((row) => upgradeRowElement(row, actions)));
+    list.replaceChildren(
+      ...shopUpgradeRows(save).map((row) =>
+        rowElement(row.kind, row.label, `${row.levelLabel} · ${row.effectLabel}`, row.price ?? texts.shop.max, row.canBuy, () =>
+          actions.onBuyUpgrade(row.kind),
+        ),
+      ),
+    );
+    boosterList.replaceChildren(
+      ...shopBoosterRows(save).map((row) =>
+        rowElement(row.kind, row.label, `${row.usesLabel} · ${row.effectLabel}`, row.price, row.canBuy, () => actions.onBuyBooster(row.kind)),
+      ),
+    );
   }
 
   return { layer, render };
 }
 
-function upgradeRowElement(row: ShopUpgradeRow, actions: ShopActions): HTMLElement {
+function rowElement(kind: string, label: string, detailsText: string, buyLabel: string, canBuy: boolean, onBuy: () => void): HTMLElement {
   const element = document.createElement('div');
   element.className = 'shop-row';
-  element.dataset.kind = row.kind;
+  element.dataset.kind = kind;
   const text = document.createElement('div');
   text.className = 'shop-row-text';
   const name = document.createElement('span');
   name.className = 'shop-row-name';
-  name.textContent = row.label;
+  name.textContent = label;
   const details = document.createElement('span');
   details.className = 'shop-row-details';
-  details.textContent = `${row.levelLabel} · ${row.effectLabel}`;
+  details.textContent = detailsText;
   text.append(name, details);
-  const buy = layerButton(row.price ?? texts.shop.max, 'primary', () => actions.onBuyUpgrade(row.kind));
+  const buy = layerButton(buyLabel, 'primary', onBuy);
   buy.classList.add('shop-row-buy');
-  buy.disabled = !row.canBuy;
+  buy.disabled = !canBuy;
   element.append(text, buy);
   return element;
 }

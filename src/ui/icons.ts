@@ -14,3 +14,15 @@ export function pauseIconSvg(): string {
     <rect x="23" y="8" width="7" height="24" rx="2" fill="#fff" stroke="#16324f" stroke-width="2.5" />
   </svg>`;
 }
+
+const OUTLINE = 'stroke="#16324f" stroke-width="2.5" stroke-linejoin="round"';
+
+/** Each booster's icon: an arrow up for a bigger blade, a compass needle and a clock. */
+export function boosterIconSvg(kind: 'upgrade' | 'compass' | 'clock'): string {
+  const shapes = {
+    upgrade: `<path d="M20 5 L34 20 H25 V35 H15 V20 H6 Z" fill="#4fd65a" ${OUTLINE} />`,
+    compass: `<circle cx="20" cy="20" r="15" fill="#f3f8ff" ${OUTLINE} /><path d="M20 8 L25 20 H15 Z" fill="#ff5a4f" ${OUTLINE} /><path d="M20 32 L15 20 H25 Z" fill="#9fb3c8" ${OUTLINE} />`,
+    clock: `<circle cx="20" cy="21" r="14" fill="#f3f8ff" ${OUTLINE} /><path d="M20 12 V21 L26 25" fill="none" stroke="#16324f" stroke-width="3" stroke-linecap="round" /><rect x="16" y="3" width="8" height="4" rx="1" fill="#ffd23f" ${OUTLINE} />`,
+  };
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">${shapes[kind]}</svg>`;
+}

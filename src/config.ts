@@ -33,9 +33,9 @@ export const config = {
     growth: { max: 10, perLevel: 0.1, basePrice: 5000, priceGrowth: 1.5 },
   },
   boosters: {
-    upgrade: { price: 3000, startUses: 2 },
-    compass: { price: 2000, startUses: 2 },
-    clock: { price: 3000, startUses: 2 },
+    upgrade: { price: 3000, startUses: 2, sizes: 1 },
+    compass: { price: 2000, startUses: 2, seconds: 15, retargetSeconds: 0.2 },
+    clock: { price: 3000, startUses: 2, seconds: 30 },
   },
   blade: {
     startSize: 1,

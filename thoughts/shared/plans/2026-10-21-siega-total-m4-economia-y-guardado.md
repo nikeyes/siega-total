@@ -683,9 +683,9 @@ Recorre las briznas objetivo en pie (`targetGrassTypes`, `field.cut`, `positions
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Las pruebas de boosters, juego, economía y arquitectura pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Las pruebas de boosters, juego, economía y arquitectura pasan: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 
@@ -757,22 +757,24 @@ export function createCompassView(scene: Scene): CompassView;
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
-- [ ] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
 
 #### Verificación en Chrome (agente, `?debug`, 390 × 844, GIF `m4-c-boosters.gif`). Es el criterio de salida automatizable de M4:
-- [ ] Con el guardado vacío, los tres botones muestran «2».
-- [ ] Mejora: `window.__siega.blade.size` sube en 1 y el botón muestra «1». Tras recargar, `localStorage` mantiene `boosters.upgrade: 1`.
-- [ ] Brújula: `window.__siega.compassLeft` empieza en 15 y baja. La captura muestra la flecha junto a la cuchilla. Mientras está activa, el botón aparece apagado. A los 15 s la flecha desaparece.
-- [ ] Reloj en partida: `timeLeft` sube 30 s.
-- [ ] «Tiempo 3 s» → Derrota → «+30 s»:
+- [x] Con el guardado vacío, los tres botones muestran «2».
+- [x] Mejora: `window.__siega.blade.size` sube en 1 y el botón muestra «1». Tras recargar, `localStorage` mantiene `boosters.upgrade: 1`.
+- [x] Brújula: `window.__siega.compassLeft` empieza en 15 y baja. La captura muestra la flecha junto a la cuchilla. Mientras está activa, el botón aparece apagado. A los 15 s la flecha desaparece.
+- [x] Reloj en partida: `timeLeft` sube 30 s.
+- [x] «Tiempo 3 s» → Derrota → «+30 s»:
   - el estado vuelve a `playing` con el campo tal como estaba (`field.cutCount` igual);
   - al ganar con «Ganar», el saldo guardado sube solo en lo nuevo más el bonus.
-- [ ] Sin Relojes y con saldo: «+30 s» muestra el precio y lo cobra. Sin Relojes ni saldo, aparece apagado.
-- [ ] Tienda: comprar un booster suma 1 uso y resta el precio.
-- [ ] Se juegan los niveles 1 → 10 seguidos con «Ganar» y «Siguiente». Se compra al menos una mejora de cada tipo y se usa cada booster. Tras recargar, Inicio muestra el nivel 11, el saldo, las mejoras y los usos. No aparecen errores en la consola.
+- [x] Sin Relojes y con saldo: «+30 s» muestra el precio y lo cobra. Sin Relojes ni saldo, aparece apagado.
+- [x] Tienda: comprar un booster suma 1 uso y resta el precio.
+- [x] Se juegan los niveles 1 → 10 seguidos con «Ganar» y «Siguiente». Se compra al menos una mejora de cada tipo y se usa cada booster. Tras recargar, Inicio muestra el nivel 11, el saldo, las mejoras y los usos. No aparecen errores en la consola.
+
+> **Notas (implementación y verificación en Chrome):** `compassAngle` se hizo como `compassPlacement(blade, target)` en `render/compassMath.ts`, que da la posición y el ángulo de la flecha. La flecha se dibuja sin prueba de profundidad y con `renderOrder` alto, porque la hierba alta de alrededor de la cuchilla la tapaba. La verificación encontró que las capas más altas que la pantalla (la Tienda con sus 7 filas) perdían el título por arriba; ahora se centran con separadores flexibles y se desplazan desde arriba. Los niveles 1 → 10 se jugaron con «Ganar» y «Siguiente», comprando una mejora de cada tipo; cada booster se usó en el nivel 11, porque pulsarlo en el mismo tick que «Siguiente» llega con el botón aún apagado de la capa de resultado. Chrome no bajó de 500 × 723. Los GIF no se exportaron, porque exportarlos descarga un archivo.
 
 #### Verificación manual (usuario):
 - [ ] Criterio de salida en el móvil: los niveles 1 → 10 se juegan a mano. Las mejoras se notan y la economía no se rompe (juicio de equilibrio).

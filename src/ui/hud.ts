@@ -1,11 +1,12 @@
 import type { GrassType } from '../logic/field';
+import type { BoosterKind } from '../logic/save';
 import { isObstacleType, type LevelDefinition, type TargetKind } from '../logic/levels';
 import { GRASS_COLORS } from '../render/grassColors';
 import { OBSTACLE_COLORS } from '../render/obstacleColors';
 import { texts } from '../texts';
 import { formatClock } from './clock';
 import { formatCount } from './formatCount';
-import { coinIconSvg, pauseIconSvg } from './icons';
+import { boosterIconSvg, coinIconSvg, pauseIconSvg } from './icons';
 
 /** The size pill hangs this far below the blade's center on screen, clear of the blade itself. */
 const SIZE_PILL_OFFSET_PX = 34;
@@ -33,6 +34,8 @@ export interface HudState {
   coins: number;
   /** Starts a «+N» above the blade with these coins. */
   floatCoins: number | null;
+  /** Uses left of each booster, and whether the game lets it be used now. */
+  boosters: Record<BoosterKind, { uses: number; usable: boolean }>;
 }
 
 /** What the HUD shows, rounded to what the player can tell apart, so equal displays need no DOM writes. */
@@ -61,6 +64,22 @@ export function hudDisplay(state: HudState): HudDisplay {
   };
 }
 
+const BOOSTER_ORDER: readonly BoosterKind[] = ['upgrade', 'compass', 'clock'];
+
+export interface BoosterButton {
+  kind: BoosterKind;
+  usesLabel: string;
+  disabled: boolean;
+}
+
+/** The round booster buttons at the bottom right, off without uses or when the game does not allow one now. */
+export function boosterButtons(state: HudState): BoosterButton[] {
+  return BOOSTER_ORDER.map((kind) => {
+    const { uses, usable } = state.boosters[kind];
+    return { kind, usesLabel: formatCount(uses), disabled: uses <= 0 || !usable };
+  });
+}
+
 export function levelLabel(levelNumber: number): string {
   return `${texts.hud.level} ${levelNumber}`;
 }
@@ -71,6 +90,7 @@ function toPercent(fraction: number): number {
 
 export interface HudActions {
   onPause(): void;
+  onBooster(kind: BoosterKind): void;
 }
 
 export interface Hud {
@@ -80,7 +100,7 @@ export interface Hud {
 }
 
 /**
- * Timer and target card at the top left, coins and the pause button at the top right, the size pill that follows the blade,
+ * Timer and target card at the top left, coins and the pause button at the top right, the boosters at the bottom right, the size pill that follows the blade,
  * and the blocked notice and the «+N» of the coins above it.
  */
 export function createHud(container: HTMLElement, actions: HudActions): Hud {
@@ -113,9 +133,23 @@ export function createHud(container: HTMLElement, actions: HudActions): Hud {
   pause.addEventListener('pointerdown', (event) => event.stopPropagation());
   pause.addEventListener('click', () => actions.onPause());
   corner.append(coins, pause);
+  const boosters = element('div', 'hud-boosters');
+  const boosterElements = BOOSTER_ORDER.map((kind) => {
+    const button = element('button', 'hud-booster') as HTMLButtonElement;
+    button.type = 'button';
+    button.dataset.kind = kind;
+    button.setAttribute('aria-label', texts.boosters[kind]);
+    button.innerHTML = boosterIconSvg(kind);
+    const uses = element('span', 'hud-booster-uses');
+    button.append(uses);
+    button.addEventListener('pointerdown', (event) => event.stopPropagation());
+    button.addEventListener('click', () => actions.onBooster(kind));
+    boosters.append(button);
+    return { button, uses };
+  });
   const coinFloats = Array.from({ length: COIN_FLOAT_COUNT }, () => element('div', 'hud-float'));
   let nextCoinFloat = 0;
-  container.append(top, corner, pill, blockedNotice, ...coinFloats);
+  container.append(top, corner, boosters, pill, blockedNotice, ...coinFloats);
 
   let counters: HTMLElement[] = [];
   let shown: Partial<HudDisplay> = {};
@@ -149,6 +183,11 @@ export function createHud(container: HTMLElement, actions: HudActions): Hud {
     }
     if (state.showBlocked) restartAnimation(blockedNotice, 'visible');
     if (display.coinsLabel !== shown.coinsLabel) coinsText.textContent = display.coinsLabel;
+    boosterButtons(state).forEach(({ usesLabel, disabled }, index) => {
+      const { button, uses } = boosterElements[index]!;
+      if (uses.textContent !== usesLabel) uses.textContent = usesLabel;
+      if (button.disabled !== disabled) button.disabled = disabled;
+    });
     if (state.floatCoins !== null) {
       const float = coinFloats[nextCoinFloat]!;
       nextCoinFloat = (nextCoinFloat + 1) % COIN_FLOAT_COUNT;

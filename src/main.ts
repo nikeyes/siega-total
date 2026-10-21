@@ -3,6 +3,7 @@ import { config } from './config';
 import type { DebugPanel } from './debug/panel';
 import { bladeRadius, growthFraction } from './logic/blade';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
+import { buyBooster, canUseBooster, continueWithClock, nearestTarget, useBooster } from './logic/boosters';
 import { bankCoins } from './logic/economy';
 import {
   createGame,
@@ -15,7 +16,7 @@ import {
 } from './logic/game';
 import type { LevelDefinition } from './logic/levels';
 import { levelFor } from './logic/progression';
-import { defaultSave } from './logic/save';
+import { defaultSave, type BoosterKind } from './logic/save';
 import { bonusesFor, buyUpgrade } from './logic/upgrades';
 import { createBurstView } from './render/burst';
 import { OBSTACLE_COLORS } from './render/obstacleColors';
@@ -23,6 +24,7 @@ import { loadObstacleModels, placeholderObstacleModels, type ObstacleModels } fr
 import { createObstacleView, type ObstacleView } from './render/obstacles';
 import { combineDirections } from './logic/input';
 import { createBladeView } from './render/blade';
+import { createCompassView } from './render/compass';
 import { createCameraRig, halfVisible } from './render/cameraRig';
 import { createGrassView, type GrassView } from './render/grass';
 import { createGameScene } from './render/scene';
@@ -53,11 +55,23 @@ const burst = createBurstView(gameScene.scene);
 const blockedNotice = createBlockedNotice();
 const coinFloats = createCoinFloats();
 const bladeView = createBladeView(gameScene.scene);
+const compassView = createCompassView(gameScene.scene);
 const cameraRig = createCameraRig();
 const joystick = createJoystick(container);
 const keyboard = createKeyboard();
-const hud = createHud(container, { onPause: () => showScreen('paused') });
+const hud = createHud(container, {
+  onPause: () => showScreen('paused'),
+  onBooster: (kind) => {
+    // A used booster is saved at once, so reloading does not give it back.
+    if (screen === 'playing' && useBooster(save, game, kind)) writeSave(save);
+  },
+});
 const resultOverlay = createResultOverlay(container, {
+  onContinue: () => {
+    if (!continueWithClock(save, game)) return;
+    writeSave(save);
+    showScreen('playing');
+  },
   onNext: () => {
     loadLevel(save.level);
     showScreen('playing');
@@ -87,6 +101,11 @@ const homeScreen = createHomeScreen(container, {
 const shopScreen = createShopScreen(container, {
   onBuyUpgrade: (kind) => {
     if (!buyUpgrade(save, kind)) return;
+    writeSave(save);
+    renderSave();
+  },
+  onBuyBooster: (kind) => {
+    if (!buyBooster(save, kind)) return;
     writeSave(save);
     renderSave();
   },
@@ -245,6 +264,27 @@ function fitToContainer(): void {
 window.addEventListener('resize', fitToContainer);
 fitToContainer();
 
+function boosterState(kind: BoosterKind): { uses: number; usable: boolean } {
+  return { uses: save.boosters[kind], usable: screen === 'playing' && canUseBooster(game, kind) };
+}
+
+let compassPointsAt: { x: number; z: number } | null = null;
+let secondsSinceRetarget = Infinity;
+
+/** While the compass points, the nearest standing target, looked up again every retargetSeconds. */
+function compassTarget(dt: number): { x: number; z: number } | null {
+  if (game.compassLeft <= 0) {
+    secondsSinceRetarget = Infinity;
+    return null;
+  }
+  secondsSinceRetarget += dt;
+  if (secondsSinceRetarget >= config.boosters.compass.retargetSeconds) {
+    secondsSinceRetarget = 0;
+    compassPointsAt = nearestTarget(game, game.blade.x, game.blade.z);
+  }
+  return compassPointsAt;
+}
+
 let elapsedSeconds = 0;
 let previousTimestamp: number | null = null;
 
@@ -270,7 +310,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   grass!.setHighlight(shouldHighlightTargets(game) ? targetGrassTypes(game) : []);
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
     saveLevelEnd();
-    resultOverlay.show(game.status, { levelCoins: game.levelCoins, bonusCoins: game.bonusCoins });
+    resultOverlay.show(game.status, { levelCoins: game.levelCoins, bonusCoins: game.bonusCoins }, save);
     showScreen('result');
   }
 
@@ -280,6 +320,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   clampFocus(focus, field.width, field.depth, halfVisibleX, halfVisibleZ, edgeMargin);
 
   bladeView.update(blade, dt);
+  compassView.update(blade, compassTarget(dt));
   cameraRig.update(focus);
   grass!.setTime(elapsedSeconds);
   gameScene.renderer.render(gameScene.scene, cameraRig.camera);
@@ -297,6 +338,11 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     // Banked coins are already in the balance, so only the rest of the level is added on top.
     coins: save.coins + game.levelCoins + game.bonusCoins - game.bankedCoins,
     floatCoins: coinFloats.step(result.coins, dt),
+    boosters: {
+      upgrade: boosterState('upgrade'),
+      compass: boosterState('compass'),
+      clock: boosterState('clock'),
+    },
   });
 
   debugPanel?.update(realSeconds);
