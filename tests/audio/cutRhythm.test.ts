@@ -86,7 +86,7 @@ describe('cutRhythm', () => {
     const { cutMinIntervalSeconds, cutPitchStep, cutStreakResetSeconds } = config.audio;
     const rhythm = createCutRhythm();
     rhythm.step(true, FRAME);
-    const shortPause = cutStreakResetSeconds / 3;
+    const shortPause = cutStreakResetSeconds * 0.9;
     for (let pause = 0; pause < 6; pause++) {
       rhythm.step(false, shortPause);
       rhythm.step(true, FRAME);

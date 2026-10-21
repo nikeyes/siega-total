@@ -23,7 +23,7 @@ Cada recurso nuevo añade aquí su autor, su paquete y su licencia.
 - Autor: Kenney ([www.kenney.nl](https://www.kenney.nl))
 - Paquete: [Interface Sounds](https://kenney.nl/assets/interface-sounds)
 - Licencia: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
-- Archivos usados: `Audio/scratch_001.ogg` → `public/sounds/cut.mp3`, `Audio/maximize_006.ogg` → `public/sounds/sizeUp.mp3`, `Audio/click_001.ogg` → `public/sounds/tap.mp3`
+- Archivos usados: `Audio/maximize_006.ogg` → `public/sounds/sizeUp.mp3`, `Audio/click_001.ogg` → `public/sounds/tap.mp3`
 
 ### Kenney: Impact Sounds (1.0)
 
@@ -45,3 +45,10 @@ Cada recurso nuevo añade aquí su autor, su paquete y su licencia.
 - Paquete: [RPG Audio](https://kenney.nl/assets/rpg-audio)
 - Licencia: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
 - Archivos usados: `Audio/handleCoins.ogg` → `public/sounds/coins.mp3`
+
+### Sonido propio: brisa del corte
+
+- `public/sounds/cut.mp3` no sale de ningún paquete: es ruido rosa filtrado, generado con `ffmpeg`:
+  ```bash
+  ffmpeg -f lavfi -i "anoisesrc=d=0.7:c=pink:a=0.5:seed=7" -af "bandpass=f=700:width_type=o:w=1.5,lowpass=f=2500,afade=t=in:curve=qsin:d=0.25,afade=t=out:curve=qsin:st=0.3:d=0.4,volume=13dB" -ac 1 -ar 44100 -b:a 64k public/sounds/cut.mp3
+  ```
