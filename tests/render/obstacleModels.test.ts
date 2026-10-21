@@ -7,7 +7,8 @@ function place(point: { x: number; y: number; z: number }, { scale, offset }: Re
 }
 
 describe('normalizedScale', () => {
-  const box = { min: { x: 2, y: 1, z: -1 }, max: { x: 6, y: 5, z: 1 } };
+  /** Off the origin on every axis, longer along x (4) than z (2). */
+  const box = { min: { x: 2, y: 1, z: 3 }, max: { x: 6, y: 5, z: 5 } };
 
   it('scales the model so half its longest side on the ground equals the radius', () => {
     expect(normalizedScale(box, 1.5).scale).toBeCloseTo(1.5 / 2, 12);

@@ -106,8 +106,11 @@ if (new URLSearchParams(location.search).has('debug')) {
   void import('./debug/panel').then(({ createDebugPanel }) => {
     debugPanel = createDebugPanel(() => game, {
       restart,
-      markCut: (indices) => grass!.markCut(indices, elapsedSeconds),
-      markObstaclesCut: (indices) => obstacleView!.markCut(indices),
+      markCut: ({ blades, obstacles }) => {
+        grass!.markCut(blades, elapsedSeconds);
+        obstacleView!.markCut(obstacles);
+      },
+      playLevel,
     });
   });
 }

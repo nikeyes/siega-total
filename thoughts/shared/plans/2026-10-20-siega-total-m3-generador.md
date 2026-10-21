@@ -842,10 +842,10 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] El panel sigue en un fragmento aparte: `make build && grep -l 'lil-gui' dist/assets/*.js` encuentra un archivo y `! grep -q 'lil-gui' dist/assets/index-*.js`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] El panel sigue en un fragmento aparte: `make build && grep -l 'lil-gui' dist/assets/*.js` encuentra un archivo y `! grep -q 'lil-gui' dist/assets/index-*.js`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
 
 #### Verificación manual:
 - [ ] Con `?debug`, «Ir al nivel 22» carga un nivel con cactus objetivo.
@@ -893,6 +893,20 @@ Solo para lo visual y el dispositivo real: deslizamiento y aviso, explosiones, l
 ## Notas de migración
 
 No aplica: no hay datos guardados. `LevelDefinition` cambia `target` por `targets` y añade `number`, `seed` y `obstacles`. `stripesLevel` y las pruebas se adaptan en la fase 1. `StepResult` añade `cutObstacles` y `blocked`.
+
+## Desviaciones durante la implementación
+
+- **Rocas:** se marcan como no cortables con una comprobación explícita (`canCutObstacle`), porque `Infinity <= Infinity` es verdadero y la onda las habría cortado.
+- **Choques:** cada pasada empuja primero fuera de la celda más profunda (si no, la cuchilla se engancha en la junta entre dos celdas de pared) y limita al campo dentro de cada pasada (si no, atraviesa una roca junto al borde). Queda una prueba `- BUG` saltada: una roca que aprieta la cuchilla contra una pared más estrecha que ella la hunde unos centímetros en la pared.
+- **`sampleLevel`** tiene un claro de arena de 3 m en el inicio (`clearStart`, compartido con el generador), porque el inicio caía en el borde de una franja de trigo.
+- **Cactus provisional** en varias piezas en lugar de geometría fusionada: importar `three/addons` en desarrollo cargaba otra copia de Three.js.
+- **Espiral:** un brazo por región (`ángulo/2π × regionCount`); la fórmula literal dejaba una costura recta.
+- **Islas:** el radio se sortea en cada intento de colocación, para que aparezcan todas las regiones. Las líneas de las áreas del campo de fútbol tienen 1 celda.
+- **Estimación de tiempo:** la cuchilla se ensancha al crecer. Con la fórmula del plan, un nivel 1 estimaba ~358 s y se rechazaban todas las semillas (y la reserva).
+- **`secondsPerTargetPiece`** es 1,5 en lugar de 0,6: con 0,6 el nivel 16 daba 15 s para ~11 sandías repartidas.
+- **Alcance de una pieza:** cuenta solo si se alcanza su propia celda. La regla de la celda vecina solo importaba cuando la celda de la pieza es una pared, y entonces la cuchilla no la toca.
+- **Roca:** `rock.glb` sale de `stone_largeA.glb`, porque `rock_largeA.glb` del Nature Kit es un montículo de tierra con césped.
+- **Panel:** `createDebugPanel(getGame, …)` llegó en la fase 6, porque la partida ya cambiaba de nivel.
 
 ## Referencias
 
