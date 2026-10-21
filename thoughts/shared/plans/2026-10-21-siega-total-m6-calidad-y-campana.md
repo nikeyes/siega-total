@@ -642,9 +642,9 @@ Con un solo tipo de hierba, el patrón se dibuja con hierba y arena.
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 
@@ -702,9 +702,9 @@ export function pickCampaign(lastLevel = config.campaign.levels): Record<number,
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] Hay 50 semillas: `grep -cE '^\s+[0-9]+: [0-9]+,' src/campaign.ts` da 50
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] Hay 50 semillas: `grep -cE '^\s+[0-9]+: [0-9]+,' src/campaign.ts` da 50
 
 ---
 
@@ -751,19 +751,19 @@ No se hacen en esta fase. Tras fusionar la PR B, si el usuario lo pide:
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
-- [ ] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
-- [ ] La versión es 1.0.0: `node -p "require('./package.json').version"` da `1.0.0`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] El panel sigue en un fragmento aparte: `make build && ! grep -q 'lil-gui' dist/assets/index-*.js`
+- [x] La versión es 1.0.0: `node -p "require('./package.json').version"` da `1.0.0`
 
 #### Verificación en Chrome (agente, `?debug`, GIF `m6-b-campana.gif`). Es el criterio de salida automatizable de M6:
-- [ ] Los niveles 1, 2 y 3 («Ir al nivel») se ven distintos: las capturas muestran patrones de hierba y arena diferentes.
-- [ ] «Copiar campaña» escribe en la consola 50 líneas iguales a `campaign.ts`.
-- [ ] Del nivel 1 al 5 con «Ganar» y «Siguiente», el monitor muestra la semilla de `campaign.ts` de cada nivel.
-- [ ] «Ir al nivel» 51 genera un nivel válido (rechazo «-») y se juega con «Ganar».
-- [ ] La calidad automática baja con «FPS simulados» a 30 (repetición rápida de la fase 4).
-- [ ] No hay errores en la consola.
+- [x] Los niveles 1, 2 y 3 («Ir al nivel») se ven distintos: las capturas muestran patrones de hierba y arena diferentes.
+- [x] «Copiar campaña» escribe en la consola 50 líneas iguales a `campaign.ts`.
+- [x] Del nivel 1 al 5 con «Ganar» y «Siguiente», el monitor muestra la semilla de `campaign.ts` de cada nivel.
+- [x] «Ir al nivel» 51 genera un nivel válido (rechazo «-») y se juega con «Ganar».
+- [x] La calidad automática baja con «FPS simulados» a 30 (repetición rápida de la fase 4).
+- [x] No hay errores en la consola.
 
 #### Verificación manual (usuario):
 - [ ] La campaña 1 → 50 se juega en el móvil en Auto. Las semillas que no gusten se cambian con «Otra semilla» / «Copiar semilla» (juicio de diseño).
@@ -786,6 +786,15 @@ No se hacen en esta fase. Tras fusionar la PR B, si el usuario lo pide:
   - `keyboardDirection` usa un `Map` y la cuchilla resuelve las paredes después de los obstáculos, así que nunca entra en hierba dura al quedar encajada contra una roca. Las dos pruebas `- BUG` saltadas están activas;
   - la prueba de propiedades del generador comprueba que la cuchilla no choca con nada en la salida.
 - **Comparación Alta/Baja:** «Ganar» en el nivel 1 da 0 monedas en ambas (todo es objetivo verde). Se comparó un mismo recorrido en el nivel 2: Baja 170 monedas y 170 de crecimiento, Alta 165 y 165,6 (diferencia por la posición aleatoria de las briznas en una franja estrecha).
+
+## Desviaciones durante la implementación (PR B)
+
+- **Base de la PR B:** la PR A no estaba fusionada, así que `feat/m6-campaign` se creó encima de `feat/m6-quality` y la PR B apunta a ella.
+- **`pickCampaign` perezoso:** genera intentos hasta el primero que cumple, en vez de validar los 50 de cada nivel. Mismo resultado (comprobado contra `campaign.ts`); «Copiar campaña» pasa de 2,7 s a ~0,5 s.
+- **Instantánea del nivel 10:** la prueba «sin cambios con 2 tipos o más» usa `toMatchSnapshot` (`tests/logic/__snapshots__/generator.test.ts.snap`), tomada antes de tocar el generador.
+- **Pruebas de la campaña:** `campaignSeeds` no se compara con `pickCampaign()`, porque el usuario cambiará semillas a mano; solo se exige que estén los niveles 1–50 y que sean válidos.
+- **`plan.md`:** además de lo previsto, se actualizaron el esquema del guardado (nombres en inglés), el árbol del repositorio, las reglas de código, el uso de boosters (no en la onda, la Brújula no se repite activa), el guardado al usar un booster y los pasos de la CI.
+- **GIF `m6-b-campana.gif`:** no se grabó; la verificación se hizo por JavaScript sobre `make preview`.
 
 ## Estrategia de pruebas
 

@@ -109,11 +109,11 @@ Cualquier hierba puede ser la hierba objetivo.
 
 ### Generador
 
-1. Una biblioteca de patrones: franjas, tablero de ajedrez, círculos, espiral, camino serpenteante, campo de fútbol, islas.
+1. Una biblioteca de patrones: franjas, tablero de ajedrez, círculos, espiral, camino serpenteante, campo de fútbol, islas. Cada patrón tiene al menos 2 regiones; en los niveles de un solo tipo de hierba, el patrón se dibuja con hierba y arena.
 2. Cada patrón tiene parámetros: tamaño, número de tipos, cantidad de obstáculos.
 3. Un PRNG con semilla combina patrones. La misma semilla da siempre el mismo nivel.
 4. Una curva de dificultad sube los parámetros con el número de nivel.
-5. La salida es una cuadrícula de tipos. Las briznas se colocan sobre ella según la densidad de la calidad activa.
+5. La salida es una cuadrícula de tipos. Las briznas se colocan sobre ella según la calidad activa. Cada brizna pesa `12 000 / briznas` para el crecimiento y las monedas, así que el nivel se juega igual en cualquier calidad.
 6. El total de briznas objetivo se calcula para la calidad activa. El contador siempre es exacto.
 
 ### Validación de semillas
@@ -126,16 +126,16 @@ El generador acepta una semilla solo si el nivel es posible **con el tamaño ini
 
 ### Campaña y modo infinito
 
-1. Usted juega semillas con el panel de depuración y guarda las buenas en `campana.ts`.
+1. «Copiar campaña» (panel de depuración) preselecciona las 50 semillas en `campaign.ts`: la primera válida que no repite el patrón de los 2 niveles anteriores. Después se curan jugando, con «Otra semilla» y «Copiar semilla».
 2. La campaña v1.0 tiene 50 niveles curados.
-3. Después del nivel 50, el juego genera niveles con semillas nuevas validadas.
+3. Después del nivel 50, cada nivel se genera de forma determinista con su primera semilla válida.
 
 ### Curva de introducción
 
 1. Niveles 1–3: solo verde. Enseñan el movimiento.
 2. Niveles 4–6: verde + hielo. Enseñan la hierba objetivo.
 3. Nivel 7: aparece el trigo. Enseña "Necesitas más tamaño".
-4. Después: lavanda, zarza, rocas, frutas y cactus, uno nuevo cada 3–4 niveles.
+4. Después: lavanda (10), rocas (13), frutas (16), zarza (19) y cactus (22), uno nuevo cada 3 niveles.
 
 ## Economía, boosters, pantallas y guardado
 
@@ -168,7 +168,7 @@ Cada mejora tiene niveles con precio creciente (valores en `config.ts`).
 
 1. El jugador empieza con 2 usos de cada booster.
 2. Compra más con monedas.
-3. Usa cualquier booster en cualquier momento, sin límite por nivel.
+3. Usa cualquier booster en cualquier momento de la partida, sin límite por nivel. No se usan durante la onda de victoria, y la Brújula no se usa mientras está activa.
 4. **Resaltado gratuito:** con menos de 10 briznas objetivo restantes, brillan solas. No es un booster.
 
 ### Pantallas
@@ -188,19 +188,19 @@ Victoria, Derrota y Pausa también vuelven a Inicio. En Derrota, el reloj sigue 
 Un objeto JSON versionado en `localStorage`:
 
 ```ts
-interface Guardado {
-  version: 1;
-  nivel: number;
-  monedas: number;
-  mejoras: { tamanoInicial: number; velocidad: number; tiempoExtra: number; crecimiento: number };
-  boosters: { mejora: number; brujula: number; reloj: number };
-  ajustes: { sonido: boolean; vibracion: boolean; calidad: 'auto' | 'alta' | 'media' | 'baja' };
-  tutorialHecho: boolean;
+interface SaveData {
+  version: 3;
+  level: number;
+  coins: number;
+  upgrades: { startSize: number; speed: number; extraTime: number; growth: number };
+  boosters: { upgrade: number; compass: number; clock: number };
+  settings: { sound: boolean; vibration: boolean; quality: 'auto' | 'high' | 'medium' | 'low' };
+  tutorialDone: boolean;
 }
 ```
 
-1. El juego guarda al ganar, al perder, al comprar y al cambiar un ajuste.
-2. No guarda a mitad de nivel.
+1. El juego guarda al ganar, al perder, al comprar, al usar un booster y al cambiar un ajuste.
+2. No guarda las monedas a mitad de nivel.
 3. Una función de migración actualiza versiones antiguas.
 4. Si los datos están dañados o `localStorage` falla, el juego usa valores por defecto y sigue.
 
@@ -216,11 +216,12 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | Medio | 12 000 | Se desvanecen | Falsa, bajo la cuchilla | 1,5× |
 | Bajo | 6 000 | Pocos | No | 1× |
 
-1. El juego empieza en Medio.
-2. Mide el tiempo de frame en los primeros segundos.
-3. Con menos de 50 fps, baja un nivel. Con margen, sube.
-4. El jugador puede fijar el nivel en Ajustes.
-5. No hay sombras reales en tiempo real.
+1. Cada sesión empieza en Medio.
+2. En cada intento mide 3 s de juego, tras 0,5 s de calentamiento.
+3. Con menos de 50 fps, el siguiente intento baja un nivel. Con 58 fps o más en 2 intentos seguidos, sube uno, pero nunca a un nivel del que ya bajó.
+4. La calidad solo cambia al empezar un intento, nunca a mitad.
+5. El jugador puede fijar el nivel en Ajustes.
+6. No hay sombras reales en tiempo real.
 
 ### Hierba
 
@@ -232,7 +233,7 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 
 | Efecto | Detalle |
 | --- | --- |
-| Restos | Trozos del color de la hierba salen despedidos y caen al suelo. Persistencia según calidad. |
+| Restos | Trozos del color de la hierba salen despedidos y caen al suelo. En Alto se quedan en el suelo; en Medio se desvanecen; en Bajo hay menos. |
 | "+N" flotante | Agrupado: un texto cada 0,2 s con la suma del intervalo. |
 | Sonido de corte | "Zip" corto; el tono sube con cortes seguidos. Máximo 1 cada 60 ms. |
 | Subida de tamaño | Destello, sonido ascendente, texto "Tamaño N". |
@@ -263,21 +264,26 @@ siega-total/
 ├── src/
 │   ├── main.ts            # arranque y bucle principal
 │   ├── config.ts          # todos los valores de equilibrio
-│   ├── textos.ts          # todos los textos visibles
-│   ├── campana.ts         # lista de semillas curadas
-│   ├── logica/            # puro: sin Three.js ni DOM
-│   │   ├── campo.ts       # briznas, cuadrícula espacial, corte
-│   │   ├── cuchilla.ts    # movimiento, tamaño, colisiones
-│   │   ├── nivel.ts       # tiempo, progreso, victoria/derrota
-│   │   ├── generador.ts   # patrones, PRNG, validación
-│   │   ├── economia.ts    # monedas, precios, mejoras, boosters
-│   │   └── guardado.ts    # esquema, migración, valores por defecto
+│   ├── texts.ts           # todos los textos visibles
+│   ├── campaign.ts        # semillas de los 50 niveles de la campaña
+│   ├── logic/             # puro: sin Three.js ni DOM
+│   │   ├── field.ts       # briznas, cuadrícula espacial, corte
+│   │   ├── blade.ts       # movimiento y tamaño
+│   │   ├── collision.ts   # choques con hierba dura, obstáculos y bordes
+│   │   ├── game.ts        # tiempo, progreso, victoria/derrota
+│   │   ├── generator.ts   # patrones y PRNG (patterns.ts, random.ts, difficulty.ts)
+│   │   ├── validation.ts  # validación de semillas
+│   │   ├── progression.ts # nivel de cada número: campaña o modo infinito
+│   │   ├── campaignPicker.ts # preselección de la campaña
+│   │   ├── economy.ts     # monedas (upgrades.ts y boosters.ts: mejoras y boosters)
+│   │   ├── quality.ts     # calidad automática
+│   │   └── save.ts        # esquema, migración, valores por defecto
 │   ├── render/            # Three.js: hierba, cuchilla, restos, cámara
 │   ├── ui/                # pantallas HTML + CSS, HUD, joystick
 │   ├── audio/             # sonidos con límite de frecuencia
 │   └── debug/             # panel lil-gui (solo con ?debug)
-├── tests/                 # Vitest sobre src/logica
-├── assets/                # glTF, sonidos, iconos CC0
+├── tests/                 # Vitest sobre src/logic y las partes puras de render/ui/audio
+├── public/                # glTF y sonidos CC0
 ├── CREDITS.md
 ├── LICENSE                # MIT
 └── .github/workflows/deploy.yml
@@ -285,8 +291,8 @@ siega-total/
 
 ### Reglas de código
 
-1. `logica/` no importa nada de `render/`, `ui/` ni `three`.
-2. Ningún texto visible fuera de `textos.ts`.
+1. `logic/` no importa nada de `render/`, `ui/`, `audio/`, `debug/` ni `three`.
+2. Ningún texto visible fuera de `texts.ts`.
 3. Ningún número de equilibrio fuera de `config.ts`.
 4. El generador usa solo su PRNG con semilla, nunca `Math.random()`.
 
@@ -309,7 +315,7 @@ siega-total/
 
 ### CI y despliegue
 
-En cada push a `main`, GitHub Actions ejecuta `tsc --noEmit`, `vitest run` y `vite build`. Si un paso falla, no publica. Si todo pasa, publica en GitHub Pages.
+En cada push a `main`, GitHub Actions ejecuta `make check`, `make test`, `make build` y `make size` (carga inicial < 2 MB). Si un paso falla, no publica. Si todo pasa, publica en GitHub Pages.
 
 ## Hitos
 
