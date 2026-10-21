@@ -5,6 +5,7 @@ import { bladeRadius } from '../../src/logic/blade';
 import { obstacleRadius } from '../../src/logic/obstacles';
 import {
   clearCellsUnderSolidObstacles,
+  clearStart,
   isObstacleType,
   sampleLevel,
   stripesLevel,
@@ -32,6 +33,10 @@ function typeByColumn(level: LevelDefinition): (GrassType | null)[] {
     expect(types.size, `column ${column}`).toBe(1);
     return [...types][0]!;
   });
+}
+
+function sandCells(cells: readonly (GrassType | null)[]): number[] {
+  return cells.flatMap((type, cell) => (type === null ? [cell] : []));
 }
 
 /** Runs of neighboring columns with the same grass type, from west to east. */
@@ -84,9 +89,6 @@ describe('clearCellsUnderSolidObstacles', () => {
   const COLUMNS = 7;
   function greenCells(): (GrassType | null)[] {
     return Array<GrassType | null>(COLUMNS * COLUMNS).fill('green');
-  }
-  function sandCells(cells: (GrassType | null)[]): number[] {
-    return cells.flatMap((type, cell) => (type === null ? [cell] : []));
   }
 
   it('turns into sand the cells whose center lies inside a rock, and leaves the cells around it', () => {
@@ -150,6 +152,33 @@ describe('clearCellsUnderSolidObstacles', () => {
     cells[0] = null;
     clearCellsUnderSolidObstacles(cells, 1, COLUMNS, []);
     expect(sandCells(cells)).toEqual([0]);
+  });
+});
+
+describe('clearStart', () => {
+  function greenCells(columns: number, rows: number): (GrassType | null)[] {
+    return Array<GrassType | null>(columns * rows).fill('green');
+  }
+
+  it('turns into sand the cells whose center lies exactly meters / 2 from the field center', () => {
+    // 3 × 3 cells of 1 m: the center cell and its four side neighbors are within 1 m; the corners are not.
+    const cells = greenCells(3, 3);
+    clearStart(cells, 1, 3, 3, 2);
+    expect(sandCells(cells)).toEqual([1, 3, 4, 5, 7]);
+  });
+
+  it('uses the cell size to find the field center and each cell center', () => {
+    // 3 × 3 cells of 2 m: only the center cell lies within 1 m of the field center.
+    const cells = greenCells(3, 3);
+    clearStart(cells, 2, 3, 3, 2);
+    expect(sandCells(cells)).toEqual([4]);
+  });
+
+  it('finds the center of fields that are not square', () => {
+    // 5 columns × 3 rows of 1 m: the center is cell (column 2, row 1), plus its four side neighbors.
+    const cells = greenCells(5, 3);
+    clearStart(cells, 1, 5, 3, 2);
+    expect(sandCells(cells)).toEqual([2, 6, 7, 8, 12]);
   });
 });
 

@@ -24,6 +24,10 @@ describe('hudDisplay', () => {
     expect(hudDisplay(STATE).targetCounts).toEqual(['1284', '3']);
   });
 
+  it('keeps showing 0 for a target already cleared while others remain', () => {
+    expect(hudDisplay({ ...STATE, remainingByTarget: [0, 3] }).targetCounts).toEqual(['0', '3']);
+  });
+
   it('groups thousands the Spanish way from five digits', () => {
     expect(hudDisplay({ ...STATE, remainingByTarget: [12840] }).targetCounts).toEqual(['12.840']);
   });

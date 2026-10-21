@@ -436,9 +436,9 @@ export function createHud(container: HTMLElement): Hud;
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
 
 #### Verificación manual:
 - [ ] En el móvil, con tamaño 1, la cuchilla se desliza por la franja de trigo y aparece «Necesitas más tamaño». Con tamaño 2 entra y la corta.
