@@ -113,9 +113,27 @@ describe('firstValidLevel', () => {
 });
 
 describe('campaignSeeds', () => {
+  it('lists exactly the campaign levels, from 1 to config.campaign.levels', () => {
+    const expected = Array.from({ length: config.campaign.levels }, (_, index) => index + 1);
+    expect(Object.keys(campaignSeeds).map(Number)).toEqual(expected);
+  });
+
   it('only lists seeds that give valid levels', () => {
     for (const [number, seed] of Object.entries(campaignSeeds)) {
       expect(validateLevel(generateLevel(Number(number), seed)), `level ${number}`).toEqual({ valid: true });
+    }
+  });
+});
+
+describe('levels after the campaign', () => {
+  it('are valid, have targets and repeat no seed of the campaign or of each other, up to level 100', () => {
+    const seeds = new Set(Object.values(campaignSeeds));
+    for (let number = config.campaign.levels + 1; number <= 100; number++) {
+      const level = levelFor(number, campaignSeeds);
+      expect(validateLevel(level), `level ${number}`).toEqual({ valid: true });
+      expect(remainingTargets(createGame(level)), `level ${number}`).toBeGreaterThan(0);
+      expect(seeds.has(level.seed), `level ${number}`).toBe(false);
+      seeds.add(level.seed);
     }
   });
 });

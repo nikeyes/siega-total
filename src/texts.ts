@@ -90,6 +90,7 @@ export const texts = {
     loadSeed: 'Cargar semilla',
     anotherSeed: 'Otra semilla',
     copySeed: 'Copiar semilla',
+    copyCampaign: 'Copiar campaña',
     fallbackHasNoSeed: '// Nivel {level}: nivel de reserva, su semilla no lo reproduce',
     pattern: 'Patrón',
     rejection: 'Rechazo',

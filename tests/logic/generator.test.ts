@@ -77,6 +77,22 @@ describe('generateLevel', () => {
     }
   });
 
+  it('draws the pattern with green and sand in the one-grass levels 1 to 3', () => {
+    for (const level of [1, 2, 3]) {
+      for (const seed of SEEDS) {
+        const { cells } = generateLevel(level, seed);
+        const description = `level ${level} seed ${seed}`;
+        expect(new Set(cells.filter((type) => type !== null)), description).toEqual(new Set(['green']));
+        expect(cells.some((type, cell) => type === null && !isInStartClearing(cell)), description).toBe(true);
+      }
+    }
+  });
+
+  it('draws levels with two grass types or more as before', () => {
+    expect(difficultyFor(10).grassTypeCount).toBeGreaterThanOrEqual(2);
+    expect(generateLevel(10, SEEDS[0]!).cells).toMatchSnapshot();
+  });
+
   it('shuffles the unlocked grass types, so every one of them shows up across seeds', () => {
     const shown = new Set(SEEDS.flatMap((seed) => generateLevel(40, seed).cells));
     for (const type of difficultyFor(40).grassTypes) expect(shown, type).toContain(type);
