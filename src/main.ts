@@ -1,4 +1,6 @@
-import { createCutRhythm } from './audio/cutRhythm';
+import { createBreezeSound } from './audio/breeze';
+import { createCutBreeze } from './audio/cutBreeze';
+import { createMusicPlayer } from './audio/music';
 import { createSoundPlayer, type SoundName } from './audio/sounds';
 import { canVibrate, createVibration } from './audio/vibration';
 import { campaignSeeds } from './campaign';
@@ -87,7 +89,9 @@ const logVibration = () => logFeedback({ kind: 'vibration', name: 'pulse', at: p
 
 const soundPlayer = createSoundPlayer(import.meta.env.BASE_URL + 'sounds/', debugging ? logSound : undefined);
 const vibration = createVibration(debugging ? logVibration : undefined);
-const cutRhythm = createCutRhythm();
+const breezeSound = createBreezeSound(soundPlayer.context);
+const cutBreeze = createCutBreeze();
+const musicPlayer = createMusicPlayer(soundPlayer.context);
 const feedback = createFeedbackTracker();
 // One listener for every button on every screen, so none of them needs its own.
 container.addEventListener('click', (event) => {
@@ -201,6 +205,10 @@ const settingsScreen = createSettingsScreen(
       save.settings.sound = !save.settings.sound;
       saveSettings();
     },
+    onToggleMusic: () => {
+      save.settings.music = !save.settings.music;
+      saveSettings();
+    },
     onToggleVibration: () => {
       save.settings.vibration = !save.settings.vibration;
       saveSettings();
@@ -241,6 +249,7 @@ function showScreen(next: Screen): void {
   if (next !== 'result') celebration.clear();
   for (const [name, layer] of Object.entries(SCREEN_LAYERS)) setLayerVisible(layer, name === next);
   renderSave();
+  updateMusic();
 }
 
 function openShop(from: 'home' | 'result'): void {
@@ -263,10 +272,17 @@ function renderSave(): void {
 let save = readSave();
 applySettings();
 
-/** Turns sound and vibration on or off as the save says. */
+/** Turns sound, music and vibration on or off as the save says. */
 function applySettings(): void {
   soundPlayer.setEnabled(save.settings.sound);
+  breezeSound.setEnabled(save.settings.sound);
   vibration.setEnabled(save.settings.vibration);
+  updateMusic();
+}
+
+/** The music plays unless it is switched off, the game is paused or the tab is hidden. */
+function updateMusic(): void {
+  musicPlayer.setPlaying(save.settings.music && screen !== 'paused' && !document.hidden);
 }
 
 /** Keeps a flipped switch: saves it, applies it at once and redraws the switches. */
@@ -338,6 +354,9 @@ showScreen('home');
 // Hiding the tab mid-level pauses it, so the clock does not run out unseen.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && screen === 'playing' && game.status === 'playing') showScreen('paused');
+  // A hidden tab draws no frames, so the sounds that follow the frames are silenced here.
+  if (document.hidden) breezeSound.setBlowing(false);
+  updateMusic();
 });
 
 loadObstacleModels(import.meta.env.BASE_URL + 'models/').then(
@@ -478,8 +497,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const result = stepGame(game, direction, stepping ? dt : 0);
   // Every frame, stepping or not, so the tracker never misses a change between frames.
   const events = feedback.step(game, result);
-  const zipRate = cutRhythm.step(events.some((event) => event.kind === 'cut'), dt);
-  if (zipRate !== null) soundPlayer.play('cut', zipRate);
+  breezeSound.setBlowing(cutBreeze.step(events.some((event) => event.kind === 'cut'), dt) && !document.hidden);
   for (const event of events) playFeedback(event);
   const sizeUpEvent = events.find((event) => event.kind === 'sizeUp');
   const showBlocked = blockedNotice.step(result.blocked, dt);

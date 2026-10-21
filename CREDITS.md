@@ -46,9 +46,8 @@ Cada recurso nuevo añade aquí su autor, su paquete y su licencia.
 - Licencia: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
 - Archivos usados: `Audio/handleCoins.ogg` → `public/sounds/coins.mp3`
 
-### Sonido propio: brisa del corte
+### Sonido y música propios, generados en código
 
-- `public/sounds/cut.mp3` no sale de ningún paquete: es ruido rosa filtrado, generado con `ffmpeg`:
-  ```bash
-  ffmpeg -f lavfi -i "anoisesrc=d=0.7:c=pink:a=0.5:seed=7" -af "bandpass=f=700:width_type=o:w=1.5,lowpass=f=2500,afade=t=in:curve=qsin:d=0.25,afade=t=out:curve=qsin:st=0.3:d=0.4,volume=13dB" -ac 1 -ar 44100 -b:a 64k public/sounds/cut.mp3
-  ```
+- **Brisa del corte** (`src/audio/breeze.ts`): ruido marrón en bucle con un paso bajo que oscila despacio; suena mientras la cuchilla corta.
+- **Música lo-fi** (`src/audio/lofi.ts` y `src/audio/music.ts`): se compone mientras suena, con piano eléctrico, bajo, bombo y escobillas sintetizados. No usa ningún archivo.
+- Ambos forman parte del código del juego, con su misma licencia MIT.

@@ -132,15 +132,35 @@ export const config = {
     levels: qualityLevels as Record<keyof typeof qualityLevels, QualityLevelSettings>,
   },
   audio: {
-    /** The zip plays at most once every this many seconds while the blade cuts. */
-    cutMinIntervalSeconds: 0.15,
-    /** Each zip in a streak plays this much higher than the one before… */
-    cutPitchStep: 0.01,
-    /** …up to this playback rate. */
-    cutMaxPitch: 2,
-    /** A pause in cutting this long ends the streak and the pitch goes back to 1. */
-    cutStreakResetSeconds: 0.3,
-    volume: { cut: 0.2, sizeUp: 0.8, bounce: 0.8, obstacleCut: 0.7, win: 0.8, lose: 0.8, tap: 0.5, coins: 0.7 },
+    /** The cut sounds as one soft, continuous breeze while the blade cuts, instead of one sound per cut. */
+    breeze: {
+      /** Without a cut for this long the breeze dies down; shorter gaps between cutting frames do not make it flutter. */
+      holdSeconds: 0.15,
+      /** Time constants of its fade in and fade out. */
+      fadeInSeconds: 0.12,
+      fadeOutSeconds: 0.25,
+      volume: 0.45,
+      /** A low «shhh»: brown noise kept between these frequencies… */
+      highpassHz: 160,
+      lowpassHz: 650,
+      /** …with the low-pass swaying slowly up and down, so it breathes instead of hissing. */
+      swayHz: 0.18,
+      swayDepthHz: 220,
+    },
+    music: {
+      volume: 0.36,
+      bpm: 70,
+      /** Off-beat eighths come this share of an eighth late. */
+      swing: 0.16,
+      /** Chance of a melody note on each eighth. */
+      melodyChance: 0.14,
+      levels: { chord: 0.035, chordEcho: 0.022, melody: 0.04, bass: 0.1, kick: 0.12, brushOnBeat: 0.03, brushOffBeat: 0.018 },
+      /** Fade when the music starts or stops: pausing, leaving the tab or switching it off. */
+      fadeSeconds: 1.2,
+      /** Share of the music sent to the reverb. */
+      reverb: 0.35,
+    },
+    volume: { sizeUp: 0.8, bounce: 0.8, obstacleCut: 0.7, win: 0.8, lose: 0.8, tap: 0.5, coins: 0.7 },
   },
   vibration: {
     milliseconds: 10,

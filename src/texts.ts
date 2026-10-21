@@ -39,6 +39,7 @@ export const texts = {
   settings: {
     title: 'Ajustes',
     sound: 'Sonido',
+    music: 'Música',
     vibration: 'Vibración',
     quality: 'Calidad',
     qualityLevels: { auto: 'Auto', high: 'Alta', medium: 'Media', low: 'Baja' },

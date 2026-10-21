@@ -9,12 +9,13 @@ const BOOSTER_KINDS = Object.keys(config.boosters) as BoosterKind[];
 
 export interface Settings {
   sound: boolean;
+  music: boolean;
   vibration: boolean;
   quality: QualitySetting;
 }
 
 export interface SaveData {
-  version: 3;
+  version: 4;
   /** Next level to play, ≥ 1. */
   level: number;
   coins: number;
@@ -27,7 +28,7 @@ export interface SaveData {
   tutorialDone: boolean;
 }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function defaultSave(): SaveData {
   return {
@@ -36,7 +37,7 @@ export function defaultSave(): SaveData {
     coins: 0,
     upgrades: Object.fromEntries(UPGRADE_KINDS.map((kind) => [kind, 0])) as SaveData['upgrades'],
     boosters: Object.fromEntries(BOOSTER_KINDS.map((kind) => [kind, config.boosters[kind].startUses])) as SaveData['boosters'],
-    settings: { sound: true, vibration: true, quality: 'auto' },
+    settings: { sound: true, music: true, vibration: true, quality: 'auto' },
     tutorialDone: false,
   };
 }
@@ -58,6 +59,8 @@ function migrate(data: { version: number } & Record<string, unknown>): unknown {
   if (data.version === 1) data = { ...data, version: 2, tutorialDone: true };
   // Version 2 had no quality setting; sanitize gives it the default, 'auto'.
   if (data.version === 2) data = { ...data, version: 3 };
+  // Version 3 had no music setting; sanitize gives it the default, on.
+  if (data.version === 3) data = { ...data, version: 4 };
   return data;
 }
 
@@ -105,6 +108,7 @@ function sanitizeSettings(stored: unknown, defaults: Settings): Settings {
   const settings = (stored ?? {}) as Partial<Record<keyof Settings, unknown>>;
   return {
     sound: booleanOr(settings.sound, defaults.sound),
+    music: booleanOr(settings.music, defaults.music),
     vibration: booleanOr(settings.vibration, defaults.vibration),
     quality: oneOf(QUALITY_SETTINGS, settings.quality, defaults.quality),
   };

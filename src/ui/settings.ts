@@ -7,6 +7,7 @@ import { createLayer, layerButton, layerTitle } from './layer';
 
 export interface SettingsActions {
   onToggleSound(): void;
+  onToggleMusic(): void;
   onToggleVibration(): void;
   onCycleQuality(): void;
   onClearProgress(): void;
@@ -21,9 +22,9 @@ export interface SettingRow {
   pressed: boolean | null;
 }
 
-/** Sound, vibration where the browser can vibrate, and quality, which under Auto names the level in use. */
+/** Sound, music, vibration where the browser can vibrate, and quality, which under Auto names the level in use. */
 export function settingRows(save: SaveData, vibrationSupported: boolean, activeQuality: QualityLevel): SettingRow[] {
-  const rows: SettingRow[] = [settingRow(save.settings, 'sound', texts.settings.sound)];
+  const rows: SettingRow[] = [settingRow(save.settings, 'sound', texts.settings.sound), settingRow(save.settings, 'music', texts.settings.music)];
   if (vibrationSupported) rows.push(settingRow(save.settings, 'vibration', texts.settings.vibration));
   rows.push(qualityRow(save.settings, activeQuality));
   return rows;
@@ -36,12 +37,12 @@ function qualityRow(settings: Settings, activeQuality: QualityLevel): SettingRow
   return { key: 'quality', label: texts.settings.quality, valueLabel, pressed: null };
 }
 
-function settingRow(settings: Settings, key: 'sound' | 'vibration', label: string): SettingRow {
+function settingRow(settings: Settings, key: 'sound' | 'music' | 'vibration', label: string): SettingRow {
   const pressed = settings[key];
   return { key, label, valueLabel: pressed ? texts.settings.on : texts.settings.off, pressed };
 }
 
-/** The sound and vibration switches, the quality picker, and «Borrar progreso» confirmed with a second press instead of a browser dialog. */
+/** The sound, music and vibration switches, the quality picker, and «Borrar progreso» confirmed with a second press instead of a browser dialog. */
 export function createSettingsScreen(
   container: HTMLElement,
   actions: SettingsActions,
@@ -50,6 +51,7 @@ export function createSettingsScreen(
   const layer = createLayer(container, 'settings');
   const actionOf: Record<keyof Settings, () => void> = {
     sound: actions.onToggleSound,
+    music: actions.onToggleMusic,
     vibration: actions.onToggleVibration,
     quality: actions.onCycleQuality,
   };
