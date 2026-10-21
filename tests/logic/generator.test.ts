@@ -1,14 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
 import { difficultyFor, type Unlockable } from '../../src/logic/difficulty';
-import { GRASS_TYPE_ORDER } from '../../src/logic/field';
 import { fallbackLevel, generateLevel } from '../../src/logic/generator';
+import { isObstacleType } from '../../src/logic/levels';
 import { obstacleRadius } from '../../src/logic/obstacles';
+import { PATTERNS } from '../../src/logic/patterns';
+import { estimateSeconds, validateLevel } from '../../src/logic/validation';
 
-const { unlockLevel, startClearingMeters, obstacleGapMeters, maxTimeSeconds, roundTimeToSeconds } = config.generator;
+const { unlockLevel, startClearingMeters, obstacleGapMeters, roundTimeToSeconds } = config.generator;
+const COLUMNS = config.field.width;
+const CENTER = config.field.width / 2;
 const SEEDS = Array.from({ length: 12 }, (_, index) => 1000 + index * 37);
 /** Levels that cover every stage of the curve, including after it flattens. */
 const LEVELS = [1, 4, 7, 10, 13, 16, 19, 22, 25, 40];
+
+const isInStartClearing = (cell: number) =>
+  Math.hypot((cell % COLUMNS) + 0.5 - CENTER, Math.floor(cell / COLUMNS) + 0.5 - CENTER) <= startClearingMeters / 2;
 
 describe('generateLevel', () => {
   it('generates the same level from the same seed', () => {
@@ -16,8 +23,17 @@ describe('generateLevel', () => {
   });
 
   it('generates different levels from different seeds', () => {
-    const fields = new Set(SEEDS.map((seed) => JSON.stringify([generateLevel(22, seed).cells, generateLevel(22, seed).obstacles])));
+    const fields = new Set(SEEDS.map((seed) => {
+      const { cells, obstacles } = generateLevel(22, seed);
+      return JSON.stringify([cells, obstacles]);
+    }));
     expect(fields.size).toBeGreaterThan(1);
+  });
+
+  it('draws the field from more than one pattern, and names the pattern it used', () => {
+    const patterns = new Set(SEEDS.map((seed) => generateLevel(22, seed).pattern));
+    expect(patterns.size).toBeGreaterThan(1);
+    for (const pattern of patterns) expect(Object.keys(PATTERNS)).toContain(pattern);
   });
 
   it('keeps the level number and the seed, on a 30 × 30 field of 1 m cells', () => {
@@ -52,6 +68,26 @@ describe('generateLevel', () => {
     for (const level of [1, 2, 3]) expect(generateLevel(level, 5).targets).toEqual(['green']);
   });
 
+  it('gives each region a different grass type, so the field shows grassTypeCount types', () => {
+    for (const level of LEVELS) {
+      for (const seed of SEEDS) {
+        const types = new Set(generateLevel(level, seed).cells.filter((type) => type !== null));
+        expect(types.size, `level ${level} seed ${seed}`).toBe(difficultyFor(level).grassTypeCount);
+      }
+    }
+  });
+
+  it('shuffles the unlocked grass types, so every one of them shows up across seeds', () => {
+    const shown = new Set(SEEDS.flatMap((seed) => generateLevel(40, seed).cells));
+    for (const type of difficultyFor(40).grassTypes) expect(shown, type).toContain(type);
+  });
+
+  it('makes each fruit a watermelon or a strawberry at random', () => {
+    const fruits = new Set(SEEDS.flatMap((seed) => generateLevel(40, seed).obstacles.map(({ type }) => type)));
+    expect(fruits).toContain('watermelon');
+    expect(fruits).toContain('strawberry');
+  });
+
   it('puts rocks on the field from their unlock level', () => {
     for (const seed of SEEDS) expect(generateLevel(unlockLevel.rock, seed).obstacles.some(({ type }) => type === 'rock'), `seed ${seed}`).toBe(true);
   });
@@ -67,17 +103,31 @@ describe('generateLevel', () => {
     }
   });
 
+  it('otherwise asks for targetCount targets, chosen at random among the grass and the cuttable pieces on the field', () => {
+    const chosen = new Set<string>();
+    for (const level of [unlockLevel.rock, 25, 40]) {
+      for (const seed of SEEDS) {
+        const generated = generateLevel(level, seed);
+        const present = new Set([...generated.cells, ...generated.obstacles.map(({ type }) => type)]);
+        present.delete(null);
+        present.delete('rock');
+        expect(generated.targets, `level ${level} seed ${seed}`).toHaveLength(Math.min(difficultyFor(level).targetCount, present.size));
+        for (const target of generated.targets) expect(present, `level ${level} seed ${seed}`).toContain(target);
+        if (level === 40) for (const target of generated.targets) chosen.add(isObstacleType(target) ? 'piece' : 'grass');
+      }
+    }
+    expect(chosen).toEqual(new Set(['grass', 'piece']));
+  });
+
   it('leaves the start clearing as sand, with no obstacle on it', () => {
-    const center = config.field.width / 2;
     for (const level of LEVELS) {
       for (const seed of SEEDS) {
         const generated = generateLevel(level, seed);
         generated.cells.forEach((type, cell) => {
-          const distance = Math.hypot((cell % 30) + 0.5 - center, Math.floor(cell / 30) + 0.5 - center);
-          if (distance <= startClearingMeters / 2) expect(type, `level ${level} seed ${seed} cell ${cell}`).toBeNull();
+          if (isInStartClearing(cell)) expect(type, `level ${level} seed ${seed} cell ${cell}`).toBeNull();
         });
         for (const { type, x, z } of generated.obstacles) {
-          expect(Math.hypot(x - center, z - center), `level ${level} seed ${seed}`).toBeGreaterThan(startClearingMeters / 2 + obstacleRadius(type));
+          expect(Math.hypot(x - CENTER, z - CENTER), `level ${level} seed ${seed}`).toBeGreaterThan(startClearingMeters / 2 + obstacleRadius(type));
         }
       }
     }
@@ -104,7 +154,7 @@ describe('generateLevel', () => {
     for (const seed of SEEDS) {
       const level = generateLevel(40, seed);
       for (const { type, x, z } of level.obstacles) {
-        const cell = level.cells[Math.floor(z) * 30 + Math.floor(x)];
+        const cell = level.cells[Math.floor(z) * COLUMNS + Math.floor(x)];
         if (type === 'watermelon' || type === 'strawberry') expect(cell, `seed ${seed}`).not.toBeNull();
         else expect(cell, `seed ${seed}`).toBeNull();
       }
@@ -122,20 +172,35 @@ describe('generateLevel', () => {
     }
   });
 
-  it('gives a time rounded up to roundTimeToSeconds', () => {
-    for (const level of LEVELS) expect(generateLevel(level, 7).timeSeconds % roundTimeToSeconds).toBe(0);
+  it("gives the estimate times the level's margin, rounded up to roundTimeToSeconds", () => {
+    for (const level of LEVELS) {
+      const generated = generateLevel(level, 7);
+      const exact = estimateSeconds(generated) * difficultyFor(level).timeMargin;
+      expect(generated.timeSeconds % roundTimeToSeconds, `level ${level}`).toBe(0);
+      expect(generated.timeSeconds, `level ${level}`).toBeGreaterThanOrEqual(exact);
+      expect(generated.timeSeconds, `level ${level}`).toBeLessThan(exact + roundTimeToSeconds);
+    }
   });
 });
 
 describe('fallbackLevel', () => {
-  it('is the first unlocked grass everywhere but the start, as the only target, in time', () => {
-    const level = fallbackLevel(30);
-    const [firstType] = difficultyFor(30).grassTypes;
+  const level = fallbackLevel(30);
+  const [firstType] = difficultyFor(30).grassTypes;
+
+  it('is the first unlocked grass everywhere but the sand start clearing, with no obstacles', () => {
     expect(level.number).toBe(30);
-    expect(level.targets).toEqual([firstType]);
-    expect(new Set(level.cells.filter((type) => type !== null))).toEqual(new Set([firstType]));
     expect(level.obstacles).toEqual([]);
-    expect(level.timeSeconds).toBeLessThanOrEqual(maxTimeSeconds);
-    expect(GRASS_TYPE_ORDER).toContain(firstType);
+    expect(level.cells).toEqual(level.cells.map((_, cell) => (isInStartClearing(cell) ? null : firstType)));
+  });
+
+  it('asks for that grass only, with the time margin of level 1', () => {
+    const exact = estimateSeconds(level) * difficultyFor(1).timeMargin;
+    expect(level.targets).toEqual([firstType]);
+    expect(level.timeSeconds).toBeGreaterThanOrEqual(exact);
+    expect(level.timeSeconds).toBeLessThan(exact + roundTimeToSeconds);
+  });
+
+  it('passes validation, so it can always stand in for a level', () => {
+    expect(validateLevel(level)).toEqual({ valid: true });
   });
 });

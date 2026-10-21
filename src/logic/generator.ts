@@ -80,7 +80,7 @@ function grassTypesForRegions(random: () => number, difficulty: Difficulty): Gra
   return shuffle(random, chosen.slice(0, grassTypeCount));
 }
 
-/** Rocks, cacti and fruit at random free spots, biggest first, giving up a piece after PLACEMENT_TRIES. */
+/** Rocks, then cacti, then fruit at random free spots, giving up a piece after PLACEMENT_TRIES. */
 function placeObstacles(random: () => number, difficulty: Difficulty, cells: readonly (GrassType | null)[], columns: number): Obstacle[] {
   const { width, depth } = config.field;
   const { startClearingMeters, obstacleGapMeters } = config.generator;
