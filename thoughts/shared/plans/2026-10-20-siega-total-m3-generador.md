@@ -736,9 +736,9 @@ Cargar niveles generados, pasar al siguiente desde la capa de Victoria y mostrar
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
 
 #### Verificación manual:
 - [ ] En el móvil se juega del nivel 1 al 7 con «Siguiente». En el 4 aparece el hielo como objetivo y en el 7 el trigo enseña «Necesitas más tamaño».
