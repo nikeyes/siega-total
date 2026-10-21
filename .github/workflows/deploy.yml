@@ -27,6 +27,7 @@ jobs:
       - run: make check
       - run: make test
       - run: make build
+      - run: make size
       - if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v5
         with:

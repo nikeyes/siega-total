@@ -1,13 +1,25 @@
 import GUI from 'lil-gui';
+import { campaignSeeds } from '../campaign';
 import { config } from '../config';
 import { cutAllTargets, remainingTargets, type Game } from '../logic/game';
+import { generateLevel } from '../logic/generator';
+import type { LevelDefinition } from '../logic/levels';
+import { firstValidLevel, levelFor } from '../logic/progression';
+import { validateLevel } from '../logic/validation';
 import { texts } from '../texts';
 
 /** The FPS shown is the average over this window. */
 const FPS_WINDOW_SECONDS = 0.5;
 
 /** Settings read only when the level restarts; the panel labels them so. */
-const READ_ON_RESTART = new Set(['blade.startSize', 'level.timeSeconds']);
+const READ_ON_RESTART = new Set([
+  'blade.startSize',
+  'level.timeSeconds',
+  'obstacles.rock.radius',
+  'obstacles.cactus.radius',
+  'obstacles.watermelon.radius',
+  'obstacles.strawberry.radius',
+]);
 /** Settings that need the field built again, so the panel leaves them out. */
 const NOT_TUNABLE = new Set(['level.stripeWidthMeters']);
 
@@ -17,31 +29,34 @@ export interface DebugPanel {
 
 export interface DebugActions {
   restart(): void;
-  /** Shows the given blades as cut on the field. */
-  markCut(indices: number[]): void;
-  /** Hides the given obstacles from the field. */
-  markObstaclesCut(indices: number[]): void;
+  /** Shows the given blades and obstacles as cut on the field. */
+  markCut(cut: { blades: number[]; obstacles: number[] }): void;
+  /** Plays `level` as level `level.number`. */
+  playLevel(level: LevelDefinition): void;
 }
 
-/** lil-gui panel to tune `config` live, jump to the end of the level and watch the game being played. */
+/** A nested group of numeric settings, like `config.generator`. */
+interface NumberTree {
+  [key: string]: number | NumberTree;
+}
+
+/** lil-gui panel to tune `config` live, pick levels and seeds, jump to the end of a level and watch the game. */
 export function createDebugPanel(getGame: () => Game, actions: DebugActions): DebugPanel {
   const gui = new GUI();
 
   addNumberFolder(gui, 'blade', config.blade);
   addNumberFolder(gui, 'camera', config.camera);
-  addNumberFolder(gui, 'level', config.level, (key, value) => {
-    if (key === 'timeSeconds') getGame().level.timeSeconds = value;
+  addNumberFolder(gui, 'level', config.level, (path, value) => {
+    if (path === 'level.timeSeconds') getGame().level.timeSeconds = value;
   });
-  const grassFolder = gui.addFolder('grassTypes');
-  for (const [type, settings] of Object.entries(config.grassTypes)) addNumberFolder(grassFolder, type, settings);
-  grassFolder.close();
+  addNumberFolder(gui, 'grassTypes', config.grassTypes);
+  addNumberFolder(gui, 'obstacles', config.obstacles);
+  addNumberFolder(gui, 'collision', config.collision);
+  addNumberFolder(gui, 'generator', config.generator, () => {}, texts.debug.onGenerate);
 
-  const win = () => {
-    const { blades, obstacles } = cutAllTargets(getGame());
-    actions.markCut(blades);
-    actions.markObstaclesCut(obstacles);
-  };
-  gui.add({ [texts.debug.win]: win }, texts.debug.win);
+  addLevelFolder(gui, getGame, actions);
+
+  gui.add({ [texts.debug.win]: () => actions.markCut(cutAllTargets(getGame())) }, texts.debug.win);
   gui.add({ [texts.debug.threeSeconds]: () => (getGame().timeLeft = 3) }, texts.debug.threeSeconds);
   gui.add({ [texts.debug.restart]: () => actions.restart() }, texts.debug.restart);
   gui.add(
@@ -49,15 +64,20 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
     texts.debug.copyConfig,
   );
 
-  const monitor = { fps: 0, bladesCut: '', targetsLeft: 0, status: '' };
+  const monitor = { fps: 0, bladesCut: '', targetsLeft: 0, status: '', level: 0, seed: 0, pattern: '', rejection: '' };
   const monitorFolder = gui.addFolder('monitor');
   monitorFolder.add(monitor, 'fps').name(texts.debug.fps).disable().listen();
+  monitorFolder.add(monitor, 'level').name(texts.debug.level).disable().listen();
+  monitorFolder.add(monitor, 'seed').name(texts.debug.seed).disable().listen();
+  monitorFolder.add(monitor, 'pattern').name(texts.debug.pattern).disable().listen();
+  monitorFolder.add(monitor, 'rejection').name(texts.debug.rejection).disable().listen();
   monitorFolder.add(monitor, 'bladesCut').name(texts.debug.bladesCut).disable().listen();
   monitorFolder.add(monitor, 'targetsLeft').name(texts.debug.targetsLeft).disable().listen();
   monitorFolder.add(monitor, 'status').name(texts.debug.status).disable().listen();
 
   let windowSeconds = 0;
   let windowFrames = 0;
+  let checkedLevel: LevelDefinition | null = null;
 
   function update(dt: number): void {
     windowSeconds += dt;
@@ -68,6 +88,14 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
       windowFrames = 0;
     }
     const game = getGame();
+    if (game.level !== checkedLevel) {
+      checkedLevel = game.level;
+      const validation = validateLevel(game.level);
+      monitor.level = game.level.number;
+      monitor.seed = game.level.seed;
+      monitor.pattern = 'pattern' in game.level ? String(game.level.pattern) : '-';
+      monitor.rejection = validation.valid ? '-' : validation.reason;
+    }
     monitor.bladesCut = `${game.field.cutCount} / ${game.field.bladeCount}`;
     monitor.targetsLeft = remainingTargets(game);
     monitor.status = game.status;
@@ -76,19 +104,64 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   return { update };
 }
 
-/** One numeric control per value of `settings`, in a folder called `name`. */
+/** Level number and seed fields, with buttons to play a level, a seed or the next valid seed, and to copy it for the campaign. */
+function addLevelFolder(gui: GUI, getGame: () => Game, actions: DebugActions): void {
+  const chosen = { level: getGame().level.number, seed: getGame().level.seed };
+  /** The generator attempt the level being played came from; -1 when it came from a typed or campaign seed. */
+  let attempt = -1;
+  const folder = gui.addFolder(texts.debug.level);
+  const levelField = folder.add(chosen, 'level', 1, 999, 1).name(texts.debug.level);
+  const seedField = folder.add(chosen, 'seed').name(texts.debug.seed);
+
+  function play(level: LevelDefinition, fromAttempt: number): void {
+    attempt = fromAttempt;
+    chosen.seed = level.seed;
+    seedField.updateDisplay();
+    actions.playLevel(level);
+  }
+
+  const goToLevel = () => {
+    const number = chosen.level;
+    if (campaignSeeds[number] !== undefined) play(levelFor(number, campaignSeeds), -1);
+    else {
+      const level = firstValidLevel(number);
+      play(level, level.attempt);
+    }
+  };
+  const loadSeed = () => play(generateLevel(chosen.level, chosen.seed), -1);
+  const anotherSeed = () => {
+    const level = firstValidLevel(chosen.level, attempt + 1);
+    play(level, level.attempt);
+  };
+  const copySeed = () => void navigator.clipboard.writeText(`  ${chosen.level}: ${getGame().level.seed},`);
+
+  folder.add({ [texts.debug.goToLevel]: goToLevel }, texts.debug.goToLevel);
+  folder.add({ [texts.debug.loadSeed]: loadSeed }, texts.debug.loadSeed);
+  folder.add({ [texts.debug.anotherSeed]: anotherSeed }, texts.debug.anotherSeed);
+  folder.add({ [texts.debug.copySeed]: copySeed }, texts.debug.copySeed);
+  levelField.updateDisplay();
+}
+
+/** One numeric control per value of `settings`, in a folder called `name`, with a subfolder per nested group. */
 function addNumberFolder(
   parent: GUI,
   name: string,
-  settings: Record<string, number>,
-  onChange: (key: string, value: number) => void = () => {},
+  settings: NumberTree,
+  onChange: (path: string, value: number) => void = () => {},
+  note = '',
+  path = name,
 ): void {
   const folder = parent.addFolder(name);
-  for (const key of Object.keys(settings)) {
-    const path = `${name}.${key}`;
-    if (NOT_TUNABLE.has(path)) continue;
-    const label = READ_ON_RESTART.has(path) ? `${key} ${texts.debug.onRestart}` : key;
-    folder.add(settings, key).name(label).onChange((value: number) => onChange(key, value));
+  for (const [key, value] of Object.entries(settings)) {
+    const keyPath = `${path}.${key}`;
+    if (NOT_TUNABLE.has(keyPath)) continue;
+    if (typeof value === 'object') {
+      addNumberFolder(folder, key, value, onChange, note, keyPath);
+      continue;
+    }
+    const keyNote = READ_ON_RESTART.has(keyPath) ? texts.debug.onRestart : note;
+    const label = keyNote ? `${key} ${keyNote}` : key;
+    folder.add(settings, key).name(label).onChange((changed: number) => onChange(keyPath, changed));
   }
   folder.close();
 }

@@ -16,7 +16,7 @@ import type { LevelDefinition } from './logic/levels';
 import { levelFor } from './logic/progression';
 import { createBurstView } from './render/burst';
 import { OBSTACLE_COLORS } from './render/obstacleColors';
-import { placeholderObstacleModels } from './render/obstacleModels';
+import { loadObstacleModels, placeholderObstacleModels, type ObstacleModels } from './render/obstacleModels';
 import { createObstacleView, type ObstacleView } from './render/obstacles';
 import { combineDirections } from './logic/input';
 import { createBladeView } from './render/blade';
@@ -51,6 +51,8 @@ const resultOverlay = createResultOverlay(container, { onNext: () => loadLevel(g
 let game: Game;
 let grass: GrassView | null = null;
 let obstacleView: ObstacleView | null = null;
+/** Shared by every level; the Kenney models replace the stand-ins once they load. */
+let obstacleModels: ObstacleModels = placeholderObstacleModels();
 const focus = createCameraFocus(0, 0, config.blade.startSize);
 
 /** Swaps in a new level: frees the old views and builds new ones for its grass and obstacles. */
@@ -59,7 +61,7 @@ function playLevel(level: LevelDefinition): void {
   obstacleView?.dispose();
   game = createGame(level);
   grass = createGrassView(gameScene.scene, game.field, level.seed);
-  obstacleView = createObstacleView(gameScene.scene, level.obstacles, placeholderObstacleModels(), level.seed);
+  obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);
   focusOnBlade();
   resultOverlay.hide();
@@ -86,6 +88,17 @@ function focusOnBlade(): void {
 
 loadLevel(1);
 
+loadObstacleModels(import.meta.env.BASE_URL + 'models/').then(
+  (loaded) => {
+    obstacleModels = loaded;
+    // Redraws the current level's obstacles with the real models, keeping the ones already cut hidden.
+    obstacleView!.dispose();
+    obstacleView = createObstacleView(gameScene.scene, game.level.obstacles, obstacleModels, game.level.seed);
+    obstacleView.markCut([...game.obstacles.cut.keys()].filter((index) => game.obstacles.cut[index] === 1));
+  },
+  (error: unknown) => console.warn('Obstacle models failed to load; keeping the stand-ins.', error),
+);
+
 let debugPanel: DebugPanel | null = null;
 if (new URLSearchParams(location.search).has('debug')) {
   // Debug only: exposes the current game so automated browser checks can read blade position and cutCount.
@@ -93,8 +106,11 @@ if (new URLSearchParams(location.search).has('debug')) {
   void import('./debug/panel').then(({ createDebugPanel }) => {
     debugPanel = createDebugPanel(() => game, {
       restart,
-      markCut: (indices) => grass!.markCut(indices, elapsedSeconds),
-      markObstaclesCut: (indices) => obstacleView!.markCut(indices),
+      markCut: ({ blades, obstacles }) => {
+        grass!.markCut(blades, elapsedSeconds);
+        obstacleView!.markCut(obstacles);
+      },
+      playLevel,
     });
   });
 }
