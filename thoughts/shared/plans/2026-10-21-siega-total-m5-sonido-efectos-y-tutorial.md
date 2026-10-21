@@ -386,11 +386,11 @@ export function createVibration(onPulsed?: () => void): Vibration;
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La carga inicial, con los sonidos, pesa menos de 2 MB comprimidos: `make size`
-- [ ] Hay 8 sonidos: `ls public/sounds/*.mp3 | wc -l` da 8
-- [ ] `CREDITS.md` cita cada paquete de sonidos usado: `grep -c 'public/sounds/' CREDITS.md` ≥ 1
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La carga inicial, con los sonidos, pesa menos de 2 MB comprimidos: `make size`
+- [x] Hay 8 sonidos: `ls public/sounds/*.mp3 | wc -l` da 8
+- [x] `CREDITS.md` cita cada paquete de sonidos usado: `grep -c 'public/sounds/' CREDITS.md` ≥ 1
 
 ---
 
