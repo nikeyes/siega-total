@@ -41,6 +41,7 @@ import { createHud } from './ui/hud';
 import { createJoystick } from './ui/joystick';
 import { createKeyboard } from './ui/keyboard';
 import { createBlockedNotice } from './ui/blockedNotice';
+import { createCelebration } from './ui/celebration';
 import { createCoinFloats } from './ui/coinFloats';
 import { createHomeScreen } from './ui/home';
 import { setLayerVisible } from './ui/layer';
@@ -194,6 +195,8 @@ const settingsScreen = createSettingsScreen(
   },
   canVibrate(),
 );
+// Last in the container, so the confetti falls over the result layer.
+const celebration = createCelebration(container);
 
 /** What the player sees; the game only steps while it is 'playing' or showing the result. */
 type Screen = 'home' | 'playing' | 'paused' | 'result' | 'shop' | 'settings';
@@ -214,6 +217,7 @@ function showScreen(next: Screen): void {
   screen = next;
   // The CSS hides the HUD on the screens away from the game.
   container!.dataset.screen = next;
+  if (next !== 'result') celebration.clear();
   for (const [name, layer] of Object.entries(SCREEN_LAYERS)) setLayerVisible(layer, name === next);
   renderSave();
 }
@@ -395,6 +399,7 @@ function playFeedback(event: FeedbackEvent): void {
       break;
     case 'won':
       soundPlayer.play('coins');
+      celebration.play(game.level.seed);
       break;
     case 'lost':
       soundPlayer.play('lose');
@@ -425,6 +430,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const zipRate = cutRhythm.step(events.some((event) => event.kind === 'cut'), dt);
   if (zipRate !== null) soundPlayer.play('cut', zipRate);
   for (const event of events) playFeedback(event);
+  const sizeUpEvent = events.find((event) => event.kind === 'sizeUp');
   const showBlocked = blockedNotice.step(result.blocked, dt);
   if (showBlocked) {
     soundPlayer.play('bounce');
@@ -480,6 +486,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     // Banked coins are already in the balance, so only the rest of the level is added on top.
     coins: save.coins + game.levelCoins + game.bonusCoins - game.bankedCoins,
     floatCoins: coinFloats.step(result.coins, dt),
+    sizeUp: sizeUpEvent?.size ?? null,
     boosters: {
       upgrade: boosterState('upgrade'),
       compass: boosterState('compass'),

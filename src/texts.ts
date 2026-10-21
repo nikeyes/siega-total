@@ -3,6 +3,7 @@ export const texts = {
     size: 'Tamaño',
     level: 'Nivel',
     needBiggerSize: 'Necesitas más tamaño',
+    sizeUp: '¡Tamaño {size}!',
   },
   result: {
     wonTitle: '¡Nivel completado!',

@@ -255,7 +255,7 @@ body,
 }
 
 /* Away from the game, the layers show the field behind them without the HUD. */
-#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-boosters, .hud-size, .hud-float, .hud-blocked) {
+#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-boosters, .hud-size, .hud-float, .hud-blocked, .hud-size-up) {
   display: none;
 }
 
@@ -326,7 +326,59 @@ body,
   pointer-events: none;
   text-align: center;
   font-family: var(--hud-font);
-  will-change: transform;
+  will-change: translate, scale;
+}
+
+.hud-size.pulse {
+  animation: hud-size-pulse 0.4s ease-out;
+}
+
+@keyframes hud-size-pulse {
+  0% {
+    scale: 1;
+    filter: brightness(1);
+  }
+  40% {
+    scale: 1.25;
+    filter: brightness(1.4);
+  }
+  100% {
+    scale: 1;
+    filter: brightness(1);
+  }
+}
+
+.hud-size-up {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #fff;
+  font: 900 24px var(--hud-font);
+  text-shadow: var(--hud-outline);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  will-change: translate, scale, opacity;
+}
+
+.hud-size-up.visible {
+  animation: hud-size-up-rise 0.8s ease-out forwards;
+}
+
+@keyframes hud-size-up-rise {
+  0% {
+    opacity: 1;
+    margin-top: 0;
+    scale: 0.8;
+  }
+  30% {
+    scale: 1.2;
+  }
+  100% {
+    opacity: 0;
+    margin-top: -40px;
+    scale: 1;
+  }
 }
 
 .hud-size-fill {
@@ -570,3 +622,48 @@ body,
   width: 22px;
   height: 22px;
 }
+
+/* Above the layers, but every touch goes through to their buttons. */
+.celebration {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.celebration-piece {
+  position: absolute;
+  left: var(--left);
+  top: 0;
+  translate: 0 -10vh;
+  opacity: 0;
+  animation: celebration-fall var(--fall) linear var(--delay) forwards;
+}
+
+.celebration-confetti {
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--color);
+}
+
+.celebration-coin-icon {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+
+@keyframes celebration-fall {
+  0% {
+    opacity: 1;
+    translate: 0 -10vh;
+    rotate: 0deg;
+  }
+  100% {
+    opacity: 1;
+    translate: var(--drift) 110vh;
+    rotate: var(--spin);
+  }
+}
+
