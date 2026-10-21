@@ -22,6 +22,8 @@ const READ_ON_RESTART = new Set([
   'obstacles.watermelon.radius',
   'obstacles.strawberry.radius',
 ]);
+/** Upgrade settings that apply when the game is built again. */
+const UPGRADE_SETTINGS_READ_ON_RESTART = /^upgrades\.\w+\.(basePrice|priceGrowth|perLevel)$/;
 /** Settings that need the field built again, so the panel leaves them out. */
 const NOT_TUNABLE = new Set(['level.stripeWidthMeters']);
 
@@ -63,6 +65,8 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   addNumberFolder(gui, 'obstacles', config.obstacles);
   addNumberFolder(gui, 'collision', config.collision);
   addNumberFolder(gui, 'economy', config.economy);
+  addNumberFolder(gui, 'upgrades', config.upgrades);
+  addNumberFolder(gui, 'boosters', config.boosters);
   addNumberFolder(gui, 'generator', config.generator, () => {}, texts.debug.onGenerate);
 
   addLevelFolder(gui, getGame, actions);
@@ -172,7 +176,7 @@ function addNumberFolder(
       addNumberFolder(folder, key, value, onChange, note, keyPath);
       continue;
     }
-    const keyNote = READ_ON_RESTART.has(keyPath) ? texts.debug.onRestart : note;
+    const keyNote = READ_ON_RESTART.has(keyPath) || UPGRADE_SETTINGS_READ_ON_RESTART.test(keyPath) ? texts.debug.onRestart : note;
     const label = keyNote ? `${key} ${keyNote}` : key;
     folder.add(settings, key).name(label).onChange((changed: number) => onChange(keyPath, changed));
   }

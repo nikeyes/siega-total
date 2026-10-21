@@ -14,6 +14,13 @@ export const texts = {
     total: 'Total',
     shop: 'Tienda',
     home: 'Inicio',
+    continue: '+30 s',
+  },
+  boosters: {
+    upgrade: 'Mejora',
+    compass: 'Brújula',
+    clock: 'Reloj',
+    compassEffect: 'Flecha',
   },
   home: {
     title: 'Siega Total',
@@ -39,6 +46,8 @@ export const texts = {
     max: 'Máximo',
     level: 'Nivel',
     back: 'Volver',
+    boosters: 'Boosters',
+    uses: 'Usos',
     startSize: 'Tamaño inicial',
     speed: 'Velocidad',
     extraTime: 'Tiempo extra',

@@ -4,7 +4,7 @@ import { defaultSave, type SaveData } from '../../src/logic/save';
 import { upgradePrice } from '../../src/logic/upgrades';
 import { texts } from '../../src/texts';
 import { formatCount } from '../../src/ui/formatCount';
-import { shopUpgradeRows } from '../../src/ui/shop';
+import { shopBoosterRows, shopUpgradeRows } from '../../src/ui/shop';
 
 function saveWithCoins(coins: number): SaveData {
   return { ...defaultSave(), coins };
@@ -65,5 +65,35 @@ describe('shop upgrade rows', () => {
 
   it('lists the four upgrades in a fixed order', () => {
     expect(shopUpgradeRows(defaultSave()).map((row) => row.kind)).toEqual(['startSize', 'speed', 'extraTime', 'growth']);
+  });
+});
+
+describe('shop booster rows', () => {
+  function compassRow(save: SaveData) {
+    return shopBoosterRows(save).find((row) => row.kind === 'compass')!;
+  }
+
+  it('shows the name, the effect, the uses left and the price', () => {
+    const save = saveWithCoins(0);
+    save.boosters.compass = 3;
+    expect(compassRow(save)).toEqual({
+      kind: 'compass',
+      label: texts.boosters.compass,
+      effectLabel: `${texts.boosters.compassEffect} ${config.boosters.compass.seconds} s`,
+      usesLabel: `${texts.shop.uses} 3`,
+      price: formatCount(config.boosters.compass.price),
+      canBuy: false,
+    });
+  });
+
+  it('can buy with exactly the price, and not with less', () => {
+    expect(compassRow(saveWithCoins(config.boosters.compass.price)).canBuy).toBe(true);
+    expect(compassRow(saveWithCoins(config.boosters.compass.price - 1)).canBuy).toBe(false);
+  });
+
+  it('describes the upgrade and clock effects from the config', () => {
+    const effects = Object.fromEntries(shopBoosterRows(defaultSave()).map((row) => [row.kind, row.effectLabel]));
+    expect(effects.upgrade).toBe(`+${config.boosters.upgrade.sizes} ${texts.shop.sizeEffect}`);
+    expect(effects.clock).toBe(`+${config.boosters.clock.seconds} s`);
   });
 });

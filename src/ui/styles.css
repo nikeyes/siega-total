@@ -202,8 +202,60 @@ body,
   height: 100%;
 }
 
+.hud-boosters {
+  position: absolute;
+  right: 12px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hud-booster {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  padding: 8px;
+  border-radius: 50%;
+  border: 4px solid var(--hud-ink);
+  background: #f3f8ff;
+  box-shadow: 0 4px 0 var(--hud-ink);
+  cursor: pointer;
+}
+
+.hud-booster svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hud-booster:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--hud-ink);
+}
+
+.hud-booster:disabled {
+  filter: grayscale(1);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.hud-booster-uses {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  min-width: 24px;
+  padding: 1px 5px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 3px solid var(--hud-ink);
+  background: #ffd23f;
+  color: var(--hud-ink);
+  font: 900 14px var(--hud-font);
+}
+
 /* Away from the game, the layers show the field behind them without the HUD. */
-#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-size, .hud-float, .hud-blocked) {
+#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-boosters, .hud-size, .hud-float, .hud-blocked) {
   display: none;
 }
 
@@ -298,7 +350,6 @@ body,
   display: none;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 18px;
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
   box-sizing: border-box;
@@ -309,6 +360,13 @@ body,
 
 .layer.visible {
   display: flex;
+}
+
+/* Centers the content while it fits; once it is taller than the screen it scrolls from the top instead of losing it. */
+.layer::before,
+.layer::after {
+  content: '';
+  margin: auto 0;
 }
 
 .layer-title {
@@ -468,4 +526,26 @@ body,
 
 .result-line:last-child {
   color: #ffd23f;
+}
+
+.result-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.result-continue-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(22, 50, 79, 0.35);
+  font-size: 18px;
+}
+
+.result-continue-icon {
+  width: 22px;
+  height: 22px;
 }
