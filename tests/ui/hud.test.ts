@@ -11,9 +11,15 @@ const STATE: HudState = {
   sizeLabelX: 195,
   sizeLabelY: 422,
   showBlocked: false,
+  coins: 345,
+  floatCoins: null,
 };
 
 describe('hudDisplay', () => {
+  it('shows the coins with Spanish thousands', () => {
+    expect(hudDisplay({ ...STATE, coins: 12840 }).coinsLabel).toBe('12.840');
+  });
+
   it('shows the clock and the time ring from the time left', () => {
     const display = hudDisplay(STATE);
     expect(display.clock).toBe('0:46');
