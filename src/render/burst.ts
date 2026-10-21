@@ -1,15 +1,47 @@
-import { BoxGeometry, Color, DynamicDrawUsage, InstancedMesh, Matrix4, MeshLambertMaterial, Quaternion, Vector3, type Scene } from 'three';
+import {
+  BoxGeometry,
+  Color,
+  DoubleSide,
+  DynamicDrawUsage,
+  InstancedMesh,
+  Matrix4,
+  MeshLambertMaterial,
+  PlaneGeometry,
+  Quaternion,
+  Vector3,
+  type BufferGeometry,
+  type Scene,
+} from 'three';
 import { burstPiecePosition, type Vector } from './burstMotion';
 
-/** Pieces in the pool; the oldest is reused when more are needed. */
-const POOL_SIZE = 200;
-const PIECE_SIZE = 0.16;
-const LIFETIME_SECONDS = 0.8;
 const LAUNCH_HEIGHT = 0.3;
-const MIN_UP_SPEED = 2.5;
-const MAX_UP_SPEED = 4.5;
-const MAX_SIDE_SPEED = 2.5;
-const SPIN_SPEED = 10;
+/** A flat piece is this many times longer than it is wide, like a bit of grass. */
+const FLAT_PIECE_LENGTH = 3;
+
+export interface BurstOptions {
+  /** Pieces in the pool; the oldest is reused when more are needed. */
+  poolSize: number;
+  /** Small cubes, or flat strips seen from both sides. */
+  geometry: 'cube' | 'flat';
+  pieceSize: number;
+  lifetimeSeconds: number;
+  minUpSpeed: number;
+  maxUpSpeed: number;
+  maxSideSpeed: number;
+  spinSpeed: number;
+}
+
+/** The fruit and cactus burst. */
+const DEFAULT_OPTIONS: BurstOptions = {
+  poolSize: 200,
+  geometry: 'cube',
+  pieceSize: 0.16,
+  lifetimeSeconds: 0.8,
+  minUpSpeed: 2.5,
+  maxUpSpeed: 4.5,
+  maxSideSpeed: 2.5,
+  spinSpeed: 10,
+};
 
 export interface BurstView {
   /** Throws `count` pieces of `color` from the ground at (x, z). */
@@ -27,15 +59,23 @@ interface Piece {
   age: number;
 }
 
-/** A fixed pool of small cubes in one InstancedMesh, with a color per instance. */
-export function createBurstView(scene: Scene): BurstView {
-  const geometry = new BoxGeometry(PIECE_SIZE, PIECE_SIZE, PIECE_SIZE);
-  const material = new MeshLambertMaterial();
-  const mesh = new InstancedMesh(geometry, material, POOL_SIZE);
+/** A fixed pool of small pieces in one InstancedMesh, with a color per instance. */
+export function createBurstView(scene: Scene, options: Partial<BurstOptions> = {}): BurstView {
+  const { poolSize, pieceSize, lifetimeSeconds, minUpSpeed, maxUpSpeed, maxSideSpeed, spinSpeed } = {
+    ...DEFAULT_OPTIONS,
+    ...options,
+  };
+  const flat = options.geometry === 'flat';
+  const geometry: BufferGeometry = flat
+    ? new PlaneGeometry(pieceSize, pieceSize * FLAT_PIECE_LENGTH)
+    : new BoxGeometry(pieceSize, pieceSize, pieceSize);
+  // A flat piece spins, so both of its faces show.
+  const material = flat ? new MeshLambertMaterial({ side: DoubleSide }) : new MeshLambertMaterial();
+  const mesh = new InstancedMesh(geometry, material, poolSize);
   mesh.instanceMatrix.setUsage(DynamicDrawUsage);
   // Pieces fly anywhere around the field; skipping the culling avoids recomputing bounds every frame.
   mesh.frustumCulled = false;
-  const pieces: Piece[] = Array.from({ length: POOL_SIZE }, () => ({
+  const pieces: Piece[] = Array.from({ length: poolSize }, () => ({
     origin: { x: 0, y: 0, z: 0 },
     velocity: { x: 0, y: 0, z: 0 },
     spinAxis: new Vector3(0, 1, 0),
@@ -43,7 +83,7 @@ export function createBurstView(scene: Scene): BurstView {
   }));
   const hidden = new Matrix4().makeScale(0, 0, 0);
   const color = new Color();
-  for (let piece = 0; piece < POOL_SIZE; piece++) {
+  for (let piece = 0; piece < poolSize; piece++) {
     mesh.setMatrixAt(piece, hidden);
     mesh.setColorAt(piece, color);
   }
@@ -57,18 +97,18 @@ export function createBurstView(scene: Scene): BurstView {
     for (let thrown = 0; thrown < count; thrown++) {
       const piece = pieces[next]!;
       const angle = Math.random() * Math.PI * 2;
-      const sideSpeed = Math.random() * MAX_SIDE_SPEED;
+      const sideSpeed = Math.random() * maxSideSpeed;
       piece.origin = { x, y: LAUNCH_HEIGHT, z };
       piece.velocity = {
         x: Math.cos(angle) * sideSpeed,
-        y: MIN_UP_SPEED + Math.random() * (MAX_UP_SPEED - MIN_UP_SPEED),
+        y: minUpSpeed + Math.random() * (maxUpSpeed - minUpSpeed),
         z: Math.sin(angle) * sideSpeed,
       };
       piece.spinAxis.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-      if (piece.age >= LIFETIME_SECONDS) alive++;
+      if (piece.age >= lifetimeSeconds) alive++;
       piece.age = 0;
       mesh.setColorAt(next, color);
-      next = (next + 1) % POOL_SIZE;
+      next = (next + 1) % poolSize;
     }
     mesh.instanceColor!.needsUpdate = true;
   }
@@ -81,17 +121,17 @@ export function createBurstView(scene: Scene): BurstView {
   function update(dt: number): void {
     if (alive === 0) return;
     pieces.forEach((piece, index) => {
-      if (piece.age >= LIFETIME_SECONDS) return;
+      if (piece.age >= lifetimeSeconds) return;
       piece.age += dt;
-      if (piece.age >= LIFETIME_SECONDS) {
+      if (piece.age >= lifetimeSeconds) {
         alive--;
         mesh.setMatrixAt(index, hidden);
         return;
       }
       const { x, y, z } = burstPiecePosition(piece.origin, piece.velocity, piece.age);
       position.set(x, y, z);
-      rotation.setFromAxisAngle(piece.spinAxis, piece.age * SPIN_SPEED);
-      scale.setScalar(1 - piece.age / LIFETIME_SECONDS);
+      rotation.setFromAxisAngle(piece.spinAxis, piece.age * spinSpeed);
+      scale.setScalar(1 - piece.age / lifetimeSeconds);
       mesh.setMatrixAt(index, matrix.compose(position, rotation, scale));
     });
     mesh.instanceMatrix.needsUpdate = true;

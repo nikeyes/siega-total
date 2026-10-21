@@ -104,4 +104,17 @@ export const config = {
   vibration: {
     milliseconds: 10,
   },
+  effects: {
+    /** One clipping flies for every this many blades cut… */
+    bladesPerClipping: 3,
+    /** …and no more than this many in one frame. */
+    maxClippingsPerFrame: 30,
+    clippingSeconds: 0.7,
+    sizeUpRingSeconds: 0.4,
+    /** The size-up ring grows from the blade's radius to this many times it. */
+    sizeUpRingGrowth: 1.8,
+    confettiPieces: 60,
+    coinRainPieces: 20,
+    celebrationSeconds: 2,
+  },
 };

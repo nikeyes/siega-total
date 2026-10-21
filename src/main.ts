@@ -5,6 +5,7 @@ import { campaignSeeds } from './campaign';
 import { config } from './config';
 import type { DebugPanel } from './debug/panel';
 import { bladeRadius, growthFraction } from './logic/blade';
+import { GRASS_TYPE_ORDER } from './logic/field';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
 import { buyBooster, canUseBooster, continueWithClock, nearestTarget, useBooster } from './logic/boosters';
 import { bankCoins } from './logic/economy';
@@ -23,6 +24,10 @@ import { levelFor } from './logic/progression';
 import { defaultSave, type BoosterKind } from './logic/save';
 import { bonusesFor, buyUpgrade } from './logic/upgrades';
 import { createBurstView } from './render/burst';
+import { clippingBlades } from './render/clippings';
+import { GRASS_COLORS } from './render/grassColors';
+import { createGroundRing } from './render/groundRing';
+import { sizeUpRing } from './render/ringMath';
 import { OBSTACLE_COLORS } from './render/obstacleColors';
 import { loadObstacleModels, placeholderObstacleModels, type ObstacleModels } from './render/obstacleModels';
 import { createObstacleView, type ObstacleView } from './render/obstacles';
@@ -50,6 +55,9 @@ import './ui/styles.css';
 const MAX_FRAME_SECONDS = 0.05;
 /** Burst pieces thrown when a piece of each kind is cut; a cactus is bigger, so it throws more. */
 const BURST_PIECES = { watermelon: 12, strawberry: 12, cactus: 24 } as const;
+const SIZE_UP_RING_COLOR = 0xffffff;
+const WAVE_RING_COLOR = 0xfff3b0;
+const WAVE_RING_OPACITY = 0.8;
 /** Entries kept in the ?debug feedback log. */
 const FEEDBACK_LOG_LENGTH = 200;
 
@@ -84,6 +92,20 @@ container.addEventListener('click', (event) => {
 
 const gameScene = createGameScene(container, config.field.width, config.field.depth);
 const burst = createBurstView(gameScene.scene);
+// Bits of cut grass: flat, smaller and lower than the fruit burst; the per-frame cap keeps the pool enough.
+const clippings = createBurstView(gameScene.scene, {
+  poolSize: 400,
+  geometry: 'flat',
+  pieceSize: 0.14,
+  lifetimeSeconds: config.effects.clippingSeconds,
+  minUpSpeed: 1.5,
+  maxUpSpeed: 3,
+  maxSideSpeed: 1.8,
+});
+const sizeUpRingView = createGroundRing(gameScene.scene, SIZE_UP_RING_COLOR);
+const waveRingView = createGroundRing(gameScene.scene, WAVE_RING_COLOR);
+/** Seconds since the blade last grew; Infinity when its ring is not showing. */
+let sizeUpAge = Infinity;
 const blockedNotice = createBlockedNotice();
 const coinFloats = createCoinFloats();
 const bladeView = createBladeView(gameScene.scene);
@@ -241,6 +263,7 @@ function playLevel(level: LevelDefinition): void {
   grass?.dispose();
   obstacleView?.dispose();
   game = createGame(level, bonusesFor(save.upgrades));
+  sizeUpAge = Infinity;
   // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
   feedback.track(game);
   grass = createGrassView(gameScene.scene, game.field, level.seed);
@@ -363,6 +386,7 @@ function playFeedback(event: FeedbackEvent): void {
       soundPlayer.play('obstacleCut');
       break;
     case 'sizeUp':
+      sizeUpAge = 0;
       soundPlayer.play('sizeUp');
       vibration.pulse();
       break;
@@ -413,6 +437,13 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     if (type !== 'rock') burst.spawn(x, z, OBSTACLE_COLORS[type], BURST_PIECES[type]);
   }
   burst.update(dt);
+  // The wave's cuts throw clippings too; the per-frame cap keeps it cheap.
+  const { bladesPerClipping, maxClippingsPerFrame } = config.effects;
+  for (const index of clippingBlades(result.cutIndices, bladesPerClipping, maxClippingsPerFrame)) {
+    const tip = GRASS_COLORS[GRASS_TYPE_ORDER[field.types[index]!]!].tip;
+    clippings.spawn(field.positionsX[index]!, field.positionsZ[index]!, tip, 1);
+  }
+  clippings.update(dt);
   grass!.setHighlight(shouldHighlightTargets(game) ? targetGrassTypes(game) : []);
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
     saveLevelEnd();
@@ -426,6 +457,11 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   clampFocus(focus, field.width, field.depth, halfVisibleX, halfVisibleZ, edgeMargin);
 
   bladeView.update(blade, dt);
+  sizeUpAge += dt;
+  const ring = sizeUpRing(sizeUpAge, bladeRadius(blade.size));
+  sizeUpRingView.show(blade.x, blade.z, ring?.radius ?? 0, ring?.opacity ?? 0);
+  const wave = game.status === 'winWave' ? game.winWave : null;
+  waveRingView.show(wave?.x ?? 0, wave?.z ?? 0, wave?.radius ?? 0, wave ? WAVE_RING_OPACITY : 0);
   compassView.update(blade, compassTarget(dt));
   cameraRig.update(focus);
   grass!.setTime(elapsedSeconds);
