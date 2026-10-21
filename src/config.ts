@@ -34,6 +34,24 @@ export const config = {
     winWaveSpeed: 25,
     highlightBelow: 10,
   },
+  generator: {
+    maxAttempts: 50,
+    maxTimeSeconds: 180,
+    roundTimeToSeconds: 5,
+    startClearingMeters: 3,
+    curveLastLevel: 25,
+    unlockLevel: { green: 1, ice: 4, wheat: 7, lavender: 10, rock: 13, fruit: 16, bramble: 19, cactus: 22 },
+    grassTypeCount: { first: 1, last: 4 },
+    targetCount: { first: 1, last: 3 },
+    rockCount: { first: 2, last: 6 },
+    fruitCount: { first: 8, last: 30 },
+    cactusCount: { first: 1, last: 3 },
+    timeMargin: { first: 2.0, last: 1.3 },
+    /** Seconds to walk to and cut each target piece, on top of the swept area. */
+    secondsPerTargetPiece: 1.5,
+    /** Free space kept between obstacles, so the blade can pass between them. */
+    obstacleGapMeters: 2,
+  },
   collision: {
     /** Passes over the walls each step, so corners between two walls resolve. */
     iterations: 3,

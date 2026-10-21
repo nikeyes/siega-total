@@ -109,6 +109,20 @@ body,
   height: 34px;
 }
 
+.hud-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.hud-level {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  text-shadow: var(--hud-outline);
+}
+
 .hud-target-row {
   display: flex;
   align-items: center;

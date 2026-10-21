@@ -12,8 +12,15 @@ const TITLES: Record<Outcome, { title: string; button: string }> = {
   lost: { title: texts.result.lostTitle, button: texts.result.lostButton },
 };
 
-/** The layer shown when the level ends, with one button to play it again. */
-export function createResultOverlay(container: HTMLElement, onReplay: () => void): ResultOverlay {
+export interface ResultActions {
+  /** Victory: goes on to the next level. */
+  onNext(): void;
+  /** Defeat: plays the same level again. */
+  onRetry(): void;
+}
+
+/** The layer shown when the level ends, with one button: next level after a win, retry after a loss. */
+export function createResultOverlay(container: HTMLElement, actions: ResultActions): ResultOverlay {
   const layer = document.createElement('div');
   layer.className = 'result';
   const title = document.createElement('h1');
@@ -26,12 +33,14 @@ export function createResultOverlay(container: HTMLElement, onReplay: () => void
 
   // The joystick listens on the container; touches on this layer belong to its button.
   layer.addEventListener('pointerdown', (event) => event.stopPropagation());
-  button.addEventListener('click', onReplay);
+  let shownOutcome: Outcome = 'lost';
+  button.addEventListener('click', () => (shownOutcome === 'won' ? actions.onNext() : actions.onRetry()));
 
   function show(outcome: Outcome): void {
     title.textContent = TITLES[outcome].title;
     button.textContent = TITLES[outcome].button;
     layer.dataset.outcome = outcome;
+    shownOutcome = outcome;
     layer.classList.add('visible');
   }
 

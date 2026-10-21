@@ -51,6 +51,10 @@ export function hudDisplay(state: HudState): HudDisplay {
 
 const countFormat = new Intl.NumberFormat('es-ES');
 
+export function levelLabel(levelNumber: number): string {
+  return `${texts.hud.level} ${levelNumber}`;
+}
+
 function toPercent(fraction: number): number {
   return Math.round(fraction * 100);
 }
@@ -68,7 +72,10 @@ export function createHud(container: HTMLElement): Hud {
   const clock = element('span', 'hud-timer-text');
   timer.append(clock);
   const card = element('div', 'hud-target');
-  top.append(timer, card);
+  const levelName = element('div', 'hud-level');
+  const side = element('div', 'hud-side');
+  side.append(levelName, card);
+  top.append(timer, side);
 
   const pill = element('div', 'hud-size');
   const pillFill = element('div', 'hud-size-fill');
@@ -82,6 +89,7 @@ export function createHud(container: HTMLElement): Hud {
   let shown: Partial<HudDisplay> = {};
 
   function showLevel(level: LevelDefinition): void {
+    levelName.textContent = levelLabel(level.number);
     card.replaceChildren();
     counters = level.targets.map((target) => {
       const row = element('div', 'hud-target-row');

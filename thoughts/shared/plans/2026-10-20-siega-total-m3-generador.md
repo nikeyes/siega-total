@@ -509,9 +509,9 @@ Con `regionCount = 1`, todos los patrones dan una sola región (y la arena del c
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Las pruebas de patrones y arquitectura pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Las pruebas de patrones y arquitectura pasan: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 
@@ -694,10 +694,10 @@ export function levelFor(levelNumber: number, campaign?: Readonly<Record<number,
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Las pruebas de dificultad, generador, validación, progresión y arquitectura pasan: `make test`
-- [ ] La suite de pruebas sigue por debajo de 30 s: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Las pruebas de dificultad, generador, validación, progresión y arquitectura pasan: `make test`
+- [x] La suite de pruebas sigue por debajo de 30 s: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 
@@ -736,9 +736,9 @@ Cargar niveles generados, pasar al siguiente desde la capa de Victoria y mostrar
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
 
 #### Verificación manual:
 - [ ] En el móvil se juega del nivel 1 al 7 con «Siguiente». En el 4 aparece el hielo como objetivo y en el 7 el trigo enseña «Necesitas más tamaño».

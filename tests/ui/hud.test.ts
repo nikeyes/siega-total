@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { texts } from '../../src/texts';
-import { hudDisplay, type HudState } from '../../src/ui/hud';
+import { hudDisplay, levelLabel, type HudState } from '../../src/ui/hud';
 
 const STATE: HudState = {
   timeLeft: 45.3,
@@ -63,5 +63,11 @@ describe('hudDisplay', () => {
     [0.666, 67],
   ])('rounds the size pill at %s to the nearest whole percent, %s', (fraction, percent) => {
     expect(hudDisplay({ ...STATE, growthFraction: fraction }).growthPercent).toBe(percent);
+  });
+});
+
+describe('levelLabel', () => {
+  it('names the level by its number', () => {
+    expect(levelLabel(7)).toBe(`${texts.hud.level} 7`);
   });
 });

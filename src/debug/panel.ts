@@ -23,26 +23,26 @@ export interface DebugActions {
   markObstaclesCut(indices: number[]): void;
 }
 
-/** lil-gui panel to tune `config` live, jump to the end of the level and watch the game. */
-export function createDebugPanel(game: Game, actions: DebugActions): DebugPanel {
+/** lil-gui panel to tune `config` live, jump to the end of the level and watch the game being played. */
+export function createDebugPanel(getGame: () => Game, actions: DebugActions): DebugPanel {
   const gui = new GUI();
 
   addNumberFolder(gui, 'blade', config.blade);
   addNumberFolder(gui, 'camera', config.camera);
   addNumberFolder(gui, 'level', config.level, (key, value) => {
-    if (key === 'timeSeconds') game.level.timeSeconds = value;
+    if (key === 'timeSeconds') getGame().level.timeSeconds = value;
   });
   const grassFolder = gui.addFolder('grassTypes');
   for (const [type, settings] of Object.entries(config.grassTypes)) addNumberFolder(grassFolder, type, settings);
   grassFolder.close();
 
   const win = () => {
-    const { blades, obstacles } = cutAllTargets(game);
+    const { blades, obstacles } = cutAllTargets(getGame());
     actions.markCut(blades);
     actions.markObstaclesCut(obstacles);
   };
   gui.add({ [texts.debug.win]: win }, texts.debug.win);
-  gui.add({ [texts.debug.threeSeconds]: () => (game.timeLeft = 3) }, texts.debug.threeSeconds);
+  gui.add({ [texts.debug.threeSeconds]: () => (getGame().timeLeft = 3) }, texts.debug.threeSeconds);
   gui.add({ [texts.debug.restart]: () => actions.restart() }, texts.debug.restart);
   gui.add(
     { [texts.debug.copyConfig]: () => void navigator.clipboard.writeText(JSON.stringify(config, null, 2)) },
@@ -67,6 +67,7 @@ export function createDebugPanel(game: Game, actions: DebugActions): DebugPanel 
       windowSeconds = 0;
       windowFrames = 0;
     }
+    const game = getGame();
     monitor.bladesCut = `${game.field.cutCount} / ${game.field.bladeCount}`;
     monitor.targetsLeft = remainingTargets(game);
     monitor.status = game.status;
