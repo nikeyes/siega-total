@@ -457,6 +457,27 @@ body,
   right: 16px;
 }
 
+.settings-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* A round light before the label: green while the switch is on, grey while it is off. */
+.settings-switch::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid var(--hud-ink);
+  background: #6b7d90;
+}
+
+.settings-switch[aria-pressed='true']::before {
+  background: #4fd65a;
+}
+
 .shop-heading {
   margin: 0;
   color: #fff;

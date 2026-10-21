@@ -6,8 +6,13 @@ export type BoosterKind = keyof typeof config.boosters;
 const UPGRADE_KINDS: readonly UpgradeKind[] = ['startSize', 'speed', 'extraTime', 'growth'];
 const BOOSTER_KINDS = Object.keys(config.boosters) as BoosterKind[];
 
+export interface Settings {
+  sound: boolean;
+  vibration: boolean;
+}
+
 export interface SaveData {
-  version: 1;
+  version: 2;
   /** Next level to play, ≥ 1. */
   level: number;
   coins: number;
@@ -15,9 +20,12 @@ export interface SaveData {
   upgrades: Record<UpgradeKind, number>;
   /** Uses left of each booster. */
   boosters: Record<BoosterKind, number>;
+  settings: Settings;
+  /** True once the player has made the first move with the hand hint on screen. */
+  tutorialDone: boolean;
 }
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export function defaultSave(): SaveData {
   return {
@@ -26,6 +34,8 @@ export function defaultSave(): SaveData {
     coins: 0,
     upgrades: Object.fromEntries(UPGRADE_KINDS.map((kind) => [kind, 0])) as SaveData['upgrades'],
     boosters: Object.fromEntries(BOOSTER_KINDS.map((kind) => [kind, config.boosters[kind].startUses])) as SaveData['boosters'],
+    settings: { sound: true, vibration: true },
+    tutorialDone: false,
   };
 }
 
@@ -40,12 +50,10 @@ export function loadSave(raw: string | null): SaveData {
   return sanitize(migrate(stored) as Partial<SaveData>);
 }
 
-/**
- * Brings older saves up to SAVE_VERSION. Version 1 is the first format, so there is nothing to do yet.
- * When M5 adds version 2, it raises SAVE_VERSION and adds a step here:
- * `if (data.version === 1) data = { ...data, version: 2, <new fields> };`
- */
-function migrate(data: { version: number }): unknown {
+/** Brings older saves up to SAVE_VERSION, one version at a time. */
+function migrate(data: { version: number } & Record<string, unknown>): unknown {
+  // A version 1 save belongs to someone who has already played, so the hand hint is not shown again.
+  if (data.version === 1) data = { ...data, version: 2, tutorialDone: true };
   return data;
 }
 
@@ -70,6 +78,8 @@ function sanitize(data: Partial<SaveData>): SaveData {
     coins: wholeNumberAtLeast(0, data.coins, defaults.coins),
     upgrades: sanitizeCounts(data.upgrades, defaults.upgrades, (kind) => config.upgrades[kind].max),
     boosters: sanitizeCounts(data.boosters, defaults.boosters),
+    settings: sanitizeFlags(data.settings, defaults.settings),
+    tutorialDone: booleanOr(data.tutorialDone, defaults.tutorialDone),
   };
 }
 
@@ -84,6 +94,17 @@ function sanitizeCounts<Kind extends string>(
   return Object.fromEntries(
     kinds.map((kind) => [kind, Math.min(maxOf(kind), wholeNumberAtLeast(0, counts[kind], defaults[kind]))]),
   ) as Record<Kind, number>;
+}
+
+/** A boolean for each key of `defaults`, kept from `stored` when valid. */
+function sanitizeFlags<Key extends string>(stored: unknown, defaults: Record<Key, boolean>): Record<Key, boolean> {
+  const flags = (stored ?? {}) as Partial<Record<Key, unknown>>;
+  const keys = Object.keys(defaults) as Key[];
+  return Object.fromEntries(keys.map((key) => [key, booleanOr(flags[key], defaults[key])])) as Record<Key, boolean>;
+}
+
+function booleanOr(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
 }
 
 function wholeNumberAtLeast(min: number, value: unknown, fallback: number): number {

@@ -1,3 +1,6 @@
+import { createCutRhythm } from './audio/cutRhythm';
+import { createSoundPlayer, type SoundName } from './audio/sounds';
+import { canVibrate, createVibration } from './audio/vibration';
 import { campaignSeeds } from './campaign';
 import { config } from './config';
 import type { DebugPanel } from './debug/panel';
@@ -5,6 +8,7 @@ import { bladeRadius, growthFraction } from './logic/blade';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
 import { buyBooster, canUseBooster, continueWithClock, nearestTarget, useBooster } from './logic/boosters';
 import { bankCoins } from './logic/economy';
+import { createFeedbackTracker, type FeedbackEvent } from './logic/feedback';
 import {
   createGame,
   remainingByTarget,
@@ -46,9 +50,37 @@ import './ui/styles.css';
 const MAX_FRAME_SECONDS = 0.05;
 /** Burst pieces thrown when a piece of each kind is cut; a cactus is bigger, so it throws more. */
 const BURST_PIECES = { watermelon: 12, strawberry: 12, cactus: 24 } as const;
+/** Entries kept in the ?debug feedback log. */
+const FEEDBACK_LOG_LENGTH = 200;
 
 const container = document.getElementById('app');
 if (!container) throw new Error('Missing #app container');
+
+const debugging = new URLSearchParams(location.search).has('debug');
+
+/** Debug only: every sound and buzz actually sent out, so automated browser checks can read them. */
+interface FeedbackLogEntry {
+  kind: 'sound' | 'vibration';
+  name: string;
+  rate?: number;
+  at: number;
+}
+const feedbackLog: FeedbackLogEntry[] = [];
+function logFeedback(entry: FeedbackLogEntry): void {
+  feedbackLog.push(entry);
+  if (feedbackLog.length > FEEDBACK_LOG_LENGTH) feedbackLog.shift();
+}
+const logSound = (name: SoundName, rate: number) => logFeedback({ kind: 'sound', name, rate, at: performance.now() });
+const logVibration = () => logFeedback({ kind: 'vibration', name: 'pulse', at: performance.now() });
+
+const soundPlayer = createSoundPlayer(import.meta.env.BASE_URL + 'sounds/', debugging ? logSound : undefined);
+const vibration = createVibration(debugging ? logVibration : undefined);
+const cutRhythm = createCutRhythm();
+const feedback = createFeedbackTracker();
+// One listener for every button on every screen, so none of them needs its own.
+container.addEventListener('click', (event) => {
+  if ((event.target as Element).closest('button')) soundPlayer.play('tap');
+});
 
 const gameScene = createGameScene(container, config.field.width, config.field.depth);
 const burst = createBurstView(gameScene.scene);
@@ -96,7 +128,7 @@ const homeScreen = createHomeScreen(container, {
     showScreen('playing');
   },
   onShop: () => openShop('home'),
-  onSettings: () => showScreen('settings'),
+  onSettings: () => openSettings('home'),
 });
 const shopScreen = createShopScreen(container, {
   onBuyUpgrade: (kind) => {
@@ -117,22 +149,37 @@ const pauseScreen = createPauseScreen(container, {
     restart();
     showScreen('playing');
   },
+  onSettings: () => openSettings('paused'),
   onHome: () => {
     // Leaving drops the coins of this attempt: only the end of a level banks them.
     restart();
     showScreen('home');
   },
 });
-const settingsScreen = createSettingsScreen(container, {
-  onClearProgress: clearProgress,
-  onBack: () => showScreen('home'),
-});
+const settingsScreen = createSettingsScreen(
+  container,
+  {
+    onToggleSound: () => {
+      save.settings.sound = !save.settings.sound;
+      saveSettings();
+    },
+    onToggleVibration: () => {
+      save.settings.vibration = !save.settings.vibration;
+      saveSettings();
+    },
+    onClearProgress: clearProgress,
+    onBack: () => showScreen(settingsReturnsTo),
+  },
+  canVibrate(),
+);
 
 /** What the player sees; the game only steps while it is 'playing' or showing the result. */
 type Screen = 'home' | 'playing' | 'paused' | 'result' | 'shop' | 'settings';
 let screen: Screen = 'home';
 /** The shop's «Volver» goes back to where it was opened from. */
 let shopReturnsTo: 'home' | 'result' = 'home';
+/** The settings' «Volver» goes back to where they were opened from, so a paused level stays paused. */
+let settingsReturnsTo: 'home' | 'paused' = 'home';
 const SCREEN_LAYERS: Partial<Record<Screen, HTMLElement>> = {
   home: homeScreen.layer,
   paused: pauseScreen.layer,
@@ -154,13 +201,33 @@ function openShop(from: 'home' | 'result'): void {
   showScreen('shop');
 }
 
-/** Redraws what shows the save: the balance and level on the home screen and the shop rows. */
+function openSettings(from: 'home' | 'paused'): void {
+  settingsReturnsTo = from;
+  showScreen('settings');
+}
+
+/** Redraws what shows the save: the balance and level on the home screen, the shop rows and the switches. */
 function renderSave(): void {
   homeScreen.render(save);
   shopScreen.render(save);
+  settingsScreen.render(save);
 }
 
 let save = readSave();
+applySettings();
+
+/** Turns sound and vibration on or off as the save says. */
+function applySettings(): void {
+  soundPlayer.setEnabled(save.settings.sound);
+  vibration.setEnabled(save.settings.vibration);
+}
+
+/** Keeps a flipped switch: saves it, applies it at once and redraws the switches. */
+function saveSettings(): void {
+  writeSave(save);
+  applySettings();
+  renderSave();
+}
 
 let game: Game;
 let grass: GrassView | null = null;
@@ -174,6 +241,8 @@ function playLevel(level: LevelDefinition): void {
   grass?.dispose();
   obstacleView?.dispose();
   game = createGame(level, bonusesFor(save.upgrades));
+  // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
+  feedback.track(game);
   grass = createGrassView(gameScene.scene, game.field, level.seed);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);
@@ -201,6 +270,7 @@ function saveLevelEnd(): void {
 function clearProgress(): void {
   clearSave();
   save = defaultSave();
+  applySettings();
   loadLevel(1);
   showScreen('home');
 }
@@ -230,9 +300,10 @@ loadObstacleModels(import.meta.env.BASE_URL + 'models/').then(
 );
 
 let debugPanel: DebugPanel | null = null;
-if (new URLSearchParams(location.search).has('debug')) {
+if (debugging) {
   // Debug only: exposes the current game so automated browser checks can read blade position and cutCount.
   Object.defineProperty(window, '__siega', { get: () => game });
+  Object.defineProperty(window, '__siegaFeedback', { value: feedbackLog });
   void import('./debug/panel').then(({ createDebugPanel }) => {
     debugPanel = createDebugPanel(() => game, {
       restart: () => {
@@ -285,6 +356,31 @@ function compassTarget(dt: number): { x: number; z: number } | null {
   return compassPointsAt;
 }
 
+/** The sound and buzz of each feedback event; the cut zip follows its own rhythm. */
+function playFeedback(event: FeedbackEvent): void {
+  switch (event.kind) {
+    case 'obstacleCut':
+      soundPlayer.play('obstacleCut');
+      break;
+    case 'sizeUp':
+      soundPlayer.play('sizeUp');
+      vibration.pulse();
+      break;
+    case 'winWave':
+      soundPlayer.play('win');
+      break;
+    case 'won':
+      soundPlayer.play('coins');
+      break;
+    case 'lost':
+      soundPlayer.play('lose');
+      break;
+    case 'cut':
+    case 'started':
+      break;
+  }
+}
+
 let elapsedSeconds = 0;
 let previousTimestamp: number | null = null;
 
@@ -300,6 +396,16 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const direction = screen === 'playing' ? combineDirections(joystick.getDirection(), keyboard.getDirection()) : null;
   const statusBefore = game.status;
   const result = stepGame(game, direction, stepping ? dt : 0);
+  // Every frame, stepping or not, so the tracker never misses a change between frames.
+  const events = feedback.step(game, result);
+  const zipRate = cutRhythm.step(events.some((event) => event.kind === 'cut'), dt);
+  if (zipRate !== null) soundPlayer.play('cut', zipRate);
+  for (const event of events) playFeedback(event);
+  const showBlocked = blockedNotice.step(result.blocked, dt);
+  if (showBlocked) {
+    soundPlayer.play('bounce');
+    vibration.pulse();
+  }
   grass!.markCut(result.cutIndices, elapsedSeconds);
   obstacleView!.markCut(result.cutObstacles);
   for (const index of result.cutObstacles) {
@@ -334,7 +440,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     growthFraction: growthFraction(blade),
     sizeLabelX: bladeOnScreen.x,
     sizeLabelY: bladeOnScreen.y,
-    showBlocked: blockedNotice.step(result.blocked, dt),
+    showBlocked,
     // Banked coins are already in the balance, so only the rest of the level is added on top.
     coins: save.coins + game.levelCoins + game.bonusCoins - game.bankedCoins,
     floatCoins: coinFloats.step(result.coins, dt),

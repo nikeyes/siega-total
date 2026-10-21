@@ -5,11 +5,13 @@ import { defaultSave, loadSave, SAVE_VERSION, serializeSave, type SaveData } fro
 /** A save far from the defaults in every field. */
 function progressedSave(): SaveData {
   return {
-    version: 1,
+    version: 2,
     level: 12,
     coins: 34_500,
     upgrades: { startSize: 2, speed: 3, extraTime: 1, growth: 4 },
     boosters: { upgrade: 0, compass: 5, clock: 1 },
+    settings: { sound: false, vibration: true },
+    tutorialDone: true,
   };
 }
 
@@ -23,10 +25,16 @@ function withInfinite(field: 'level' | 'coins'): string {
   return serializeSave(progressedSave()).replace(`"${field}":${progressedSave()[field]}`, `"${field}":1e999`);
 }
 
+/** `progressedSave()` as version 1 stored it, without settings or the tutorial flag. */
+function versionOneSave(): string {
+  const { settings, tutorialDone, ...versionOne } = { ...progressedSave(), version: 1 };
+  return JSON.stringify(versionOne);
+}
+
 describe('default save', () => {
-  it('starts at level 1 with no coins, no upgrades and the starting uses of each booster', () => {
+  it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on and the tutorial pending', () => {
     expect(defaultSave()).toEqual({
-      version: 1,
+      version: 2,
       level: 1,
       coins: 0,
       upgrades: { startSize: 0, speed: 0, extraTime: 0, growth: 0 },
@@ -35,6 +43,8 @@ describe('default save', () => {
         compass: config.boosters.compass.startUses,
         clock: config.boosters.clock.startUses,
       },
+      settings: { sound: true, vibration: true },
+      tutorialDone: false,
     });
   });
 
@@ -63,8 +73,18 @@ describe('loading a save', () => {
     expect(loadSave(raw)).toEqual(defaultSave());
   });
 
-  it('accepts an older version and brings it up to the current one', () => {
-    expect(loadWith({ version: 0 })).toEqual(progressedSave());
+  it('brings a version 1 save up to the current version, with the tutorial done and everything on', () => {
+    expect(loadSave(versionOneSave())).toEqual({
+      ...progressedSave(),
+      version: SAVE_VERSION,
+      settings: defaultSave().settings,
+      tutorialDone: true,
+    });
+  });
+
+  it('keeps a migrated version 1 save the same when it is saved and loaded again', () => {
+    const migrated = loadSave(versionOneSave());
+    expect(loadSave(serializeSave(migrated))).toEqual(migrated);
   });
 });
 
@@ -75,8 +95,29 @@ describe('sanitizing a loaded save', () => {
     ['coins that are not a number', { coins: 'mucho' }, { coins: defaultSave().coins }],
     ['coins that are a boolean', { coins: true }, { coins: defaultSave().coins }],
     ['level 0', { level: 0 }, { level: defaultSave().level }],
+    [
+      'a sound setting that is not a boolean',
+      { settings: { sound: 'no', vibration: false } },
+      { settings: { sound: defaultSave().settings.sound, vibration: false } },
+    ],
+    [
+      'a missing sound setting',
+      { settings: { vibration: false } },
+      { settings: { sound: defaultSave().settings.sound, vibration: false } },
+    ],
+    ['settings that are a number', { settings: 5 }, { settings: defaultSave().settings }],
+    ['settings that are an array', { settings: [] }, { settings: defaultSave().settings }],
+    ['settings that are null', { settings: null }, { settings: defaultSave().settings }],
+    ['missing settings', { settings: undefined }, { settings: defaultSave().settings }],
+    ['a tutorial flag that is a number', { tutorialDone: 1 }, { tutorialDone: defaultSave().tutorialDone }],
+    ['a tutorial flag that is null', { tutorialDone: null }, { tutorialDone: defaultSave().tutorialDone }],
+    ['a missing tutorial flag', { tutorialDone: undefined }, { tutorialDone: defaultSave().tutorialDone }],
   ])('replaces %s with the default and keeps the rest', (_, damaged, repaired) => {
     expect(loadWith(damaged)).toEqual({ ...progressedSave(), ...repaired });
+  });
+
+  it('drops unknown settings', () => {
+    expect(loadWith({ settings: { ...progressedSave().settings, music: true } })).toEqual(progressedSave());
   });
 
   it.each(['level', 'coins'] as const)('replaces an infinite %s with the default', (field) => {
