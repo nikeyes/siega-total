@@ -402,6 +402,17 @@ describe('collisions in play', () => {
     expect(stepGame(game, EAST, SIXTY_FPS_FRAME).blocked).toBe(true);
   });
 
+  it('does not report a resting blade blocked when growing makes it overlap grass it cannot cut', () => {
+    const lavenderAhead = WHEAT_AHEAD.map((row) => row.replaceAll('w', 'l'));
+    const game = createGame(levelFromRows(lavenderAhead, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    driveForSeconds(game, EAST, 1);
+    stopBlade(game);
+    game.blade.size = config.grassTypes.wheat.minSize;
+    let blocked = false;
+    driveForSeconds(game, null, 2, (result) => (blocked ||= result.blocked));
+    expect(blocked).toBe(false);
+  });
+
   it('lets a blade big enough for wheat drive through the stripe', () => {
     const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     game.blade.size = config.grassTypes.wheat.minSize;

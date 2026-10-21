@@ -52,7 +52,7 @@ export interface StepResult {
   sizesGained: number;
   /** Coins of the blades and obstacles cut during this step. */
   coins: number;
-  /** True while the blade pushes against something it cannot cut yet. */
+  /** True while the player pushes the blade against something it cannot cut yet. */
   blocked: boolean;
 }
 
@@ -119,9 +119,11 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   game.timeLeft = Math.max(0, game.timeLeft - dt);
   game.compassLeft = Math.max(0, game.compassLeft - dt);
   moveBlade(blade, direction, dt, field.width, field.depth, maxSpeedOf(game));
-  const { x, z, blocked } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
+  const { x, z, blocked: pushedBack } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
   blade.x = x;
   blade.z = z;
+  // A resting blade is pushed back too, say when growing makes it overlap a wall, but only pushing into one counts.
+  const blocked = pushedBack && direction !== null;
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
   const cutObstacles = cutObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size);
