@@ -120,10 +120,10 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   game.compassLeft = Math.max(0, game.compassLeft - dt);
   moveBlade(blade, direction, dt, field.width, field.depth, maxSpeedOf(game));
   const { x, z, blocked: pushedBack } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
+  // Growing can make the blade overlap a wall too; only a push against where the player steers counts.
+  const blocked = pushedBack && direction !== null && (x - blade.x) * direction.x + (z - blade.z) * direction.z < 0;
   blade.x = x;
   blade.z = z;
-  // A resting blade is pushed back too, say when growing makes it overlap a wall, but only pushing into one counts.
-  const blocked = pushedBack && direction !== null;
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
   const cutObstacles = cutObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size);

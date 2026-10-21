@@ -230,6 +230,24 @@ describe('switching games', () => {
     expect(tracker.step(won, stepGame(won, EAST, SIXTY_FPS_FRAME))).toEqual([]);
   });
 
+  it('gives started and cut for the first step of a game tracked before it is stepped', () => {
+    const tracker = createFeedbackTracker();
+    const previous = createGame(levelFromRows(SAND_WITH_FAR_ICE));
+    tracker.step(previous, stepGame(previous, EAST, SIXTY_FPS_FRAME));
+    const next = createGame(levelFromRows(GREEN_WITH_FAR_ICE));
+    tracker.track(next);
+    expect(tracker.step(next, stepGame(next, EAST, SIXTY_FPS_FRAME))).toEqual([{ kind: 'started' }, { kind: 'cut' }]);
+  });
+
+  it('gives nothing for the first step of a game other than the tracked one', () => {
+    const tracker = createFeedbackTracker();
+    const tracked = createGame(levelFromRows(SAND_WITH_FAR_ICE));
+    tracker.track(tracked);
+    const bigger = createGame(levelFromRows(GREEN_WITH_FAR_ICE));
+    bigger.blade.size = tracked.blade.size + config.boosters.upgrade.sizes;
+    expect(tracker.step(bigger, stepGame(bigger, EAST, SIXTY_FPS_FRAME))).toEqual([]);
+  });
+
   it('keeps each tracker separate', () => {
     const game = createGame(levelFromRows(SAND_WITH_FAR_ICE));
     const first = createFeedbackTracker();

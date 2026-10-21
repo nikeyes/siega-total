@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
 import { createCutRhythm, type CutRhythm } from '../../src/audio/cutRhythm';
 
@@ -121,6 +121,21 @@ describe('cutRhythm', () => {
     const rhythm = createCutRhythm();
     rhythm.step(true, FRAME);
     expect(zipRates(rhythm, false, 3, cutMinIntervalSeconds)).toEqual([]);
+  });
+
+  describe('when the debug panel tunes the rhythm', () => {
+    const originalAudio = structuredClone(config.audio);
+    afterEach(() => {
+      // config is shared by every test: put back what a test changed.
+      Object.assign(config.audio, originalAudio);
+    });
+
+    it('uses the new pitch step at once, in a rhythm created before', () => {
+      const rhythm = createCutRhythm();
+      config.audio.cutPitchStep = 0.25;
+      rhythm.step(true, FRAME);
+      expect(rhythm.step(true, config.audio.cutMinIntervalSeconds)).toBeCloseTo(1.25);
+    });
   });
 
   it('keeps separate rhythms independent', () => {

@@ -17,8 +17,6 @@ const SILENT_PLAYER: SoundPlayer = { play: () => {}, setEnabled: () => {} };
 export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, rate: number) => void): SoundPlayer {
   if (typeof AudioContext === 'undefined') return SILENT_PLAYER;
   const context = new AudioContext();
-  const master = context.createGain();
-  master.connect(context.destination);
   const buffers: Partial<Record<SoundName, AudioBuffer>> = {};
   const playing = new Set<AudioBufferSourceNode>();
   let enabled = true;
@@ -63,7 +61,7 @@ export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, 
     source.playbackRate.value = rate;
     const gain = context.createGain();
     gain.gain.value = config.audio.volume[name];
-    source.connect(gain).connect(master);
+    source.connect(gain).connect(context.destination);
     playing.add(source);
     source.onended = () => playing.delete(source);
     source.start();
@@ -72,7 +70,6 @@ export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, 
 
   function setEnabled(next: boolean): void {
     enabled = next;
-    master.gain.value = enabled ? 1 : 0;
     if (enabled) return;
     for (const source of playing) source.stop();
     playing.clear();

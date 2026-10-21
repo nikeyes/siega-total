@@ -13,10 +13,11 @@ interface Streak {
 
 /** Zips at most once every cutMinIntervalSeconds, a little higher each time, until a pause in cutting ends the streak. */
 export function createCutRhythm(): CutRhythm {
-  const { cutMinIntervalSeconds, cutPitchStep, cutMaxPitch, cutStreakResetSeconds } = config.audio;
   let streak: Streak | null = null;
 
   function step(cut: boolean, dt: number): number | null {
+    // Read on every step, so the debug panel's tuning applies at once.
+    const { cutMinIntervalSeconds, cutPitchStep, cutMaxPitch, cutStreakResetSeconds } = config.audio;
     if (streak) {
       streak.secondsSinceZip += dt;
       streak.secondsSinceCut = cut ? 0 : streak.secondsSinceCut + dt;

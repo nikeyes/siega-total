@@ -241,6 +241,8 @@ function playLevel(level: LevelDefinition): void {
   grass?.dispose();
   obstacleView?.dispose();
   game = createGame(level, bonusesFor(save.upgrades));
+  // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
+  feedback.track(game);
   grass = createGrassView(gameScene.scene, game.field, level.seed);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);

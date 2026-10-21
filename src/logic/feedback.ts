@@ -10,6 +10,8 @@ export type FeedbackEvent =
   | { kind: 'lost' };
 
 export interface FeedbackTracker {
+  /** Follows a new game from its current status and size, so its first step gives events. */
+  track(game: Game): void;
   /** Events of the step that just ran; call it once per frame, after stepGame. */
   step(game: Game, result: StepResult): FeedbackEvent[];
 }
@@ -21,13 +23,20 @@ interface Previous {
   size: number;
 }
 
-/** Another game (a new level or a restart) starts the tracking over without events, so its size or status is not news. */
+/**
+ * Another game (a new level or a restart) that was not tracked starts the tracking over without events,
+ * so its size or status is not news.
+ */
 export function createFeedbackTracker(): FeedbackTracker {
   let previous: Previous | null = null;
+  const track = (game: Game) => {
+    previous = { game, status: game.status, size: game.blade.size };
+  };
   return {
+    track,
     step(game, result) {
       const events = previous?.game === game ? eventsOfStep(game, result, previous) : [];
-      previous = { game, status: game.status, size: game.blade.size };
+      track(game);
       return events;
     },
   };
