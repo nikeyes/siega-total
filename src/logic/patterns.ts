@@ -50,7 +50,7 @@ function circles(random: () => number, params: PatternParams): RegionMap {
   return mapFrom(params, (column, row) => Math.floor(distanceFromCellCenter(column, row, x, z) / width) % params.regionCount);
 }
 
-/** Bands of an Archimedean spiral around the field center, one turn every 4 to 7 cells, either way round. */
+/** Archimedean spiral arms around the field center, one per region, 4 to 7 cells wide, either way round. */
 function spiral(random: () => number, params: PatternParams): RegionMap {
   const pitch = randomInt(random, 4, 7);
   const turn = random() < 0.5 ? 1 : -1;
@@ -58,12 +58,12 @@ function spiral(random: () => number, params: PatternParams): RegionMap {
   const z = params.rows / 2;
   return mapFrom(params, (column, row) => {
     const angle = Math.atan2(row + 0.5 - z, column + 0.5 - x) * turn;
-    const band = Math.floor(angle / (2 * Math.PI) + distanceFromCellCenter(column, row, x, z) / pitch);
+    // One arm per region: the angle term then jumps by regionCount at the ±π seam, which leaves the region unchanged.
+    const band = Math.floor((angle / (2 * Math.PI)) * params.regionCount + distanceFromCellCenter(column, row, x, z) / pitch);
     return positiveModulo(band, params.regionCount);
   });
 }
 
-/** A point in the middle third, on a cell center or corner so the rings stay symmetric on the grid. */
 /** Half the width of a winding path, in cells: paths are 3 cells wide. */
 const PATH_HALF_WIDTH = 1.5;
 
@@ -104,15 +104,16 @@ function soccerField(random: () => number, params: PatternParams): RegionMap {
   const stripeWidth = randomInt(random, 2, 3);
   const circleRadius = Math.min(columns, rows) / 6;
   const areaDepth = Math.round(columns / 6);
-  const areaHalfHeight = rows / 5;
+  // Each area spans 2/5 of the field height, between two rows mirrored about the middle.
+  const areaTopRow = Math.round(rows / 2 - rows / 5);
+  const areaBottomRow = rows - 1 - areaTopRow;
   const isLine = (column: number, row: number): boolean => {
     const fromGoal = Math.min(column, columns - 1 - column);
-    const fromMiddleRow = Math.abs(row + 0.5 - rows / 2);
     const border = fromGoal === 0 || row === 0 || row === rows - 1;
     const halfway = Math.abs(column + 0.5 - columns / 2) <= 0.5;
     const centerCircle = Math.abs(distanceFromCellCenter(column, row, columns / 2, rows / 2) - circleRadius) <= 0.5;
-    const areaFront = fromGoal === areaDepth && fromMiddleRow <= areaHalfHeight;
-    const areaSides = fromGoal <= areaDepth && Math.abs(fromMiddleRow - areaHalfHeight) <= 0.5;
+    const areaFront = fromGoal === areaDepth && row >= areaTopRow && row <= areaBottomRow;
+    const areaSides = fromGoal <= areaDepth && (row === areaTopRow || row === areaBottomRow);
     return border || halfway || centerCircle || areaFront || areaSides;
   };
   return mapFrom(params, (column, row) =>
@@ -132,8 +133,9 @@ function islands(random: () => number, params: PatternParams): RegionMap {
   const placed: { x: number; z: number; radius: number }[] = [];
   const islandCount = randomInt(random, MIN_ISLANDS, MAX_ISLANDS);
   for (let island = 0; island < islandCount; island++) {
-    const radius = randomInt(random, 2, 5);
     for (let attempt = 0; attempt < ISLAND_PLACEMENT_TRIES; attempt++) {
+      // A new radius on each try lets a smaller island fit where a big one does not.
+      const radius = randomInt(random, 2, 5);
       const x = randomInt(random, radius, columns - 1 - radius) + 0.5;
       const z = randomInt(random, radius, rows - 1 - radius) + 0.5;
       const apart = placed.every((other) => Math.hypot(other.x - x, other.z - z) >= other.radius + radius + ISLAND_GAP);
@@ -149,6 +151,7 @@ function islands(random: () => number, params: PatternParams): RegionMap {
   });
 }
 
+/** A point in the middle third, on a cell center or corner so the rings stay symmetric on the grid. */
 function centerInMiddleThird(random: () => number, { columns, rows }: PatternParams): { x: number; z: number } {
   const toHalfCell = (value: number) => Math.round(value * 2) / 2;
   return { x: toHalfCell(columns / 3 + random() * (columns / 3)), z: toHalfCell(rows / 3 + random() * (rows / 3)) };

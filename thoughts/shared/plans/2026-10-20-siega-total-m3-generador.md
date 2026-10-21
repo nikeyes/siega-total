@@ -509,9 +509,9 @@ Con `regionCount = 1`, todos los patrones dan una sola región (y la arena del c
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Las pruebas de patrones y arquitectura pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Las pruebas de patrones y arquitectura pasan: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 
