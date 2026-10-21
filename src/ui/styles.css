@@ -521,8 +521,8 @@ body,
   gap: 10px;
 }
 
-/* A round light before the label: green while the switch is on, grey while it is off. */
-.settings-switch::before {
+/* A round light before the label: green while the switch is on, grey while it is off; the quality picker has none. */
+.settings-switch[aria-pressed]::before {
   content: '';
   width: 16px;
   height: 16px;

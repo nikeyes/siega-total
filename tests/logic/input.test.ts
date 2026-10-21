@@ -92,17 +92,7 @@ describe('keyboardDirection', () => {
     expect(keyboardDirection(new Set(['ShiftLeft', 'KeyW']))).toEqual(NORTH);
   });
 
-  it.skip('keyboardDirection returns NaN for inherited object keys such as toString - BUG', () => {
-    /*
-     * ROOT CAUSE: KEY_DIRECTIONS is a plain object literal, so KEY_DIRECTIONS['toString'] finds
-     *   Object.prototype.toString; its .x/.z are undefined and the sums become NaN.
-     * CODE LOCATION: src/logic/input.ts:29 (KEY_DIRECTIONS[key] lookup)
-     * PROPOSED FIX: use Object.hasOwn(KEY_DIRECTIONS, key) or a Map for the lookup.
-     * EXPECTED: null (the keys do not steer)
-     * ACTUAL: { x: NaN, z: NaN }
-     * NOT FIXED: KeyboardEvent.code never yields 'toString', 'constructor' or '__proto__',
-     *   so players cannot reach this path.
-     */
+  it('ignores inherited object keys such as toString', () => {
     expect(keyboardDirection(new Set(['toString', 'constructor', '__proto__']))).toBeNull();
   });
 });

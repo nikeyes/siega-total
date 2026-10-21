@@ -25,6 +25,7 @@ const SHADOW_HEIGHT = 0.01;
 
 export interface BladeView {
   update(blade: Blade, dt: number): void;
+  setShadowVisible(visible: boolean): void;
 }
 
 /** A blue hub with curved arms, sized to a radius of 1 and scaled to `bladeRadius(size)`, plus a fake shadow. */
@@ -64,7 +65,11 @@ export function createBladeView(scene: Scene): BladeView {
     shadow.scale.setScalar(radius);
   }
 
-  return { update };
+  function setShadowVisible(visible: boolean): void {
+    shadow.visible = visible;
+  }
+
+  return { update, setShadowVisible };
 }
 
 /** A scythe-like arm from the hub to a pointed tip at radius 1, curving back against the spin. */

@@ -77,18 +77,21 @@ function boardOf(level: LevelDefinition): Board {
     columns,
     rows,
     bladesInCell,
-    bladesPerGrassCell: grassCells === 0 ? 0 : config.field.bladeCount / grassCells,
+    bladesPerGrassCell: grassCells === 0 ? 0 : config.field.referenceBladeCount / grassCells,
     startCell: cellAt(level.width / 2, level.depth / 2),
     obstacleCell: Int32Array.from(level.obstacles, ({ x, z }) => cellAt(x, z)),
   };
 }
 
-/** Same split as createField: blade `i` goes to grass cell `i % grassCellCount`. */
+/**
+ * Same split as createField: blade `i` goes to grass cell `i % grassCellCount`.
+ * Always at the reference density, since every quality plays the same.
+ */
 function bladesInCells(cells: LevelDefinition['cells']): Int32Array {
   const grassCells = cells.flatMap((type, cell) => (type === null ? [] : [cell]));
   const blades = new Int32Array(cells.length);
   if (grassCells.length === 0) return blades;
-  const { bladeCount } = config.field;
+  const bladeCount = config.field.referenceBladeCount;
   const base = Math.floor(bladeCount / grassCells.length);
   grassCells.forEach((cell, order) => (blades[cell] = base + (order < bladeCount % grassCells.length ? 1 : 0)));
   return blades;

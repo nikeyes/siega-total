@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { clippingBlades } from '../../src/render/clippings';
+import { config } from '../../src/config';
+import { QUALITY_LEVELS } from '../../src/logic/quality';
+import { clippingBlades, clippingOptions } from '../../src/render/clippings';
 
 const NO_CAP = 1000;
 const cutsOf = (count: number) => Array.from({ length: count }, (_, index) => 100 + index);
@@ -59,5 +61,24 @@ describe('clippingBlades', () => {
     it('throws nothing when the cap is 0', () => {
       expect(clippingBlades(cutsOf(10), 3, 0)).toEqual([]);
     });
+  });
+});
+
+describe('clippingOptions', () => {
+  it('keeps the clippings whole until they land where the quality keeps them on the ground', () => {
+    expect(clippingOptions('high').shrink).toBe(false);
+  });
+
+  it.each(['medium', 'low'] as const)('shrinks the clippings away at %s, where they fade', (level) => {
+    expect(clippingOptions(level).shrink).toBe(true);
+  });
+
+  it.each(QUALITY_LEVELS)('pools a whole lifetime of clippings at the per-frame cap of %s, at 60 fps', (level) => {
+    const { maxClippingsPerFrame } = config.quality.levels[level];
+    expect(clippingOptions(level).poolSize).toBe(Math.ceil(maxClippingsPerFrame * config.effects.clippingSeconds * 60));
+  });
+
+  it.each(QUALITY_LEVELS)('throws flat strips that last clippingSeconds at %s', (level) => {
+    expect(clippingOptions(level)).toMatchObject({ geometry: 'flat', lifetimeSeconds: config.effects.clippingSeconds });
   });
 });

@@ -55,7 +55,7 @@ function rockPen(column: number, row: number): Obstacle[] {
 }
 
 /** 120 grass cells, so each holds 100 of the 12 000 blades: 2 cells grow size 1 to 2, 4 more grow 2 to 3. */
-const GRASS_CELLS_OF_100_BLADES = config.field.bladeCount / 100;
+const GRASS_CELLS_OF_100_BLADES = config.field.referenceBladeCount / 100;
 const LAVENDER_IN_THE_CORNER = 6;
 
 /** The first 6 cells lavender, green up to 120 grass cells, and sand everywhere else. */

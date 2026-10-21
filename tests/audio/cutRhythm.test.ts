@@ -47,7 +47,7 @@ describe('cutRhythm', () => {
     expect(rhythm.step(true, cutMinIntervalSeconds * 0.02)).toBeCloseTo(1 + cutPitchStep);
   });
 
-  it('zips every fourth frame at 60 fps, never sooner', () => {
+  it('zips once every cutMinIntervalSeconds worth of 60 fps frames, never sooner', () => {
     const rhythm = createCutRhythm();
     const played: number[] = [];
     for (let frame = 0; frame < 40; frame++) if (rhythm.step(true, FRAME) !== null) played.push(frame);

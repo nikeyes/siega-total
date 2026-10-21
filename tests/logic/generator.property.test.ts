@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
+import { bladeRadius } from '../../src/logic/blade';
+import { resolveCollisions } from '../../src/logic/collision';
 import { isObstacleType } from '../../src/logic/levels';
 import { generateLevel } from '../../src/logic/generator';
-import { obstacleCutSize } from '../../src/logic/obstacles';
+import { createObstacleField, obstacleCutSize } from '../../src/logic/obstacles';
 import { analyzeLevel, validateLevel } from '../../src/logic/validation';
 
 const SEEDS_PER_LEVEL = 500;
@@ -18,8 +20,10 @@ describe.each(LEVELS)('every accepted level %i out of 500 seeds', (levelNumber) 
       accepted++;
       const description = `level ${levelNumber}, seed ${seed}`;
       const { finalSize } = analyzeLevel(level);
-      const startCell = (level.depth / 2) * (level.width / level.cellSize) + level.width / 2;
-      expect(level.cells[startCell], description).toBeNull();
+      const world = { level, obstacles: createObstacleField(level.obstacles) };
+      const { startSize } = config.blade;
+      const start = resolveCollisions(world, level.width / 2, level.depth / 2, bladeRadius(startSize), startSize);
+      expect(start.blocked, description).toBe(false);
       expect(level.timeSeconds, description).toBeLessThanOrEqual(config.generator.maxTimeSeconds);
       for (const target of level.targets) {
         const units = isObstacleType(target)

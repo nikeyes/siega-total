@@ -52,6 +52,27 @@ describe('coin floats', () => {
     expect(floats.step(0, 4 * STEP)).toBe(5);
   });
 
+  it('lets out the whole coins of fractional steps and keeps the rest for the next «+N»', () => {
+    const floats = createCoinFloats();
+    expect(floats.step(0.6, STEP)).toBeNull();
+    expect(floats.step(0.6, floatIntervalSeconds)).toBe(1);
+    expect(floats.step(0.9, floatIntervalSeconds)).toBe(1);
+  });
+
+  it('never lets out a «+0» while the coins gathered add up to less than one', () => {
+    expect(createCoinFloats().step(0.4, floatIntervalSeconds)).toBeNull();
+  });
+
+  it('lets nothing out for more than half a coin, as only whole coins come out', () => {
+    expect(createCoinFloats().step(0.6, floatIntervalSeconds)).toBeNull();
+  });
+
+  it('lets out, over many fractional steps, every whole coin gathered', () => {
+    const floats = createCoinFloats();
+    const shown = Array.from({ length: 100 }, () => floats.step(0.6, floatIntervalSeconds) ?? 0);
+    expect(shown.reduce((sum, coins) => sum + coins, 0)).toBe(60);
+  });
+
   it('ignores zero-length steps', () => {
     const floats = createCoinFloats();
     const shown = Array.from({ length: 100 }, () => floats.step(1, 0));

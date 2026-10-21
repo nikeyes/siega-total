@@ -4,7 +4,8 @@ import { config } from '../config';
 import { cutAllTargets, remainingTargets, type Game } from '../logic/game';
 import { generateLevel } from '../logic/generator';
 import type { LevelDefinition } from '../logic/levels';
-import { firstValidLevel, levelFor } from '../logic/progression';
+import type { QualityLevel, QualitySetting } from '../logic/quality';
+import { firstValidLevel, levelFor, rebuildsFromSeed } from '../logic/progression';
 import { validateLevel } from '../logic/validation';
 import { texts } from '../texts';
 
@@ -29,7 +30,20 @@ const NOT_TUNABLE = new Set(['level.stripeWidthMeters', 'effects.clippingSeconds
 
 export interface DebugPanel {
   update(dt: number): void;
+  /** The frame time the quality monitor measures instead of the real one, while «FPS simulados» is on; otherwise null. */
+  simulatedFrameSeconds(): number | null;
 }
+
+export interface QualityStatus {
+  setting: QualitySetting;
+  level: QualityLevel;
+  measuredFps: number | null;
+  pixelRatio: number;
+  shadow: boolean;
+}
+
+/** The highest frame rate «FPS simulados» offers; 0 turns it off. */
+const MAX_SIMULATED_FPS = 120;
 
 export interface DebugActions {
   restart(): void;
@@ -50,9 +64,16 @@ interface NumberTree {
   [key: string]: number | NumberTree;
 }
 
+/** Room the HUD needs on the right: the pause button and coins above, the three boosters below. */
+const HUD_CORNER_HEIGHT_PX = 72;
+const HUD_BOOSTERS_HEIGHT_PX = 240;
+
 /** lil-gui panel to tune `config` live, pick levels and seeds, jump to the end of a level and watch the game. */
-export function createDebugPanel(getGame: () => Game, actions: DebugActions): DebugPanel {
+export function createDebugPanel(getGame: () => Game, actions: DebugActions, getQuality: () => QualityStatus): DebugPanel {
   const gui = new GUI();
+  // Between the HUD's corner and its boosters, so both stay clickable while debugging.
+  gui.domElement.style.top = `${HUD_CORNER_HEIGHT_PX}px`;
+  gui.domElement.style.maxHeight = `calc(100% - ${HUD_CORNER_HEIGHT_PX + HUD_BOOSTERS_HEIGHT_PX}px)`;
 
   addNumberFolder(gui, 'blade', config.blade);
   addNumberFolder(gui, 'camera', config.camera);
@@ -76,6 +97,9 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
 
   addLevelFolder(gui, getGame, actions);
 
+  const simulation = { simulatedFps: 0 };
+  gui.addFolder(texts.debug.quality).add(simulation, 'simulatedFps', 0, MAX_SIMULATED_FPS, 1).name(texts.debug.simulatedFps);
+
   gui.add({ [texts.debug.win]: () => actions.markCut(cutAllTargets(getGame())) }, texts.debug.win);
   gui.add({ [texts.debug.threeSeconds]: () => (getGame().timeLeft = 3) }, texts.debug.threeSeconds);
   gui.add({ [texts.debug.restart]: () => actions.restart() }, texts.debug.restart);
@@ -87,7 +111,18 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
     texts.debug.copyConfig,
   );
 
-  const monitor = { fps: 0, bladesCut: '', targetsLeft: 0, status: '', level: 0, seed: 0, pattern: '', rejection: '' };
+  const monitor = {
+    fps: 0,
+    bladesCut: '',
+    targetsLeft: 0,
+    status: '',
+    level: 0,
+    seed: 0,
+    pattern: '',
+    rejection: '',
+    quality: '',
+    measuredFps: '',
+  };
   const monitorFolder = gui.addFolder('monitor');
   monitorFolder.add(monitor, 'fps').name(texts.debug.fps).disable().listen();
   monitorFolder.add(monitor, 'level').name(texts.debug.level).disable().listen();
@@ -97,6 +132,8 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
   monitorFolder.add(monitor, 'bladesCut').name(texts.debug.bladesCut).disable().listen();
   monitorFolder.add(monitor, 'targetsLeft').name(texts.debug.targetsLeft).disable().listen();
   monitorFolder.add(monitor, 'status').name(texts.debug.status).disable().listen();
+  monitorFolder.add(monitor, 'quality').name(texts.debug.quality).disable().listen();
+  monitorFolder.add(monitor, 'measuredFps').name(texts.debug.measuredFps).disable().listen();
 
   let windowSeconds = 0;
   let windowFrames = 0;
@@ -122,9 +159,16 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions): De
     monitor.bladesCut = `${game.field.cutCount} / ${game.field.bladeCount}`;
     monitor.targetsLeft = remainingTargets(game);
     monitor.status = game.status;
+    const quality = getQuality();
+    monitor.quality = `${quality.setting} → ${quality.level}`;
+    monitor.measuredFps = quality.measuredFps === null ? '-' : String(Math.round(quality.measuredFps));
   }
 
-  return { update };
+  function simulatedFrameSeconds(): number | null {
+    return simulation.simulatedFps === 0 ? null : 1 / simulation.simulatedFps;
+  }
+
+  return { update, simulatedFrameSeconds };
 }
 
 /** Level number and seed fields, with buttons to play a level, a seed or the next valid seed, and to copy it for the campaign. */
@@ -156,7 +200,12 @@ function addLevelFolder(gui: GUI, getGame: () => Game, actions: DebugActions): v
     const level = firstValidLevel(chosen.level, attempt + 1);
     play(level, level.attempt);
   };
-  const copySeed = () => void navigator.clipboard.writeText(`  ${chosen.level}: ${getGame().level.seed},`);
+  // The level being played, not the «Nivel» field: the field may have changed since it was loaded.
+  const copySeed = () => {
+    const { level } = getGame();
+    const line = rebuildsFromSeed(level) ? `  ${level.number}: ${level.seed},` : `  ${texts.debug.fallbackHasNoSeed.replace('{level}', String(level.number))}`;
+    void navigator.clipboard.writeText(line);
+  };
 
   folder.add({ [texts.debug.goToLevel]: goToLevel }, texts.debug.goToLevel);
   folder.add({ [texts.debug.loadSeed]: loadSeed }, texts.debug.loadSeed);

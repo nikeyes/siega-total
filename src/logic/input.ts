@@ -11,22 +11,22 @@ export function joystickDirection(originX: number, originY: number, currentX: nu
 }
 
 /** `KeyboardEvent.code` values and the field direction each one pushes toward. */
-const KEY_DIRECTIONS: Readonly<Record<string, Direction>> = {
-  KeyW: { x: 0, z: -1 },
-  ArrowUp: { x: 0, z: -1 },
-  KeyS: { x: 0, z: 1 },
-  ArrowDown: { x: 0, z: 1 },
-  KeyA: { x: -1, z: 0 },
-  ArrowLeft: { x: -1, z: 0 },
-  KeyD: { x: 1, z: 0 },
-  ArrowRight: { x: 1, z: 0 },
-};
+const KEY_DIRECTIONS: ReadonlyMap<string, Direction> = new Map([
+  ['KeyW', { x: 0, z: -1 }],
+  ['ArrowUp', { x: 0, z: -1 }],
+  ['KeyS', { x: 0, z: 1 }],
+  ['ArrowDown', { x: 0, z: 1 }],
+  ['KeyA', { x: -1, z: 0 }],
+  ['ArrowLeft', { x: -1, z: 0 }],
+  ['KeyD', { x: 1, z: 0 }],
+  ['ArrowRight', { x: 1, z: 0 }],
+]);
 
 export function keyboardDirection(pressedKeys: ReadonlySet<string>): Direction | null {
   let x = 0;
   let z = 0;
   for (const key of pressedKeys) {
-    const keyDirection = KEY_DIRECTIONS[key];
+    const keyDirection = KEY_DIRECTIONS.get(key);
     if (!keyDirection) continue;
     x += keyDirection.x;
     z += keyDirection.z;

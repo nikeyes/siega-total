@@ -5,12 +5,12 @@ import { defaultSave, loadSave, SAVE_VERSION, serializeSave, type SaveData } fro
 /** A save far from the defaults in every field. */
 function progressedSave(): SaveData {
   return {
-    version: 2,
+    version: 3,
     level: 12,
     coins: 34_500,
     upgrades: { startSize: 2, speed: 3, extraTime: 1, growth: 4 },
     boosters: { upgrade: 0, compass: 5, clock: 1 },
-    settings: { sound: false, vibration: true },
+    settings: { sound: false, vibration: true, quality: 'low' },
     tutorialDone: true,
   };
 }
@@ -25,6 +25,12 @@ function withInfinite(field: 'level' | 'coins'): string {
   return serializeSave(progressedSave()).replace(`"${field}":${progressedSave()[field]}`, `"${field}":1e999`);
 }
 
+/** `progressedSave()` as version 2 stored it, without the quality setting. */
+function versionTwoSave(): string {
+  const { quality, ...settings } = progressedSave().settings;
+  return JSON.stringify({ ...progressedSave(), version: 2, settings });
+}
+
 /** `progressedSave()` as version 1 stored it, without settings or the tutorial flag. */
 function versionOneSave(): string {
   const { settings, tutorialDone, ...versionOne } = { ...progressedSave(), version: 1 };
@@ -34,7 +40,7 @@ function versionOneSave(): string {
 describe('default save', () => {
   it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on and the tutorial pending', () => {
     expect(defaultSave()).toEqual({
-      version: 2,
+      version: 3,
       level: 1,
       coins: 0,
       upgrades: { startSize: 0, speed: 0, extraTime: 0, growth: 0 },
@@ -43,7 +49,7 @@ describe('default save', () => {
         compass: config.boosters.compass.startUses,
         clock: config.boosters.clock.startUses,
       },
-      settings: { sound: true, vibration: true },
+      settings: { sound: true, vibration: true, quality: 'auto' },
       tutorialDone: false,
     });
   });
@@ -82,6 +88,14 @@ describe('loading a save', () => {
     });
   });
 
+  it('brings a version 2 save up to the current version, with the quality on auto and the rest kept', () => {
+    expect(loadSave(versionTwoSave())).toEqual({
+      ...progressedSave(),
+      version: SAVE_VERSION,
+      settings: { ...progressedSave().settings, quality: 'auto' },
+    });
+  });
+
   it('keeps a migrated version 1 save the same when it is saved and loaded again', () => {
     const migrated = loadSave(versionOneSave());
     expect(loadSave(serializeSave(migrated))).toEqual(migrated);
@@ -97,13 +111,13 @@ describe('sanitizing a loaded save', () => {
     ['level 0', { level: 0 }, { level: defaultSave().level }],
     [
       'a sound setting that is not a boolean',
-      { settings: { sound: 'no', vibration: false } },
-      { settings: { sound: defaultSave().settings.sound, vibration: false } },
+      { settings: { sound: 'no', vibration: false, quality: 'low' } },
+      { settings: { sound: defaultSave().settings.sound, vibration: false, quality: 'low' } },
     ],
     [
       'a missing sound setting',
-      { settings: { vibration: false } },
-      { settings: { sound: defaultSave().settings.sound, vibration: false } },
+      { settings: { vibration: false, quality: 'low' } },
+      { settings: { sound: defaultSave().settings.sound, vibration: false, quality: 'low' } },
     ],
     ['settings that are a number', { settings: 5 }, { settings: defaultSave().settings }],
     ['settings that are an array', { settings: [] }, { settings: defaultSave().settings }],
@@ -114,6 +128,11 @@ describe('sanitizing a loaded save', () => {
     ['a missing tutorial flag', { tutorialDone: undefined }, { tutorialDone: defaultSave().tutorialDone }],
   ])('replaces %s with the default and keeps the rest', (_, damaged, repaired) => {
     expect(loadWith(damaged)).toEqual({ ...progressedSave(), ...repaired });
+  });
+
+  it.each(['ultra', 3, undefined])('puts a quality setting of %s back on auto and keeps the rest', (quality) => {
+    const settings = { ...progressedSave().settings, quality };
+    expect(loadWith({ settings })).toEqual({ ...progressedSave(), settings: { ...settings, quality: defaultSave().settings.quality } });
   });
 
   it('drops unknown settings', () => {
@@ -160,5 +179,25 @@ describe('sanitizing a loaded save', () => {
     const upgrades = { ...progressedSave().upgrades, magnet: 3 };
     const boosters = { ...progressedSave().boosters, bomb: 1 };
     expect(loadWith({ upgrades, boosters })).toEqual(progressedSave());
+  });
+});
+
+describe('quality setting in a save', () => {
+  it.each(['auto', 'high', 'medium', 'low'] as const)('keeps a quality setting of %s', (quality) => {
+    expect(loadWith({ settings: { ...progressedSave().settings, quality } }).settings.quality).toBe(quality);
+  });
+
+  it.each([null, 'AUTO', 'Alta', ''])('puts a quality setting of %j back on auto', (quality) => {
+    expect(loadWith({ settings: { ...progressedSave().settings, quality } }).settings.quality).toBe('auto');
+  });
+
+  it('keeps a quality setting a version 2 save already had', () => {
+    const raw = JSON.stringify({ ...progressedSave(), version: 2 });
+    expect(loadSave(raw).settings.quality).toBe(progressedSave().settings.quality);
+  });
+
+  it('brings a version 1 save up with the quality on auto', () => {
+    const { settings, tutorialDone, ...versionOne } = { ...progressedSave(), version: 1 };
+    expect(loadSave(JSON.stringify(versionOne)).settings.quality).toBe('auto');
   });
 });
