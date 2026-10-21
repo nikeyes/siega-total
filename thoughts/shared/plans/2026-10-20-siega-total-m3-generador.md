@@ -322,9 +322,9 @@ export function resolveCollisions(world: CollisionWorld, x: number, z: number, r
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Las pruebas de choques y juego pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Las pruebas de choques y juego pasan: `make test`
+- [x] La compilación termina: `make build`
 
 ---
 

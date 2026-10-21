@@ -30,9 +30,10 @@ export function resolveCollisions(world: CollisionWorld, x: number, z: number, r
   for (let pass = 0; pass < config.collision.iterations; pass++) {
     pushOutOfHardCells(level, position, radius, size);
     pushOutOfObstacles(world.obstacles, position, radius, size);
+    // Inside the loop, so the next pass pushes again from where the field edge left the blade.
+    position.x = clamp(position.x, 0, level.width);
+    position.z = clamp(position.z, 0, level.depth);
   }
-  position.x = clamp(position.x, 0, level.width);
-  position.z = clamp(position.z, 0, level.depth);
   return position;
 }
 

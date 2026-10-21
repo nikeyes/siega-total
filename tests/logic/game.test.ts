@@ -57,9 +57,15 @@ function isInPlay(game: Game): boolean {
   return game.status === 'ready' || game.status === 'playing';
 }
 
+/** Gives up after a minute of game time, so a blade that never arrives (say, blocked by a wall) fails instead of hanging. */
+const MAX_DRIVE_STEPS = 60 / SIXTY_FPS_FRAME;
+
 /** Steps the game one 60 fps frame at a time in `direction` until `arrived` holds or the game leaves play. */
 function driveUntil(game: Game, direction: Direction | null, arrived: () => boolean, onStep: StepListener = () => {}) {
-  while (!arrived() && isInPlay(game)) {
+  for (let steps = 0; !arrived() && isInPlay(game); steps++) {
+    if (steps >= MAX_DRIVE_STEPS) {
+      expect.fail(`the blade did not arrive within ${MAX_DRIVE_STEPS} steps; it stopped at (${game.blade.x}, ${game.blade.z})`);
+    }
     const radiusDuringStep = bladeRadius(game.blade.size);
     onStep(stepGame(game, direction, SIXTY_FPS_FRAME), radiusDuringStep);
   }
@@ -398,14 +404,15 @@ describe('stepGame', () => {
 });
 
 describe('collisions in play', () => {
-  /** 8 × 3 m of sand with a wheat stripe from x = 5 to x = 7; the blade starts at x = 4 and has nothing to grow on. */
+  /** 8 × 3 m of sand with a wheat stripe from x = 5 to x = 7; the blade starts at (4, 1.5) and has nothing to grow on. */
   const WHEAT_AHEAD = ['.....ww.', '.....ww.', '.....ww.'];
   const WHEAT_WEST_EDGE = 5;
+  const WIDE_SAND = ['........', '........', '........'];
   /** A target in the northwest corner, off the blade's path, so the level stays in play. */
-  const OFF_PATH_TARGET = { obstacles: [{ type: 'strawberry', x: 0.3, z: 0.3 } as Obstacle], targets: ['strawberry'] as const };
+  const OFF_PATH_TARGET: Obstacle = { type: 'strawberry', x: 0.3, z: 0.3 };
 
   it('stops a blade too small for wheat at the edge of the stripe and reports it blocked', () => {
-    const game = createGame(levelFromRows(WHEAT_AHEAD, OFF_PATH_TARGET));
+    const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     let blocked = false;
     driveForSeconds(game, EAST, 1, (result) => (blocked ||= result.blocked));
     expect(game.blade.size).toBe(startSize);
@@ -415,9 +422,9 @@ describe('collisions in play', () => {
   });
 
   it('lets a blade big enough for wheat drive through the stripe', () => {
-    const game = createGame(levelFromRows(WHEAT_AHEAD, OFF_PATH_TARGET));
+    const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     game.blade.size = config.grassTypes.wheat.minSize;
-    driveForSeconds(game, EAST, 1);
+    driveUntil(game, EAST, () => game.blade.x === game.field.width);
     expect(game.blade.x).toBe(game.field.width);
   });
 
@@ -433,13 +440,15 @@ describe('collisions in play', () => {
     expect(result.cutObstacles).toEqual([0]);
   });
 
-  it('keeps the blade out of a rock in every frame of two seconds driving into it', () => {
+  it('keeps the blade out of a rock, but touching it, in every frame of two seconds driving into it', () => {
     const rock: Obstacle = { type: 'rock', x: 6, z: 1.5 };
-    const game = createGame(levelFromRows(WHEAT_AHEAD.map((row) => row.replaceAll('w', '.')), { obstacles: [rock], targets: ['strawberry'] }));
-    const minDistance = bladeRadius(startSize) + obstacleRadius('rock');
+    const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, rock], targets: ['strawberry'] }));
+    const touchingDistance = bladeRadius(startSize) + obstacleRadius('rock');
     const distances: number[] = [];
     driveForSeconds(game, EAST, 2, () => distances.push(Math.hypot(game.blade.x - rock.x, game.blade.z - rock.z)));
-    expect(Math.min(...distances)).toBeGreaterThanOrEqual(minDistance - 1e-9);
+    expect(game.status).toBe('playing');
+    expect(Math.min(...distances)).toBeGreaterThanOrEqual(touchingDistance - 1e-9);
+    expect(distances.at(-1)).toBeCloseTo(touchingDistance, 9);
   });
 });
 
