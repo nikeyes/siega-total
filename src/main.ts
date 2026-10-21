@@ -3,12 +3,12 @@ import { createSoundPlayer, type SoundName } from './audio/sounds';
 import { canVibrate, createVibration } from './audio/vibration';
 import { campaignSeeds } from './campaign';
 import { config } from './config';
-import type { DebugPanel } from './debug/panel';
+import type { DebugPanel, QualityStatus } from './debug/panel';
 import { bladeRadius, growthFraction } from './logic/blade';
 import { GRASS_TYPE_ORDER } from './logic/field';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
 import { buyBooster, canUseBooster, continueWithClock, nearestTarget, useBooster } from './logic/boosters';
-import { bankCoins } from './logic/economy';
+import { bankCoins, unbankedCoins } from './logic/economy';
 import { createFeedbackTracker, type FeedbackEvent } from './logic/feedback';
 import {
   createGame,
@@ -23,8 +23,10 @@ import type { LevelDefinition } from './logic/levels';
 import { levelFor } from './logic/progression';
 import { defaultSave, type BoosterKind } from './logic/save';
 import { bonusesFor, buyUpgrade } from './logic/upgrades';
-import { createBurstView } from './render/burst';
-import { clippingBlades } from './render/clippings';
+import { createQualityMonitor, nextQualitySetting, qualityForAttempt, type QualityLevel } from './logic/quality';
+import { createBurstView, type BurstView } from './render/burst';
+import { clippingBlades, clippingOptions } from './render/clippings';
+import { createGroundClippings } from './render/groundClippings';
 import { GRASS_COLORS } from './render/grassColors';
 import { createGroundRing } from './render/groundRing';
 import { sizeUpRing } from './render/ringMath';
@@ -57,8 +59,6 @@ import './ui/styles.css';
 const MAX_FRAME_SECONDS = 0.05;
 /** Burst pieces thrown when a piece of each kind is cut; a cactus is bigger, so it throws more. */
 const BURST_PIECES = { watermelon: 12, strawberry: 12, cactus: 24 } as const;
-/** The frame rate the clippings' pool is sized for. */
-const CLIPPING_POOL_FRAMES_PER_SECOND = 60;
 const SIZE_UP_RING_COLOR = 0xffffff;
 const WAVE_RING_COLOR = 0xfff3b0;
 const WAVE_RING_OPACITY = 0.8;
@@ -96,17 +96,12 @@ container.addEventListener('click', (event) => {
 
 const gameScene = createGameScene(container, config.field.width, config.field.depth);
 const burst = createBurstView(gameScene.scene);
-// Bits of cut grass: flat, smaller and lower than the fruit burst.
-// The pool holds a whole lifetime of clippings at the per-frame cap, so none is reused mid-flight during the win wave.
-const clippings = createBurstView(gameScene.scene, {
-  poolSize: Math.ceil(config.effects.maxClippingsPerFrame * config.effects.clippingSeconds * CLIPPING_POOL_FRAMES_PER_SECOND),
-  geometry: 'flat',
-  pieceSize: 0.14,
-  lifetimeSeconds: config.effects.clippingSeconds,
-  minUpSpeed: 1.5,
-  maxUpSpeed: 3,
-  maxSideSpeed: 1.8,
-});
+const qualityMonitor = createQualityMonitor();
+const groundClippings = createGroundClippings(gameScene.scene, config.quality.groundClippings);
+/** The quality the current attempt was built with; null until the first one. */
+let quality: QualityLevel | null = null;
+/** Bits of cut grass, rebuilt when the quality changes. */
+let clippings: BurstView | null = null;
 const sizeUpRingView = createGroundRing(gameScene.scene, SIZE_UP_RING_COLOR);
 const waveRingView = createGroundRing(gameScene.scene, WAVE_RING_COLOR);
 /** Seconds since the blade last grew; Infinity when its ring is not showing. */
@@ -114,6 +109,22 @@ let sizeUpAge = Infinity;
 const blockedNotice = createBlockedNotice();
 const coinFloats = createCoinFloats();
 const bladeView = createBladeView(gameScene.scene);
+
+/** Builds the next attempt at `next`: pixel ratio, blade shadow and clippings; the ground and the air are always swept clean. */
+function applyQuality(next: QualityLevel): void {
+  groundClippings.clear();
+  clippings?.clear();
+  if (next === quality) return;
+  quality = next;
+  const settings = config.quality.levels[next];
+  gameScene.setMaxPixelRatio(settings.maxPixelRatio);
+  bladeView.setShadowVisible(settings.shadow);
+  clippings?.dispose();
+  clippings = createBurstView(gameScene.scene, {
+    ...clippingOptions(next),
+    onExpire: settings.clippings === 'persistent' ? groundClippings.place : undefined,
+  });
+}
 const compassView = createCompassView(gameScene.scene);
 const cameraRig = createCameraRig();
 const joystick = createJoystick(container);
@@ -194,6 +205,11 @@ const settingsScreen = createSettingsScreen(
       save.settings.vibration = !save.settings.vibration;
       saveSettings();
     },
+    onCycleQuality: () => {
+      // Applies from the next attempt, so the level in play never changes under the player.
+      save.settings.quality = nextQualitySetting(save.settings.quality);
+      saveSettings();
+    },
     onClearProgress: clearProgress,
     onBack: () => showScreen(settingsReturnsTo),
   },
@@ -237,11 +253,11 @@ function openSettings(from: 'home' | 'paused'): void {
   showScreen('settings');
 }
 
-/** Redraws what shows the save: the balance and level on the home screen, the shop rows and the switches. */
+/** Redraws what shows the save: the balance and level on the home screen, the shop rows and the settings. */
 function renderSave(): void {
   homeScreen.render(save);
   shopScreen.render(save);
-  settingsScreen.render(save);
+  settingsScreen.render(save, quality!);
 }
 
 let save = readSave();
@@ -271,7 +287,8 @@ const focus = createCameraFocus(0, 0, config.blade.startSize);
 function playLevel(level: LevelDefinition): void {
   grass?.dispose();
   obstacleView?.dispose();
-  game = createGame(level, bonusesFor(save.upgrades));
+  applyQuality(qualityForAttempt(save.settings.quality, qualityMonitor));
+  game = createGame(level, bonusesFor(save.upgrades), config.quality.levels[quality!].bladeCount);
   sizeUpAge = Infinity;
   // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
   feedback.track(game);
@@ -339,6 +356,7 @@ if (debugging) {
   // Debug only: exposes the current game so automated browser checks can read blade position and cutCount.
   Object.defineProperty(window, '__siega', { get: () => game });
   Object.defineProperty(window, '__siegaFeedback', { value: feedbackLog });
+  Object.defineProperty(window, '__siegaQuality', { get: qualityStatus });
   void import('./debug/panel').then(({ createDebugPanel }) => {
     debugPanel = createDebugPanel(() => game, {
       restart: () => {
@@ -363,8 +381,19 @@ if (debugging) {
         save.tutorialDone = false;
         writeSave(save);
       },
-    });
+    }, qualityStatus);
   });
+}
+
+/** Debug only: what the quality is set to, what the current attempt uses and what it measured. */
+function qualityStatus(): QualityStatus {
+  return {
+    setting: save.settings.quality,
+    level: quality!,
+    measuredFps: qualityMonitor.measuredFps(),
+    pixelRatio: gameScene.renderer.getPixelRatio(),
+    shadow: config.quality.levels[quality!].shadow,
+  };
 }
 
 function fitToContainer(): void {
@@ -436,6 +465,11 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const dt = Math.min(realSeconds, MAX_FRAME_SECONDS);
   elapsedSeconds += dt;
 
+  // Only played frames tell how the game runs; menus and the result overlay are cheaper to draw.
+  if (screen === 'playing' && game.status === 'playing' && save.settings.quality === 'auto') {
+    qualityMonitor.sampleFrame(debugPanel?.simulatedFrameSeconds() ?? realSeconds);
+  }
+
   const { field, blade } = game;
   // Away from the game the scene keeps drawing, but no time passes for the logic.
   const stepping = screen === 'playing' || screen === 'result';
@@ -461,16 +495,16 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   }
   burst.update(dt);
   // The wave's cuts throw clippings too; the per-frame cap keeps it cheap.
-  const { bladesPerClipping, maxClippingsPerFrame } = config.effects;
+  const { bladesPerClipping, maxClippingsPerFrame } = config.quality.levels[quality!];
   for (const index of clippingBlades(result.cutIndices, bladesPerClipping, maxClippingsPerFrame)) {
     const tip = GRASS_COLORS[GRASS_TYPE_ORDER[field.types[index]!]!].tip;
-    clippings.spawn(field.positionsX[index]!, field.positionsZ[index]!, tip, 1);
+    clippings!.spawn(field.positionsX[index]!, field.positionsZ[index]!, tip, 1);
   }
-  clippings.update(dt);
+  clippings!.update(dt);
   grass!.setHighlight(shouldHighlightTargets(game) ? targetGrassTypes(game) : []);
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
     saveLevelEnd();
-    resultOverlay.show(game.status, { levelCoins: game.levelCoins, bonusCoins: game.bonusCoins }, save);
+    resultOverlay.show(game.status, { levelCoins: Math.floor(game.levelCoins), bonusCoins: game.bonusCoins }, save);
     showScreen('result');
   }
 
@@ -501,7 +535,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     sizeLabelY: bladeOnScreen.y,
     showBlocked,
     // Banked coins are already in the balance, so only the rest of the level is added on top.
-    coins: save.coins + game.levelCoins + game.bonusCoins - game.bankedCoins,
+    coins: save.coins + unbankedCoins(game),
     floatCoins: coinFloats.step(result.coins, dt),
     sizeUp: sizeUpEvent?.size ?? null,
     boosters: {

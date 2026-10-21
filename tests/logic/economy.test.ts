@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
-import { bankCoins, coinsForCuts, timeBonus } from '../../src/logic/economy';
+import { bankCoins, coinsForCuts, timeBonus, unbankedCoins } from '../../src/logic/economy';
 import type { Direction } from '../../src/logic/blade';
 import { GRASS_TYPE_ORDER } from '../../src/logic/field';
+import { noBonuses } from '../../src/logic/upgrades';
 import { createGame, cutAllTargets, resetGame, stepGame, type Game, type GameStatus, type StepResult } from '../../src/logic/game';
 import { levelFromRows } from './levelFixtures';
 
@@ -77,6 +78,17 @@ describe('coins for cuts', () => {
     const game = createGame(levelFromRows(['..'], { obstacles, targets: ['strawberry'] }));
     expect(coinsForCuts(game, [], [0])).toBe(config.obstacles.strawberry.coins);
     expect(coinsForCuts(game, [], [1])).toBe(0);
+  });
+
+  it('pays each blade by its weight on a field with fewer blades than the reference', () => {
+    const game = createGame(levelFromRows(['gg']), noBonuses(), config.field.referenceBladeCount / 4);
+    expect(coinsForCuts(game, allBlades(game), [])).toBe(4 * game.field.bladeCount * config.grassTypes.green.coins);
+  });
+
+  it('pays obstacles the same whatever the blade weight', () => {
+    const obstacles = [{ type: 'strawberry' as const, x: 0.5, z: 0.5 }];
+    const game = createGame(levelFromRows(['gg'], { obstacles }), noBonuses(), config.field.referenceBladeCount / 4);
+    expect(coinsForCuts(game, [], [0])).toBe(config.obstacles.strawberry.coins);
   });
 
   it('pays nothing for a step that cuts nothing', () => {
@@ -169,6 +181,25 @@ describe('banking coins', () => {
     const { game } = wonAfterContinuingADefeat();
     bankCoins(game);
     expect(bankCoins(game)).toBe(0);
+  });
+});
+
+describe('whole coins', () => {
+  it('leaves the fraction of a coin out of the balance', () => {
+    const game = createGame(levelFromRows(['gi']));
+    game.levelCoins = 2.5;
+    game.bonusCoins = 100;
+    expect(unbankedCoins(game)).toBe(102);
+  });
+
+  it('banks each whole coin once, adding up to the level coins rounded down', () => {
+    const game = createGame(levelFromRows(['gi']));
+    game.levelCoins = 2.5;
+    const first = bankCoins(game);
+    game.levelCoins = 3.4;
+    const second = bankCoins(game);
+    expect([first, second]).toEqual([2, 1]);
+    expect(unbankedCoins(game)).toBe(0);
   });
 });
 

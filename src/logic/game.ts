@@ -29,6 +29,8 @@ export interface Game {
   readonly blade: Blade;
   /** What the player's upgrades change in this game. */
   readonly bonuses: GameBonuses;
+  /** How much each blade cut counts for growth and coins, so every quality plays the same. */
+  readonly bladeWeight: number;
   status: GameStatus;
   timeLeft: number;
   /** The full time of this game, for the timer ring: the level's time plus the bonus seconds. */
@@ -36,7 +38,7 @@ export interface Game {
   winWave: WinWave | null;
   /** Seconds the compass booster still points for; 0 when it is off. */
   compassLeft: number;
-  /** Coins cut in this attempt, the win wave's included. */
+  /** Coins cut in this attempt, the win wave's included; fractional, as each blade pays its weight. */
   levelCoins: number;
   /** Bonus for the time left, set when the win wave starts. */
   bonusCoins: number;
@@ -61,14 +63,19 @@ function nothingHappened(): StepResult {
 }
 
 /** The field of `level`, with the blade at its center, waiting for the first move. */
-export function createGame(level: LevelDefinition = sampleLevel(), bonuses: GameBonuses = noBonuses()): Game {
-  const field = createField(levelFieldOptions(level));
+export function createGame(
+  level: LevelDefinition = sampleLevel(),
+  bonuses: GameBonuses = noBonuses(),
+  bladeCount: number = config.field.referenceBladeCount,
+): Game {
+  const field = createField(levelFieldOptions(level, bladeCount));
   return {
     level,
     field,
     obstacles: createObstacleField(level.obstacles),
     blade: bladeAtCenter(field, bonuses),
     bonuses,
+    bladeWeight: field.bladeCount === 0 ? 0 : config.field.referenceBladeCount / field.bladeCount,
     status: 'ready',
     timeLeft: startingTime(level, bonuses),
     timeTotal: startingTime(level, bonuses),
@@ -127,7 +134,7 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
   const cutObstacles = cutObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size);
-  const growthCuts = cutIndices.length + growthCutsOf(game.obstacles, cutObstacles);
+  const growthCuts = cutIndices.length * game.bladeWeight + growthCutsOf(game.obstacles, cutObstacles);
   const sizesGained = addCuts(blade, growthCuts * game.bonuses.growthMultiplier);
   const coins = coinsForCuts(game, cutIndices, cutObstacles);
   game.levelCoins += coins;

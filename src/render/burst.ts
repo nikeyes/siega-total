@@ -30,6 +30,10 @@ export interface BurstOptions {
   maxUpSpeed: number;
   maxSideSpeed: number;
   spinSpeed: number;
+  /** Pieces shrink away over their lifetime; when false they keep their size to the end. */
+  shrink: boolean;
+  /** Called with where each piece ends up and its color, when its lifetime is over. */
+  onExpire?: (x: number, z: number, color: number) => void;
 }
 
 /** The fruit and cactus burst. */
@@ -42,13 +46,16 @@ const DEFAULT_OPTIONS: BurstOptions = {
   maxUpSpeed: 4.5,
   maxSideSpeed: 2.5,
   spinSpeed: 10,
+  shrink: true,
 };
 
 export interface BurstView {
   /** Throws `count` pieces of `color` from the ground at (x, z). */
   spawn(x: number, z: number, color: number, count: number): void;
-  /** Moves the pieces and shrinks them away over their lifetime. */
+  /** Moves the pieces and, unless `shrink` is off, shrinks them away over their lifetime. */
   update(dt: number): void;
+  /** Hides every piece still in the air without landing it. */
+  clear(): void;
   dispose(): void;
 }
 
@@ -56,13 +63,17 @@ interface Piece {
   origin: Vector;
   velocity: Vector;
   spinAxis: Vector3;
+  color: number;
+  /** Where the piece was drawn last, for onExpire. */
+  lastX: number;
+  lastZ: number;
   /** Seconds since thrown; Infinity when unused. */
   age: number;
 }
 
 /** A fixed pool of small pieces in one InstancedMesh, with a color per instance. */
 export function createBurstView(scene: Scene, options: Partial<BurstOptions> = {}): BurstView {
-  const { poolSize, geometry: shape, pieceSize, lifetimeSeconds, minUpSpeed, maxUpSpeed, maxSideSpeed, spinSpeed } = {
+  const { poolSize, geometry: shape, pieceSize, lifetimeSeconds, minUpSpeed, maxUpSpeed, maxSideSpeed, spinSpeed, shrink, onExpire } = {
     ...DEFAULT_OPTIONS,
     ...options,
   };
@@ -80,6 +91,9 @@ export function createBurstView(scene: Scene, options: Partial<BurstOptions> = {
     origin: { x: 0, y: 0, z: 0 },
     velocity: { x: 0, y: 0, z: 0 },
     spinAxis: new Vector3(0, 1, 0),
+    color: 0,
+    lastX: 0,
+    lastZ: 0,
     age: Infinity,
   }));
   const hidden = new Matrix4().makeScale(0, 0, 0);
@@ -100,6 +114,9 @@ export function createBurstView(scene: Scene, options: Partial<BurstOptions> = {
       const angle = Math.random() * Math.PI * 2;
       const sideSpeed = Math.random() * maxSideSpeed;
       piece.origin = { x, y: LAUNCH_HEIGHT, z };
+      piece.color = pieceColor;
+      piece.lastX = x;
+      piece.lastZ = z;
       piece.velocity = {
         x: Math.cos(angle) * sideSpeed,
         y: minUpSpeed + Math.random() * (maxUpSpeed - minUpSpeed),
@@ -127,14 +144,26 @@ export function createBurstView(scene: Scene, options: Partial<BurstOptions> = {
       if (piece.age >= lifetimeSeconds) {
         alive--;
         mesh.setMatrixAt(index, hidden);
+        onExpire?.(piece.lastX, piece.lastZ, piece.color);
         return;
       }
       const { x, y, z } = burstPiecePosition(piece.origin, piece.velocity, piece.age);
+      piece.lastX = x;
+      piece.lastZ = z;
       position.set(x, y, z);
       rotation.setFromAxisAngle(piece.spinAxis, piece.age * spinSpeed);
-      scale.setScalar(1 - piece.age / lifetimeSeconds);
+      scale.setScalar(shrink ? 1 - piece.age / lifetimeSeconds : 1);
       mesh.setMatrixAt(index, matrix.compose(position, rotation, scale));
     });
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  function clear(): void {
+    pieces.forEach((piece, index) => {
+      piece.age = Infinity;
+      mesh.setMatrixAt(index, hidden);
+    });
+    alive = 0;
     mesh.instanceMatrix.needsUpdate = true;
   }
 
@@ -145,5 +174,5 @@ export function createBurstView(scene: Scene, options: Partial<BurstOptions> = {
     material.dispose();
   }
 
-  return { spawn, update, dispose };
+  return { spawn, update, clear, dispose };
 }

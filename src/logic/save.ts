@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { QUALITY_SETTINGS, type QualitySetting } from './quality';
 
 export type UpgradeKind = Exclude<keyof typeof config.upgrades, 'priceRoundTo'>;
 export type BoosterKind = keyof typeof config.boosters;
@@ -9,10 +10,11 @@ const BOOSTER_KINDS = Object.keys(config.boosters) as BoosterKind[];
 export interface Settings {
   sound: boolean;
   vibration: boolean;
+  quality: QualitySetting;
 }
 
 export interface SaveData {
-  version: 2;
+  version: 3;
   /** Next level to play, ≥ 1. */
   level: number;
   coins: number;
@@ -25,7 +27,7 @@ export interface SaveData {
   tutorialDone: boolean;
 }
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export function defaultSave(): SaveData {
   return {
@@ -34,7 +36,7 @@ export function defaultSave(): SaveData {
     coins: 0,
     upgrades: Object.fromEntries(UPGRADE_KINDS.map((kind) => [kind, 0])) as SaveData['upgrades'],
     boosters: Object.fromEntries(BOOSTER_KINDS.map((kind) => [kind, config.boosters[kind].startUses])) as SaveData['boosters'],
-    settings: { sound: true, vibration: true },
+    settings: { sound: true, vibration: true, quality: 'auto' },
     tutorialDone: false,
   };
 }
@@ -54,6 +56,8 @@ export function loadSave(raw: string | null): SaveData {
 function migrate(data: { version: number } & Record<string, unknown>): unknown {
   // A version 1 save belongs to someone who has already played, so the hand hint is not shown again.
   if (data.version === 1) data = { ...data, version: 2, tutorialDone: true };
+  // Version 2 had no quality setting; sanitize gives it the default, 'auto'.
+  if (data.version === 2) data = { ...data, version: 3 };
   return data;
 }
 
@@ -78,7 +82,7 @@ function sanitize(data: Partial<SaveData>): SaveData {
     coins: wholeNumberAtLeast(0, data.coins, defaults.coins),
     upgrades: sanitizeCounts(data.upgrades, defaults.upgrades, (kind) => config.upgrades[kind].max),
     boosters: sanitizeCounts(data.boosters, defaults.boosters),
-    settings: sanitizeFlags(data.settings, defaults.settings),
+    settings: sanitizeSettings(data.settings, defaults.settings),
     tutorialDone: booleanOr(data.tutorialDone, defaults.tutorialDone),
   };
 }
@@ -96,11 +100,18 @@ function sanitizeCounts<Kind extends string>(
   ) as Record<Kind, number>;
 }
 
-/** A boolean for each key of `defaults`, kept from `stored` when valid. */
-function sanitizeFlags<Key extends string>(stored: unknown, defaults: Record<Key, boolean>): Record<Key, boolean> {
-  const flags = (stored ?? {}) as Partial<Record<Key, unknown>>;
-  const keys = Object.keys(defaults) as Key[];
-  return Object.fromEntries(keys.map((key) => [key, booleanOr(flags[key], defaults[key])])) as Record<Key, boolean>;
+/** Each known setting kept from `stored` when valid; unknown ones are dropped. */
+function sanitizeSettings(stored: unknown, defaults: Settings): Settings {
+  const settings = (stored ?? {}) as Partial<Record<keyof Settings, unknown>>;
+  return {
+    sound: booleanOr(settings.sound, defaults.sound),
+    vibration: booleanOr(settings.vibration, defaults.vibration),
+    quality: oneOf(QUALITY_SETTINGS, settings.quality, defaults.quality),
+  };
+}
+
+function oneOf<Value>(allowed: readonly Value[], value: unknown, fallback: Value): Value {
+  return allowed.includes(value as Value) ? (value as Value) : fallback;
 }
 
 function booleanOr(value: unknown, fallback: boolean): boolean {

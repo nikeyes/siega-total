@@ -1,3 +1,5 @@
+import { config } from '../config';
+import type { QualityLevel } from '../logic/quality';
 import { defaultSave, type SaveData, type Settings } from '../logic/save';
 import { texts } from '../texts';
 import { CONFIRM_WINDOW_MS, createConfirmButtonState } from './confirmButton';
@@ -6,6 +8,7 @@ import { createLayer, layerButton, layerTitle } from './layer';
 export interface SettingsActions {
   onToggleSound(): void;
   onToggleVibration(): void;
+  onCycleQuality(): void;
   onClearProgress(): void;
   onBack(): void;
 }
@@ -14,31 +17,45 @@ export interface SettingRow {
   key: keyof Settings;
   label: string;
   valueLabel: string;
-  pressed: boolean;
+  /** On or off for the switches; null for the quality picker, which has no pressed state. */
+  pressed: boolean | null;
 }
 
-/** The switches to show; vibration is left out where the browser cannot vibrate. */
-export function settingRows(save: SaveData, vibrationSupported: boolean): SettingRow[] {
+/** Sound, vibration where the browser can vibrate, and quality, which under Auto names the level in use. */
+export function settingRows(save: SaveData, vibrationSupported: boolean, activeQuality: QualityLevel): SettingRow[] {
   const rows: SettingRow[] = [settingRow(save.settings, 'sound', texts.settings.sound)];
   if (vibrationSupported) rows.push(settingRow(save.settings, 'vibration', texts.settings.vibration));
+  rows.push(qualityRow(save.settings, activeQuality));
   return rows;
 }
 
-function settingRow(settings: Settings, key: keyof Settings, label: string): SettingRow {
+function qualityRow(settings: Settings, activeQuality: QualityLevel): SettingRow {
+  const { autoQuality, qualityLevels } = texts.settings;
+  const valueLabel =
+    settings.quality === 'auto' ? autoQuality.replace('{level}', qualityLevels[activeQuality]) : qualityLevels[settings.quality];
+  return { key: 'quality', label: texts.settings.quality, valueLabel, pressed: null };
+}
+
+function settingRow(settings: Settings, key: 'sound' | 'vibration', label: string): SettingRow {
   const pressed = settings[key];
   return { key, label, valueLabel: pressed ? texts.settings.on : texts.settings.off, pressed };
 }
 
-/** The sound and vibration switches, and «Borrar progreso» confirmed with a second press instead of a browser dialog. */
+/** The sound and vibration switches, the quality picker, and «Borrar progreso» confirmed with a second press instead of a browser dialog. */
 export function createSettingsScreen(
   container: HTMLElement,
   actions: SettingsActions,
   vibrationSupported: boolean,
-): { readonly layer: HTMLElement; render(save: SaveData): void } {
+): { readonly layer: HTMLElement; render(save: SaveData, activeQuality: QualityLevel): void } {
   const layer = createLayer(container, 'settings');
-  const toggles: Record<keyof Settings, () => void> = { sound: actions.onToggleSound, vibration: actions.onToggleVibration };
-  const switches = settingRows(defaultSave(), vibrationSupported).map((row) => {
-    const button = layerButton(row.label, 'secondary', toggles[row.key]);
+  const actionOf: Record<keyof Settings, () => void> = {
+    sound: actions.onToggleSound,
+    vibration: actions.onToggleVibration,
+    quality: actions.onCycleQuality,
+  };
+  // The rows only depend on the browser, so the buttons are made once and filled in by render.
+  const switches = settingRows(defaultSave(), vibrationSupported, config.quality.startLevel).map((row) => {
+    const button = layerButton(row.label, 'secondary', actionOf[row.key]);
     button.classList.add('settings-switch');
     return button;
   });
@@ -60,11 +77,12 @@ export function createSettingsScreen(
     layerButton(texts.settings.back, 'secondary', actions.onBack),
   );
 
-  function render(save: SaveData): void {
-    settingRows(save, vibrationSupported).forEach((row, index) => {
+  function render(save: SaveData, activeQuality: QualityLevel): void {
+    settingRows(save, vibrationSupported, activeQuality).forEach((row, index) => {
       const button = switches[index]!;
       button.textContent = `${row.label} · ${row.valueLabel}`;
-      button.setAttribute('aria-pressed', String(row.pressed));
+      if (row.pressed === null) button.removeAttribute('aria-pressed');
+      else button.setAttribute('aria-pressed', String(row.pressed));
     });
   }
 

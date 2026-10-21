@@ -40,6 +40,10 @@ export const texts = {
     title: 'Ajustes',
     sound: 'Sonido',
     vibration: 'Vibración',
+    quality: 'Calidad',
+    qualityLevels: { auto: 'Auto', high: 'Alta', medium: 'Media', low: 'Baja' },
+    /** Under Auto, the setting also names the level in use. */
+    autoQuality: 'Auto ({level})',
     on: 'Sí',
     off: 'No',
     clearProgress: 'Borrar progreso',
@@ -86,7 +90,11 @@ export const texts = {
     loadSeed: 'Cargar semilla',
     anotherSeed: 'Otra semilla',
     copySeed: 'Copiar semilla',
+    fallbackHasNoSeed: '// Nivel {level}: nivel de reserva, su semilla no lo reproduce',
     pattern: 'Patrón',
     rejection: 'Rechazo',
+    quality: 'Calidad',
+    measuredFps: 'FPS medidos',
+    simulatedFps: 'FPS simulados',
   },
 } as const;

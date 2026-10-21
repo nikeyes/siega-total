@@ -173,7 +173,7 @@ describe('createGame', () => {
     expect(createGame().level).toEqual(sampleLevel());
   });
 
-  it('lays out the grass of the level, with the configured number of blades', () => {
+  it('lays out the grass of the level, with the reference number of blades by default', () => {
     const level = stripesLevel();
     const { field } = createGame(level);
     const columns = level.width / level.cellSize;
@@ -181,8 +181,21 @@ describe('createGame', () => {
       level.cells[
         Math.floor(field.positionsZ[blade]! / level.cellSize) * columns + Math.floor(field.positionsX[blade]! / level.cellSize)
       ];
-    expect(field.bladeCount).toBe(config.field.bladeCount);
+    expect(field.bladeCount).toBe(config.field.referenceBladeCount);
     expect(Array.from(field.types.keys()).every((blade) => GRASS_TYPE_ORDER[field.types[blade]!] === cellTypeOf(blade))).toBe(true);
+  });
+
+  it('lays out as many blades as it is given', () => {
+    expect(createGame(levelFromRows(['gi']), noBonuses(), 500).field.bladeCount).toBe(500);
+  });
+
+  it('counts each blade cut as the share of the reference blade count it stands for', () => {
+    const game = createGame(levelFromRows(['gi']), noBonuses(), config.field.referenceBladeCount / 4);
+    expect(game.bladeWeight).toBe(4);
+  });
+
+  it('counts blades for nothing on a field without grass', () => {
+    expect(createGame(levelFromRows(['..']), noBonuses(), 500).bladeWeight).toBe(0);
   });
 
   it('starts ready, with the whole level time left', () => {
@@ -381,6 +394,39 @@ describe('stepGame', () => {
     stepGame(game, EAST, SIXTY_FPS_FRAME);
     expect(game.status).toBe('winWave');
     expect(stepGame(game, EAST, SIXTY_FPS_FRAME).blocked).toBe(false);
+  });
+});
+
+describe('playing at any blade density', () => {
+  const { referenceBladeCount } = config.field;
+
+  /** Drives a game of `bladeCount` blades east over a long green strip with ice at the end, until the win wave is over. */
+  function sweepWithBlades(bladeCount: number): Game {
+    const game = createGame(levelFromRows(['gggggggggggggggggiii']), noBonuses(), bladeCount);
+    driveUntil(game, EAST, () => game.status === 'winWave');
+    for (let step = 0; step < MAX_DRIVE_STEPS && game.status === 'winWave'; step++) stepGame(game, null, SIXTY_FPS_FRAME);
+    if (game.status !== 'won') expect.fail(`the sweep ended ${game.status}, not won`);
+    return game;
+  }
+
+  /** Swept once and only read, so every density compares against the same game. */
+  const atReference = sweepWithBlades(referenceBladeCount);
+
+  it.each([
+    ['half the blades', referenceBladeCount / 2],
+    ['more blades than the reference', (referenceBladeCount * 5) / 3],
+  ])('grows the blade the same with %s', (_, bladeCount) => {
+    expect(sweepWithBlades(bladeCount).blade.size).toBe(atReference.blade.size);
+  });
+
+  it.each([
+    ['half the blades', referenceBladeCount / 2],
+    ['more blades than the reference', (referenceBladeCount * 5) / 3],
+  ])('pays the same whole coins with %s, give or take one', (_, bladeCount) => {
+    const wholeCoins = Math.floor(sweepWithBlades(bladeCount).levelCoins);
+    const referenceCoins = Math.floor(atReference.levelCoins);
+    expect(wholeCoins).toBeGreaterThanOrEqual(referenceCoins - 1);
+    expect(wholeCoins).toBeLessThanOrEqual(referenceCoins + 1);
   });
 });
 

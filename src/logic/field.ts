@@ -49,10 +49,10 @@ export interface Field {
   readonly cutByType: Int32Array;
 }
 
-/** The field of `level`, with the configured blade count, spatial grid and seed. */
-export function levelFieldOptions(level: LevelDefinition): FieldOptions {
+/** The field of `level` with `bladeCount` blades, the spatial grid and the level's seed. */
+export function levelFieldOptions(level: LevelDefinition, bladeCount: number): FieldOptions {
   const { width, depth, cellSize, cells, seed } = level;
-  const { bladeCount, gridCellSize } = config.field;
+  const { gridCellSize } = config.field;
   return { width, depth, cellSize, cells, bladeCount, gridCellSize, seed };
 }
 

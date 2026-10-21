@@ -63,29 +63,29 @@ function smallLevel(overrides: Partial<LevelDefinition> = {}): LevelDefinition {
 }
 
 describe('levelFieldOptions', () => {
-  it('takes the layout and seed from the level, and the blade count and grid from the configuration', () => {
+  it('takes the layout and seed from the level, the blade count it is given and the grid from the configuration', () => {
     const cells: (GrassType | null)[] = ['ice', null];
     const level = smallLevel({ seed: 777, width: 4, depth: 2, cellSize: 2, cells });
-    const { bladeCount, gridCellSize } = config.field;
-    expect(levelFieldOptions(level)).toEqual({ width: 4, depth: 2, cellSize: 2, cells, bladeCount, gridCellSize, seed: 777 });
+    const { gridCellSize } = config.field;
+    expect(levelFieldOptions(level, 500)).toEqual({ width: 4, depth: 2, cellSize: 2, cells, bladeCount: 500, gridCellSize, seed: 777 });
   });
 
   it('keeps a level seed of 0 instead of falling back to the configured seed', () => {
-    expect(levelFieldOptions(smallLevel({ seed: 0 })).seed).toBe(0);
+    expect(levelFieldOptions(smallLevel({ seed: 0 }), 1).seed).toBe(0);
   });
 
   describe('with levels that differ only in seed', () => {
     const levelWithSeed = (seed: number) => smallLevel({ seed });
 
     it('places the blades differently', () => {
-      const first = createField(levelFieldOptions(levelWithSeed(1)));
-      const second = createField(levelFieldOptions(levelWithSeed(2)));
+      const first = createField(levelFieldOptions(levelWithSeed(1), config.field.referenceBladeCount));
+      const second = createField(levelFieldOptions(levelWithSeed(2), config.field.referenceBladeCount));
       expect([...second.positionsX]).not.toEqual([...first.positionsX]);
     });
 
     it('places the blades at the same positions for the same level seed', () => {
-      const first = createField(levelFieldOptions(levelWithSeed(42)));
-      const second = createField(levelFieldOptions(levelWithSeed(42)));
+      const first = createField(levelFieldOptions(levelWithSeed(42), config.field.referenceBladeCount));
+      const second = createField(levelFieldOptions(levelWithSeed(42), config.field.referenceBladeCount));
       expect([...second.positionsX]).toEqual([...first.positionsX]);
       expect([...second.positionsZ]).toEqual([...first.positionsZ]);
     });
@@ -132,7 +132,12 @@ describe('createField', () => {
 
   it('places every blade inside the field', () => {
     const { width, depth } = config.field;
-    const field = createField({ ...config.field, cellSize: 1, cells: uniformCells('green', width, depth) });
+    const field = createField({
+      ...config.field,
+      bladeCount: config.field.referenceBladeCount,
+      cellSize: 1,
+      cells: uniformCells('green', width, depth),
+    });
     const inside = (value: number, limit: number) => value >= 0 && value < limit;
     expect(field.positionsX.every((x) => inside(x, field.width))).toBe(true);
     expect(field.positionsZ.every((z) => inside(z, field.depth))).toBe(true);

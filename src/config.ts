@@ -1,8 +1,26 @@
+interface QualityLevelSettings {
+  bladeCount: number;
+  maxPixelRatio: number;
+  shadow: boolean;
+  /** 'persistent' clippings land and stay on the ground; 'fade' ones shrink away. */
+  clippings: 'persistent' | 'fade';
+  bladesPerClipping: number;
+  maxClippingsPerFrame: number;
+}
+
+/** One clipping flies for every bladesPerClipping blades cut, and no more than maxClippingsPerFrame in one frame. */
+const qualityLevels = {
+  high: { bladeCount: 20_000, maxPixelRatio: 2, shadow: true, clippings: 'persistent', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
+  medium: { bladeCount: 12_000, maxPixelRatio: 1.5, shadow: true, clippings: 'fade', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
+  low: { bladeCount: 6_000, maxPixelRatio: 1, shadow: false, clippings: 'fade', bladesPerClipping: 9, maxClippingsPerFrame: 10 },
+} satisfies Record<string, QualityLevelSettings>;
+
 export const config = {
   field: {
     width: 30,
     depth: 30,
-    bladeCount: 12_000,
+    /** The blade count the game rules are tuned for; each blade cut counts referenceBladeCount / bladeCount of it. */
+    referenceBladeCount: 12_000,
     gridCellSize: 1,
     seed: 1,
   },
@@ -87,8 +105,23 @@ export const config = {
     zoomTransitionSeconds: 0.5,
     edgeMarginMeters: 1.5,
   },
-  render: {
-    maxPixelRatio: 1.5,
+  quality: {
+    /** Played seconds skipped at the start of each attempt, while shaders compile and the camera settles. */
+    warmupSeconds: 0.5,
+    /** Longer frames are a hidden tab or a hiccup, not the game's pace, and are left out. */
+    maxSampleFrameSeconds: 0.25,
+    /** Played seconds measured in each attempt before its verdict. */
+    measureSeconds: 3,
+    /** Below this, the next attempt drops one level… */
+    dropBelowFps: 50,
+    /** …and at or above this for riseAfterAttempts attempts in a row, it rises one. */
+    riseAtFps: 58,
+    riseAfterAttempts: 2,
+    /** The level every session starts with. */
+    startLevel: 'medium' as keyof typeof qualityLevels,
+    /** Clippings lying on the ground at most, in the levels that keep them. */
+    groundClippings: 3000,
+    levels: qualityLevels as Record<keyof typeof qualityLevels, QualityLevelSettings>,
   },
   audio: {
     /** The zip plays at most once every this many seconds while the blade cuts. */
@@ -105,10 +138,6 @@ export const config = {
     milliseconds: 10,
   },
   effects: {
-    /** One clipping flies for every this many blades cut… */
-    bladesPerClipping: 3,
-    /** …and no more than this many in one frame. */
-    maxClippingsPerFrame: 30,
     clippingSeconds: 0.7,
     sizeUpRingSeconds: 0.4,
     /** The size-up ring grows from the blade's radius to this many times it. */
