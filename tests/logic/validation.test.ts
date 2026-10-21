@@ -5,7 +5,8 @@ import type { GrassType } from '../../src/logic/field';
 import { clearCellsUnderSolidObstacles, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
 import { analyzeLevel, estimateSeconds, validateLevel } from '../../src/logic/validation';
 
-const SIDE = 30;
+/** The fixtures are as big as a real field, so their grass has the reference density. */
+const SIDE = config.field.width;
 const CENTER = SIDE / 2;
 /** A time any of these levels fits in, so only the rule under test can reject them. */
 const ENOUGH_TIME = 60;
@@ -17,7 +18,7 @@ function ringOf(cell: number): number {
   return Math.max(Math.abs(column + 0.5 - CENTER), Math.abs(row + 0.5 - CENTER)) - 0.5;
 }
 
-/** A 30 × 30 level of 1 m cells whose grass depends on the cell's column and row. */
+/** A SIDE × SIDE level of 1 m cells whose grass depends on the cell's column and row. */
 function cellLevel(
   typeOfCell: (column: number, row: number) => GrassType | null,
   overrides: Partial<LevelDefinition> = {},
@@ -54,7 +55,7 @@ function rockPen(column: number, row: number): Obstacle[] {
   ]);
 }
 
-/** 120 grass cells, so each holds 100 of the 12 000 blades: 2 cells grow size 1 to 2, 4 more grow 2 to 3. */
+/** referenceBladeCount / 100 grass cells, so each holds 100 blades: 2 cells grow size 1 to 2, 4 more grow 2 to 3. */
 const GRASS_CELLS_OF_100_BLADES = config.field.referenceBladeCount / 100;
 const LAVENDER_IN_THE_CORNER = 6;
 
@@ -110,20 +111,20 @@ describe('validateLevel', () => {
 
   it('rejects a strawberry target walled in by rocks', () => {
     // The pen is off the diagonal, so mixing up x and z would put the strawberry in the open.
-    const level = ringLevel(() => 'green', { obstacles: [...rockPen(3, 20), { type: 'strawberry', x: 4.5, z: 21.5 }], targets: ['strawberry'] });
+    const level = ringLevel(() => 'green', { obstacles: [...rockPen(3, SIDE - 10), { type: 'strawberry', x: 4.5, z: SIDE - 8.5 }], targets: ['strawberry'] });
     expect(validateLevel(level)).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
   it('rejects a strawberry target in the middle of grass the blade cannot enter, even right next to grass it can', () => {
     // Bramble pushes the blade back to its edge, out of reach of a strawberry half a cell inside.
-    const strawberryInBramble: Obstacle[] = [{ type: 'strawberry', x: 18.5, z: 15.5 }];
+    const strawberryInBramble: Obstacle[] = [{ type: 'strawberry', x: CENTER + 3.5, z: CENTER + 0.5 }];
     const level = greenCenterThen(3, 'bramble', { obstacles: strawberryInBramble, targets: ['strawberry'] });
     expect(analyzeLevel(level).finalSize).toBeLessThan(config.grassTypes.bramble.minSize);
     expect(validateLevel(level)).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
   it('rejects a strawberry target the blade never grows big enough to cut', () => {
-    const strawberryByTheStart: Obstacle[] = [{ type: 'strawberry', x: 14.5, z: 14.5 }];
+    const strawberryByTheStart: Obstacle[] = [{ type: 'strawberry', x: CENTER - 0.5, z: CENTER - 0.5 }];
     const level = greenCenterThen(1, 'bramble', { obstacles: strawberryByTheStart, targets: ['strawberry'] });
     expect(validateLevel(level)).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
@@ -139,14 +140,14 @@ describe('validateLevel', () => {
   });
 
   it('counts the growth of the fruit in reach, and not of the fruit out of it', () => {
-    // 44 green cells of 13 blades give 572 cuts, short of the 600 to size 3; six strawberries add 30.
-    const greenRow = 11;
+    // 44 green cells of 13 or 14 blades give 588 cuts, short of the 600 to size 3; six strawberries add 30.
+    const greenRow = CENTER - 4;
     const typeOfCell = (column: number, row: number) => {
       const ring = ringOf(row * SIDE + column);
       return ring < 3 || (ring === 3 && row === greenRow) ? 'green' : 'lavender';
     };
     const strawberriesAt = (row: number): Obstacle[] =>
-      Array.from({ length: 6 }, (_, index) => ({ type: 'strawberry', x: 12.5 + index, z: row + 0.5 }));
+      Array.from({ length: 6 }, (_, index) => ({ type: 'strawberry', x: CENTER - 2.5 + index, z: row + 0.5 }));
     const overrides = { targets: ['lavender'] as const };
     expect(validateLevel(cellLevel(typeOfCell, { ...overrides, obstacles: strawberriesAt(greenRow) }))).toEqual({ valid: true });
     expect(validateLevel(cellLevel(typeOfCell, { ...overrides, obstacles: strawberriesAt(2) }))).toEqual({
@@ -158,10 +159,10 @@ describe('validateLevel', () => {
   it('does not reach across the left and right edges of the field', () => {
     // Green runs from the start to one edge; the ice sits at the other edge, one row off, walled by bramble.
     const greenToTheLeftIceRightAbove = cellLevel((column, row) =>
-      row === 15 && column <= 15 ? 'green' : column === 29 && row === 14 ? 'ice' : 'bramble',
+      row === CENTER && column <= CENTER ? 'green' : column === SIDE - 1 && row === CENTER - 1 ? 'ice' : 'bramble',
     );
     const greenToTheRightIceLeftBelow = cellLevel((column, row) =>
-      row === 15 && column >= 15 ? 'green' : column === 0 && row === 16 ? 'ice' : 'bramble',
+      row === CENTER && column >= CENTER ? 'green' : column === 0 && row === CENTER + 1 ? 'ice' : 'bramble',
     );
     expect(validateLevel(greenToTheLeftIceRightAbove)).toEqual({ valid: false, reason: 'unreachableTargets' });
     expect(validateLevel(greenToTheRightIceLeftBelow)).toEqual({ valid: false, reason: 'unreachableTargets' });
@@ -193,7 +194,7 @@ describe('analyzeLevel', () => {
 
   it('grows the moment the cuts reach the next size', () => {
     // Two green cells of 100 blades give exactly the 200 cuts to size 2, which opens the wheat around them.
-    const isGreen = (cell: number) => cell === 15 * SIDE + 15 || cell === 14 * SIDE + 15;
+    const isGreen = (cell: number) => cell === CENTER * SIDE + CENTER || cell === (CENTER - 1) * SIDE + CENTER;
     const wheatAroundGreen = 6;
     const wheatInTheCorner = GRASS_CELLS_OF_100_BLADES - 2 - wheatAroundGreen;
     const level = cellLevel((column, row) => {

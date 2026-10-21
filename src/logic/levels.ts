@@ -85,6 +85,9 @@ export function stripesLevel(): LevelDefinition {
   };
 }
 
+/** The sample level keeps the 30 m field its obstacles were placed on by hand. */
+export const SAMPLE_LEVEL_SIDE = 30;
+
 /** Positions of the sample level's obstacles, chosen by hand: solid ones on wheat, fruit on green and ice. */
 const SAMPLE_ROCKS = [
   { x: 7.5, z: 7.5 },
@@ -103,7 +106,8 @@ const SAMPLE_START_CLEARING_METERS = 3;
 
 /** Hand-made level to play obstacles before the generator exists: stripes of green, ice and wheat. */
 export function sampleLevel(): LevelDefinition {
-  const { width, depth } = config.field;
+  const width = SAMPLE_LEVEL_SIDE;
+  const depth = SAMPLE_LEVEL_SIDE;
   const cellSize = 1;
   const columns = width / cellSize;
   const rows = depth / cellSize;

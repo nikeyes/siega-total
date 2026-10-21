@@ -210,10 +210,11 @@ describe('remaining targets', () => {
   it('counts the standing blades of a grass target', () => {
     const game = createGame(levelFromRows(HALVES));
     const ice = game.field.countByType[ICE]!;
+    const quarter = Math.floor(ice / 4);
     expect(remainingByTarget(game)).toEqual([ice]);
-    cutBladesOfTypeUntil(game, 'ice', ice / 4);
-    expect(remainingByTarget(game)).toEqual([ice / 4]);
-    expect(remainingTargets(game)).toBe(ice / 4);
+    cutBladesOfTypeUntil(game, 'ice', quarter);
+    expect(remainingByTarget(game)).toEqual([quarter]);
+    expect(remainingTargets(game)).toBe(quarter);
   });
 
   it('does not change when other grass is cut', () => {

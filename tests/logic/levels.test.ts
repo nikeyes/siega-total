@@ -8,6 +8,7 @@ import {
   clearStart,
   isObstacleType,
   sampleLevel,
+  SAMPLE_LEVEL_SIDE,
   stripesLevel,
   type LevelDefinition,
   type ObstacleType,
@@ -64,10 +65,13 @@ describe('stripesLevel', () => {
     types.forEach((type, stripe) => expect(type, `stripe ${stripe}`).toBe(stripe % 2 === 0 ? 'green' : 'ice'));
   });
 
-  it('makes every stripe stripeWidthMeters wide', () => {
+  it('makes every stripe stripeWidthMeters wide, but the last one, which ends at the east edge', () => {
     const level = stripesLevel();
     const widths = stripesOf(level).map((stripe) => stripe.columns * level.cellSize);
+    const last = widths.pop()!;
     expect(widths.every((width) => width === stripeWidthMeters)).toBe(true);
+    expect(last).toBeGreaterThan(0);
+    expect(last).toBeLessThanOrEqual(stripeWidthMeters);
   });
 
   it('targets ice with the configured time', () => {
@@ -202,9 +206,9 @@ describe('sampleLevel', () => {
   const cellUnder = (x: number, z: number) => level.cells[Math.floor(z / level.cellSize) * columns + Math.floor(x / level.cellSize)];
   const solid = level.obstacles.filter((obstacle) => obstacle.type === 'rock' || obstacle.type === 'cactus');
 
-  it('covers the configured field with one cell per square meter', () => {
-    expect(level.width).toBe(config.field.width);
-    expect(level.depth).toBe(config.field.depth);
+  it('covers a SAMPLE_LEVEL_SIDE square field with one cell per square meter', () => {
+    expect(level.width).toBe(SAMPLE_LEVEL_SIDE);
+    expect(level.depth).toBe(SAMPLE_LEVEL_SIDE);
     expect(level.cellSize).toBe(1);
     expect(level.cells).toHaveLength(columns * (level.depth / level.cellSize));
   });
