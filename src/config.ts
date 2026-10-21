@@ -24,6 +24,14 @@ export const config = {
     /** The floating «+N» shows the coins of this interval added together. */
     floatIntervalSeconds: 0.2,
   },
+  upgrades: {
+    /** Prices are rounded to this many coins. */
+    priceRoundTo: 100,
+    startSize: { max: 4, perLevel: 1, basePrice: 8000, priceGrowth: 2 },
+    speed: { max: 10, perLevel: 0.06, basePrice: 5000, priceGrowth: 1.5 },
+    extraTime: { max: 10, perLevel: 5, basePrice: 5000, priceGrowth: 1.5 },
+    growth: { max: 10, perLevel: 0.1, basePrice: 5000, priceGrowth: 1.5 },
+  },
   boosters: {
     upgrade: { price: 3000, startUses: 2 },
     compass: { price: 2000, startUses: 2 },

@@ -110,6 +110,11 @@ describe('sanitizing a loaded save', () => {
     expect([loaded.upgrades, loaded.boosters]).toEqual([defaultSave().upgrades, defaultSave().boosters]);
   });
 
+  it('lowers an upgrade above its max to the max', () => {
+    const upgrades = { ...progressedSave().upgrades, startSize: config.upgrades.startSize.max + 3 };
+    expect(loadWith({ upgrades }).upgrades).toEqual({ ...upgrades, startSize: config.upgrades.startSize.max });
+  });
+
   it('drops unknown upgrades and boosters', () => {
     const upgrades = { ...progressedSave().upgrades, magnet: 3 };
     const boosters = { ...progressedSave().boosters, bomb: 1 };

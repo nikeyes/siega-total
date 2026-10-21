@@ -174,10 +174,40 @@ body,
   }
 }
 
-.hud-coins {
+.hud-corner {
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
   right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.hud-pause {
+  width: 48px;
+  height: 48px;
+  padding: 6px;
+  border-radius: 50%;
+  border: 4px solid var(--hud-ink);
+  background: #2f8cff;
+  box-shadow: 0 4px 0 var(--hud-ink);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.hud-pause svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Away from the game, the layers show the field behind them without the HUD. */
+#app:is([data-screen='home'], [data-screen='shop'], [data-screen='settings']) :is(.hud, .hud-corner, .hud-size, .hud-float, .hud-blocked) {
+  display: none;
+}
+
+.hud-coins {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -262,24 +292,27 @@ body,
   text-shadow: var(--hud-outline);
 }
 
-.result {
+.layer {
   position: absolute;
   inset: 0;
   display: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 28px;
+  gap: 18px;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
   background: rgba(10, 25, 45, 0.55);
   font-family: var(--hud-font);
+  overflow-y: auto;
 }
 
-.result.visible {
+.layer.visible {
   display: flex;
 }
 
-.result-title {
-  margin: 0 16px;
+.layer-title {
+  margin: 0;
   color: #fff;
   font-size: 36px;
   font-weight: 900;
@@ -287,8 +320,134 @@ body,
   text-shadow: var(--hud-outline), 0 5px 0 var(--hud-ink);
 }
 
-.result[data-outcome='won'] .result-title {
+.home .layer-title {
+  font-size: 48px;
   color: #ffd23f;
+}
+
+.result[data-outcome='won'] .layer-title {
+  color: #ffd23f;
+}
+
+.layer-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.layer-button {
+  min-width: 200px;
+  padding: 12px 28px;
+  border-radius: 20px;
+  border: 4px solid var(--hud-ink);
+  box-shadow: 0 6px 0 var(--hud-ink);
+  color: #fff;
+  font: 900 22px var(--hud-font);
+  text-shadow: var(--hud-outline);
+  cursor: pointer;
+}
+
+.layer-button-primary {
+  background: #4fd65a;
+}
+
+.layer-button-secondary {
+  background: #2f8cff;
+}
+
+.layer-button-icon {
+  min-width: 0;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  background: #2f8cff;
+  font-size: 26px;
+}
+
+.layer-button:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--hud-ink);
+}
+
+.layer-button:disabled {
+  background: #6b7d90;
+  cursor: default;
+  opacity: 0.8;
+}
+
+.layer-coins {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffd23f;
+  font-size: 26px;
+  font-weight: 900;
+  text-shadow: var(--hud-outline);
+  font-variant-numeric: tabular-nums;
+}
+
+.layer-coins-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.home-settings {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+}
+
+.shop-heading {
+  margin: 0;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  text-shadow: var(--hud-outline);
+}
+
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 420px);
+}
+
+.shop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 16px;
+  border: 4px solid var(--hud-ink);
+  background: var(--hud-card);
+}
+
+.shop-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shop-row-name {
+  color: var(--hud-ink);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.shop-row-details {
+  color: #3d5a7a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.shop-row-buy {
+  min-width: 96px;
+  padding: 8px 12px;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .result-lines {
@@ -309,21 +468,4 @@ body,
 
 .result-line:last-child {
   color: #ffd23f;
-}
-
-.result-button {
-  padding: 14px 44px;
-  border-radius: 20px;
-  border: 4px solid var(--hud-ink);
-  background: #4fd65a;
-  box-shadow: 0 6px 0 var(--hud-ink);
-  color: #fff;
-  font: 900 24px var(--hud-font);
-  text-shadow: var(--hud-outline);
-  cursor: pointer;
-}
-
-.result-button:active {
-  transform: translateY(4px);
-  box-shadow: 0 2px 0 var(--hud-ink);
 }

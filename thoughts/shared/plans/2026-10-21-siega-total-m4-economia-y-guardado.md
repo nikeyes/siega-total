@@ -493,9 +493,11 @@ export function buyUpgrade(save: SaveData, kind: UpgradeKind): boolean;
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Las pruebas de mejoras, juego, cuchilla, guardado, progresión y validación pasan sin cambiar sus expectativas: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Las pruebas de mejoras, juego, cuchilla, guardado, progresión y validación pasan sin cambiar sus expectativas: `make test`
+- [x] La compilación termina: `make build`
+
+> **Notas (implementación):** el frenado también usa la velocidad con bono en `won`, `lost` y la onda, para que siempre dure `brakeSeconds`. `resetGame` recalcula `timeTotal` con el `level.timeSeconds` actual, así que el cambio del panel llega al anillo al reiniciar.
 
 ---
 
@@ -584,20 +586,22 @@ Todas siguen el patrón de `result.ts`: un `div` con su clase, `stopPropagation`
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
 
 #### Verificación en Chrome (agente, `?debug`, 390 × 844, GIF `m4-b-pantallas.gif`):
-- [ ] Al abrir aparece Inicio con «Jugar · Nivel N» y el saldo. Mientras no se pulsa Jugar, `window.__siega.status` sigue en `ready` aunque se pulse D.
-- [ ] Jugar → mover → ⏸ abre Pausa. `timeLeft` no cambia en 2 s de pausa. «Continuar» vuelve.
-- [ ] Ocultar la pestaña (abrir otra pestaña y volver) durante `playing` deja la Pausa abierta.
-- [ ] «Dar monedas» → Inicio → Tienda → comprar «Velocidad»: el saldo baja el precio mostrado y `localStorage` tiene `upgrades.speed: 1`. Tras «Reintentar», `window.__siega.bonuses.speedMultiplier` es 1,06.
-- [ ] Comprar «Tamaño inicial» y reintentar: `window.__siega.blade.size` empieza en 2.
-- [ ] Sin saldo, el botón de compra está desactivado (`disabled`).
-- [ ] Victoria → «Tienda» → «Volver» regresa a la Victoria. «Siguiente» carga el nivel siguiente.
-- [ ] Ajustes → «Borrar progreso» dos veces: el guardado vuelve a los valores por defecto y Inicio dice «Nivel 1». Un solo toque, esperando 3 s, no borra.
-- [ ] Captura de cada pantalla a 390 × 844: ningún texto se corta ni se sale de la pantalla.
+- [x] Al abrir aparece Inicio con «Jugar · Nivel N» y el saldo. Mientras no se pulsa Jugar, `window.__siega.status` sigue en `ready` aunque se pulse D.
+- [x] Jugar → mover → ⏸ abre Pausa. `timeLeft` no cambia en 2 s de pausa. «Continuar» vuelve.
+- [x] Ocultar la pestaña (abrir otra pestaña y volver) durante `playing` deja la Pausa abierta.
+- [x] «Dar monedas» → Inicio → Tienda → comprar «Velocidad»: el saldo baja el precio mostrado y `localStorage` tiene `upgrades.speed: 1`. Tras «Reintentar», `window.__siega.bonuses.speedMultiplier` es 1,06.
+- [x] Comprar «Tamaño inicial» y reintentar: `window.__siega.blade.size` empieza en 2.
+- [x] Sin saldo, el botón de compra está desactivado (`disabled`).
+- [x] Victoria → «Tienda» → «Volver» regresa a la Victoria. «Siguiente» carga el nivel siguiente.
+- [x] Ajustes → «Borrar progreso» dos veces: el guardado vuelve a los valores por defecto y Inicio dice «Nivel 1». Un solo toque, esperando 3 s, no borra.
+- [x] Captura de cada pantalla a 390 × 844: ningún texto se corta ni se sale de la pantalla.
+
+> **Notas de la verificación en Chrome:** Chrome no bajó de 502 × 723. La pestaña oculta se simuló con `document.hidden` y `visibilitychange`, porque la pestaña nueva se abría en segundo plano. La verificación encontró dos fallos, ya corregidos: el arranque (`showScreen('home')` y el oyente de `visibilitychange`) había quedado dentro de `onNext`, y «Jugar» reutilizaba la partida `ready` creada antes de comprar. Ahora «Jugar» la reconstruye, así que las mejoras compradas desde Inicio se aplican. `GrassView.reset` y `ObstacleView.reset` se quitaron porque `restart()` reconstruye la partida.
 
 #### Verificación manual (usuario):
 - [ ] Las pantallas se ven coherentes con el HUD y se leen bien en el móvil (juicio visual).

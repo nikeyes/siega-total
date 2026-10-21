@@ -12,6 +12,7 @@ import {
   standingCount,
   type ObstacleField,
 } from './obstacles';
+import { noBonuses, type GameBonuses } from './upgrades';
 
 export type GameStatus = 'ready' | 'playing' | 'winWave' | 'won' | 'lost';
 
@@ -26,8 +27,12 @@ export interface Game {
   readonly field: Field;
   readonly obstacles: ObstacleField;
   readonly blade: Blade;
+  /** What the player's upgrades change in this game. */
+  readonly bonuses: GameBonuses;
   status: GameStatus;
   timeLeft: number;
+  /** The full time of this game, for the timer ring: the level's time plus the bonus seconds. */
+  timeTotal: number;
   winWave: WinWave | null;
   /** Coins cut in this attempt, the win wave's included. */
   levelCoins: number;
@@ -54,15 +59,17 @@ function nothingHappened(): StepResult {
 }
 
 /** The field of `level`, with the blade at its center, waiting for the first move. */
-export function createGame(level: LevelDefinition = sampleLevel()): Game {
+export function createGame(level: LevelDefinition = sampleLevel(), bonuses: GameBonuses = noBonuses()): Game {
   const field = createField(levelFieldOptions(level));
   return {
     level,
     field,
     obstacles: createObstacleField(level.obstacles),
-    blade: bladeAtCenter(field),
+    blade: bladeAtCenter(field, bonuses),
+    bonuses,
     status: 'ready',
-    timeLeft: level.timeSeconds,
+    timeLeft: startingTime(level, bonuses),
+    timeTotal: startingTime(level, bonuses),
     winWave: null,
     levelCoins: 0,
     bonusCoins: 0,
@@ -70,8 +77,12 @@ export function createGame(level: LevelDefinition = sampleLevel()): Game {
   };
 }
 
-function bladeAtCenter(field: Field): Blade {
-  return createBlade(field.width / 2, field.depth / 2);
+function startingTime(level: LevelDefinition, bonuses: GameBonuses): number {
+  return level.timeSeconds + bonuses.extraSeconds;
+}
+
+function bladeAtCenter(field: Field, bonuses: GameBonuses): Blade {
+  return createBlade(field.width / 2, field.depth / 2, bonuses.startSize);
 }
 
 /** Puts the level back to its start: all grass standing, a new blade at the center and the whole time left. */
@@ -81,8 +92,8 @@ export function resetGame(game: Game): void {
   field.cutCount = 0;
   field.cutByType.fill(0);
   resetObstacleField(game.obstacles);
-  Object.assign(blade, bladeAtCenter(field));
-  game.timeLeft = level.timeSeconds;
+  Object.assign(blade, bladeAtCenter(field, game.bonuses));
+  game.timeLeft = game.timeTotal = startingTime(level, game.bonuses);
   game.status = 'ready';
   game.winWave = null;
   game.levelCoins = 0;
@@ -98,18 +109,19 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   const { field, blade } = game;
   if (game.status === 'winWave') return stepWinWave(game, game.winWave!, dt);
   if (game.status === 'won' || game.status === 'lost') {
-    moveBlade(blade, null, dt, field.width, field.depth);
+    moveBlade(blade, null, dt, field.width, field.depth, maxSpeedOf(game));
     return nothingHappened();
   }
   game.timeLeft = Math.max(0, game.timeLeft - dt);
-  moveBlade(blade, direction, dt, field.width, field.depth);
+  moveBlade(blade, direction, dt, field.width, field.depth, maxSpeedOf(game));
   const { x, z, blocked } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
   blade.x = x;
   blade.z = z;
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
   const cutObstacles = cutObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size);
-  const sizesGained = addCuts(blade, cutIndices.length + growthCutsOf(game.obstacles, cutObstacles));
+  const growthCuts = cutIndices.length + growthCutsOf(game.obstacles, cutObstacles);
+  const sizesGained = addCuts(blade, growthCuts * game.bonuses.growthMultiplier);
   const coins = coinsForCuts(game, cutIndices, cutObstacles);
   game.levelCoins += coins;
   if (remainingTargets(game) === 0) {
@@ -122,6 +134,10 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   return { cutIndices, cutObstacles, sizesGained, coins, blocked };
 }
 
+function maxSpeedOf(game: Game): number {
+  return config.blade.maxSpeed * game.bonuses.speedMultiplier;
+}
+
 function growthCutsOf(obstacles: ObstacleField, indices: number[]): number {
   return indices.reduce((cuts, index) => cuts + obstacleGrowthCuts(obstacles.obstacles[index]!.type), 0);
 }
@@ -129,7 +145,7 @@ function growthCutsOf(obstacles: ObstacleField, indices: number[]): number {
 /** The wave grows from where the last target was cut and cuts everything but rocks, until it covers the whole field. */
 function stepWinWave(game: Game, wave: WinWave, dt: number): StepResult {
   const { field, blade } = game;
-  moveBlade(blade, null, dt, field.width, field.depth);
+  moveBlade(blade, null, dt, field.width, field.depth, maxSpeedOf(game));
   wave.radius += config.level.winWaveSpeed * dt;
   const cutIndices = cutInCircle(field, wave.x, wave.z, wave.radius, Infinity);
   const cutObstacles = cutObstaclesInCircle(game.obstacles, wave.x, wave.z, wave.radius, Infinity);

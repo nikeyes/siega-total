@@ -16,6 +16,7 @@ import {
 import type { LevelDefinition } from './logic/levels';
 import { levelFor } from './logic/progression';
 import { defaultSave } from './logic/save';
+import { bonusesFor, buyUpgrade } from './logic/upgrades';
 import { createBurstView } from './render/burst';
 import { OBSTACLE_COLORS } from './render/obstacleColors';
 import { loadObstacleModels, placeholderObstacleModels, type ObstacleModels } from './render/obstacleModels';
@@ -30,7 +31,12 @@ import { createJoystick } from './ui/joystick';
 import { createKeyboard } from './ui/keyboard';
 import { createBlockedNotice } from './ui/blockedNotice';
 import { createCoinFloats } from './ui/coinFloats';
+import { createHomeScreen } from './ui/home';
+import { setLayerVisible } from './ui/layer';
+import { createPauseScreen } from './ui/pause';
 import { createResultOverlay } from './ui/result';
+import { createSettingsScreen } from './ui/settings';
+import { createShopScreen } from './ui/shop';
 import { clearSave, readSave, writeSave } from './ui/storage';
 import './ui/styles.css';
 
@@ -50,8 +56,90 @@ const bladeView = createBladeView(gameScene.scene);
 const cameraRig = createCameraRig();
 const joystick = createJoystick(container);
 const keyboard = createKeyboard();
-const hud = createHud(container);
-const resultOverlay = createResultOverlay(container, { onNext: () => loadLevel(save.level), onRetry: restart });
+const hud = createHud(container, { onPause: () => showScreen('paused') });
+const resultOverlay = createResultOverlay(container, {
+  onNext: () => {
+    loadLevel(save.level);
+    showScreen('playing');
+  },
+  onRetry: () => {
+    restart();
+    showScreen('playing');
+  },
+  onShop: () => openShop('result'),
+  onHome: () => {
+    // A win moved the saved level on; a defeat plays the same level again.
+    if (game.status === 'won') loadLevel(save.level);
+    else restart();
+    showScreen('home');
+  },
+});
+const homeScreen = createHomeScreen(container, {
+  onPlay: () => {
+    // Builds the game again, so upgrades bought from the home screen apply to it.
+    if (game.level.number === save.level) restart();
+    else loadLevel(save.level);
+    showScreen('playing');
+  },
+  onShop: () => openShop('home'),
+  onSettings: () => showScreen('settings'),
+});
+const shopScreen = createShopScreen(container, {
+  onBuyUpgrade: (kind) => {
+    if (!buyUpgrade(save, kind)) return;
+    writeSave(save);
+    renderSave();
+  },
+  onBack: () => showScreen(shopReturnsTo),
+});
+const pauseScreen = createPauseScreen(container, {
+  onResume: () => showScreen('playing'),
+  onRetry: () => {
+    restart();
+    showScreen('playing');
+  },
+  onHome: () => {
+    // Leaving drops the coins of this attempt: only the end of a level banks them.
+    restart();
+    showScreen('home');
+  },
+});
+const settingsScreen = createSettingsScreen(container, {
+  onClearProgress: clearProgress,
+  onBack: () => showScreen('home'),
+});
+
+/** What the player sees; the game only steps while it is 'playing' or showing the result. */
+type Screen = 'home' | 'playing' | 'paused' | 'result' | 'shop' | 'settings';
+let screen: Screen = 'home';
+/** The shop's «Volver» goes back to where it was opened from. */
+let shopReturnsTo: 'home' | 'result' = 'home';
+const SCREEN_LAYERS: Partial<Record<Screen, HTMLElement>> = {
+  home: homeScreen.layer,
+  paused: pauseScreen.layer,
+  result: resultOverlay.layer,
+  shop: shopScreen.layer,
+  settings: settingsScreen.layer,
+};
+
+function showScreen(next: Screen): void {
+  screen = next;
+  // The CSS hides the HUD on the screens away from the game.
+  container!.dataset.screen = next;
+  for (const [name, layer] of Object.entries(SCREEN_LAYERS)) setLayerVisible(layer, name === next);
+  renderSave();
+}
+
+function openShop(from: 'home' | 'result'): void {
+  shopReturnsTo = from;
+  showScreen('shop');
+}
+
+/** Redraws what shows the save: the balance and level on the home screen and the shop rows. */
+function renderSave(): void {
+  homeScreen.render(save);
+  shopScreen.render(save);
+}
 
 let save = readSave();
 
@@ -66,12 +154,11 @@ const focus = createCameraFocus(0, 0, config.blade.startSize);
 function playLevel(level: LevelDefinition): void {
   grass?.dispose();
   obstacleView?.dispose();
-  game = createGame(level);
+  game = createGame(level, bonusesFor(save.upgrades));
   grass = createGrassView(gameScene.scene, game.field, level.seed);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);
   focusOnBlade();
-  resultOverlay.hide();
 }
 
 /** Plays level `levelNumber` of the progression. */
@@ -79,13 +166,9 @@ function loadLevel(levelNumber: number): void {
   playLevel(levelFor(levelNumber, campaignSeeds));
 }
 
-/** Plays the level again from the start, keeping the scene. */
+/** Plays the level again from the start, with the upgrades bought since it was created. */
 function restart(): void {
-  resetGame(game);
-  grass!.reset();
-  obstacleView!.reset();
-  focusOnBlade();
-  resultOverlay.hide();
+  playLevel(game.level);
 }
 
 /** Adds what the level earned to the balance and, after a win, moves the saved level on. */
@@ -95,11 +178,12 @@ function saveLevelEnd(): void {
   writeSave(save);
 }
 
-/** Debug only: forgets the saved game and starts over from level 1. */
+/** Forgets the saved game and starts over from level 1, on the home screen. */
 function clearProgress(): void {
   clearSave();
   save = defaultSave();
   loadLevel(1);
+  showScreen('home');
 }
 
 function focusOnBlade(): void {
@@ -108,6 +192,12 @@ function focusOnBlade(): void {
 }
 
 loadLevel(save.level);
+showScreen('home');
+
+// Hiding the tab mid-level pauses it, so the clock does not run out unseen.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && screen === 'playing' && game.status === 'playing') showScreen('paused');
+});
 
 loadObstacleModels(import.meta.env.BASE_URL + 'models/').then(
   (loaded) => {
@@ -126,15 +216,22 @@ if (new URLSearchParams(location.search).has('debug')) {
   Object.defineProperty(window, '__siega', { get: () => game });
   void import('./debug/panel').then(({ createDebugPanel }) => {
     debugPanel = createDebugPanel(() => game, {
-      restart,
+      restart: () => {
+        restart();
+        showScreen('playing');
+      },
       markCut: ({ blades, obstacles }) => {
         grass!.markCut(blades, elapsedSeconds);
         obstacleView!.markCut(obstacles);
       },
-      playLevel,
+      playLevel: (level) => {
+        playLevel(level);
+        showScreen('playing');
+      },
       giveCoins: (amount) => {
         save.coins += amount;
         writeSave(save);
+        renderSave();
       },
       clearSave: clearProgress,
     });
@@ -158,9 +255,11 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   elapsedSeconds += dt;
 
   const { field, blade } = game;
-  const direction = combineDirections(joystick.getDirection(), keyboard.getDirection());
+  // Away from the game the scene keeps drawing, but no time passes for the logic.
+  const stepping = screen === 'playing' || screen === 'result';
+  const direction = screen === 'playing' ? combineDirections(joystick.getDirection(), keyboard.getDirection()) : null;
   const statusBefore = game.status;
-  const result = stepGame(game, direction, dt);
+  const result = stepGame(game, direction, stepping ? dt : 0);
   grass!.markCut(result.cutIndices, elapsedSeconds);
   obstacleView!.markCut(result.cutObstacles);
   for (const index of result.cutObstacles) {
@@ -172,6 +271,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
     saveLevelEnd();
     resultOverlay.show(game.status, { levelCoins: game.levelCoins, bonusCoins: game.bonusCoins });
+    showScreen('result');
   }
 
   followBlade(focus, blade.x, blade.z, blade.size, dt);
@@ -187,7 +287,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const bladeOnScreen = cameraRig.toScreen(blade.x, 0, blade.z, container.clientWidth, container.clientHeight);
   hud.update({
     timeLeft: game.timeLeft,
-    timeTotal: game.level.timeSeconds,
+    timeTotal: game.timeTotal,
     remainingByTarget: remainingByTarget(game),
     size: blade.size,
     growthFraction: growthFraction(blade),

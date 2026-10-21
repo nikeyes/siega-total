@@ -5,6 +5,7 @@ import { OBSTACLE_COLORS } from '../render/obstacleColors';
 import { texts } from '../texts';
 import { formatClock } from './clock';
 import { formatCount } from './formatCount';
+import { coinIconSvg, pauseIconSvg } from './icons';
 
 /** The size pill hangs this far below the blade's center on screen, clear of the blade itself. */
 const SIZE_PILL_OFFSET_PX = 34;
@@ -68,6 +69,10 @@ function toPercent(fraction: number): number {
   return Math.round(fraction * 100);
 }
 
+export interface HudActions {
+  onPause(): void;
+}
+
 export interface Hud {
   update(state: HudState): void;
   /** Rebuilds the target card for a new level. */
@@ -75,10 +80,10 @@ export interface Hud {
 }
 
 /**
- * Timer and target card at the top left, coins at the top right, the size pill that follows the blade,
+ * Timer and target card at the top left, coins and the pause button at the top right, the size pill that follows the blade,
  * and the blocked notice and the «+N» of the coins above it.
  */
-export function createHud(container: HTMLElement): Hud {
+export function createHud(container: HTMLElement, actions: HudActions): Hud {
   const top = element('div', 'hud');
   const timer = element('div', 'hud-timer');
   const clock = element('span', 'hud-timer-text');
@@ -95,13 +100,22 @@ export function createHud(container: HTMLElement): Hud {
   pill.append(pillFill, pillText);
   const blockedNotice = element('div', 'hud-blocked');
   blockedNotice.textContent = texts.hud.needBiggerSize;
+  const corner = element('div', 'hud-corner');
   const coins = element('div', 'hud-coins');
-  coins.innerHTML = coinIconSvg();
+  coins.innerHTML = coinIconSvg('hud-coins-icon');
   const coinsText = element('span', 'hud-coins-text');
   coins.append(coinsText);
+  const pause = element('button', 'hud-pause') as HTMLButtonElement;
+  pause.type = 'button';
+  pause.setAttribute('aria-label', texts.pause.title);
+  pause.innerHTML = pauseIconSvg();
+  // The joystick listens on the container; a touch on the button only pauses.
+  pause.addEventListener('pointerdown', (event) => event.stopPropagation());
+  pause.addEventListener('click', () => actions.onPause());
+  corner.append(coins, pause);
   const coinFloats = Array.from({ length: COIN_FLOAT_COUNT }, () => element('div', 'hud-float'));
   let nextCoinFloat = 0;
-  container.append(top, coins, pill, blockedNotice, ...coinFloats);
+  container.append(top, corner, pill, blockedNotice, ...coinFloats);
 
   let counters: HTMLElement[] = [];
   let shown: Partial<HudDisplay> = {};
@@ -180,15 +194,6 @@ function tuftIconSvg(type: GrassType): string {
       <stop offset="0" stop-color="${hexColor(base)}" /><stop offset="1" stop-color="${hexColor(tip)}" />
     </linearGradient></defs>
     <g fill="url(#${gradientId})" stroke="#16324f" stroke-width="2" stroke-linejoin="round">${spikes}</g>
-  </svg>`;
-}
-
-/** A gold coin with a darker rim and a shine. */
-function coinIconSvg(): string {
-  return `<svg class="hud-coins-icon" viewBox="0 0 40 40" aria-hidden="true">
-    <circle cx="20" cy="20" r="17" fill="#f5a623" stroke="#16324f" stroke-width="3" />
-    <circle cx="20" cy="20" r="11" fill="#ffd23f" stroke="#c77c0e" stroke-width="2" />
-    <path d="M15 14 a8 8 0 0 1 8 -3" fill="none" stroke="#fff6c8" stroke-width="3" stroke-linecap="round" />
   </svg>`;
 }
 

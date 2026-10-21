@@ -21,8 +21,8 @@ export interface Blade {
 /** Speeds below this are floating-point leftovers from braking, so the blade counts as stopped. */
 const STOPPED_SPEED_TOLERANCE = 1e-9;
 
-export function createBlade(x: number, z: number): Blade {
-  return { x, z, heading: 0, speed: 0, size: config.blade.startSize, growthProgress: 0 };
+export function createBlade(x: number, z: number, size = config.blade.startSize): Blade {
+  return { x, z, heading: 0, speed: 0, size, growthProgress: 0 };
 }
 
 export function bladeRadius(size: number): number {
@@ -49,13 +49,21 @@ export function addCuts(blade: Blade, count: number): number {
   return sizesGained;
 }
 
-export function moveBlade(blade: Blade, direction: Direction | null, dt: number, width: number, depth: number): void {
+/** Braking always takes `brakeSeconds`, so a faster blade brakes harder. */
+export function moveBlade(
+  blade: Blade,
+  direction: Direction | null,
+  dt: number,
+  width: number,
+  depth: number,
+  maxSpeed = config.blade.maxSpeed,
+): void {
   if (direction) {
     const targetHeading = Math.atan2(direction.z, direction.x);
     blade.heading = blade.speed === 0 ? targetHeading : turnToward(blade.heading, targetHeading, dt);
-    blade.speed = config.blade.maxSpeed;
+    blade.speed = maxSpeed;
   } else {
-    const deceleration = config.blade.maxSpeed / config.blade.brakeSeconds;
+    const deceleration = maxSpeed / config.blade.brakeSeconds;
     const brakedSpeed = blade.speed - deceleration * dt;
     blade.speed = brakedSpeed > STOPPED_SPEED_TOLERANCE ? brakedSpeed : 0;
   }

@@ -103,8 +103,6 @@ export interface GrassView {
   setTime(time: number): void;
   /** Starts the drop animation of the given blades at `time`. */
   markCut(indices: number[], time: number): void;
-  /** Puts every blade back to standing. */
-  reset(): void;
   /** Makes the standing blades of `types` (indices into GRASS_TYPE_ORDER) glow; empty turns it off. */
   setHighlight(types: readonly number[]): void;
   /** Takes the grass out of the scene and frees its geometry and materials. */
@@ -142,14 +140,6 @@ export function createGrassView(scene: Scene, field: Field, seed: number): Grass
     });
   }
 
-  function reset(): void {
-    for (const { cutTimes, cutTimeAttribute } of layers) {
-      cutTimes.fill(STANDING);
-      cutTimeAttribute.clearUpdateRanges();
-      cutTimeAttribute.needsUpdate = true;
-    }
-  }
-
   function setHighlight(types: readonly number[]): void {
     for (const layer of layers) layer.material.uniforms.highlight!.value = types.includes(layer.type) ? 1 : 0;
   }
@@ -164,7 +154,7 @@ export function createGrassView(scene: Scene, field: Field, seed: number): Grass
     geometry.dispose();
   }
 
-  return { setTime, markCut, reset, setHighlight, dispose };
+  return { setTime, markCut, setHighlight, dispose };
 }
 
 function createLayerView(tuftGeometry: BufferGeometry, type: number, instanceCount: number): LayerView {
