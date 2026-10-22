@@ -1,3 +1,4 @@
+import { config } from '../config';
 import type { GrassType } from '../logic/field';
 import type { BoosterKind } from '../logic/save';
 import { isObstacleType, type LevelDefinition, type TargetKind } from '../logic/levels';
@@ -21,6 +22,8 @@ const COIN_FLOAT_COUNT = 6;
 const ICON_SPIKES = 5;
 
 export interface HudState {
+  /** The game is in play: the clock only warns then. */
+  playing: boolean;
   timeLeft: number;
   timeTotal: number;
   /** Units left of each target, in the order of the level's targets. */
@@ -46,6 +49,8 @@ export interface HudState {
 export interface HudDisplay {
   clock: string;
   timePercent: number;
+  /** The clock turns amber and beats while time runs low. */
+  lowTime: boolean;
   /** Units left of each target, formatted for the card. */
   targetCounts: string[];
   sizeLabel: string;
@@ -61,6 +66,7 @@ export function hudDisplay(state: HudState): HudDisplay {
   return {
     clock: formatClock(state.timeLeft),
     timePercent: toPercent(state.timeLeft / state.timeTotal),
+    lowTime: state.playing && state.timeLeft <= config.level.lowTimeSeconds,
     targetCounts: state.remainingByTarget.map(formatCount),
     sizeLabel: `${texts.hud.size} ${state.size}`,
     growthPercent: toPercent(state.growthFraction),
@@ -180,6 +186,7 @@ export function createHud(container: HTMLElement, actions: HudActions): Hud {
     const display = hudDisplay(state);
     if (display.clock !== shown.clock) clock.textContent = display.clock;
     if (display.timePercent !== shown.timePercent) timer.style.setProperty('--time-percent', `${display.timePercent}%`);
+    if (display.lowTime !== shown.lowTime) timer.dataset.lowTime = String(display.lowTime);
     display.targetCounts.forEach((count, target) => {
       if (count !== shown.targetCounts?.[target] && counters[target]) counters[target].textContent = count;
     });

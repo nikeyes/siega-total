@@ -48,6 +48,7 @@ body,
   --hud-font: ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', 'Nunito', system-ui, sans-serif;
   --hud-ink: #16324f;
   --hud-time: #4fd65a;
+  --hud-time-low: #ffb84d;
   --hud-bar: #2f8cff;
   --hud-card: #f3f8ff;
   --hud-outline: 0 2px 0 var(--hud-ink), 2px 0 0 var(--hud-ink), 0 -2px 0 var(--hud-ink), -2px 0 0 var(--hud-ink);
@@ -75,6 +76,21 @@ body,
   background: conic-gradient(var(--hud-time) var(--time-percent), #24476e 0);
   display: grid;
   place-items: center;
+}
+
+.hud-timer[data-low-time='true'] {
+  background: conic-gradient(var(--hud-time-low) var(--time-percent), #24476e 0);
+  animation: hud-timer-pulse 1s ease-in-out infinite;
+}
+
+@keyframes hud-timer-pulse {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.06;
+  }
 }
 
 .hud-timer::before {

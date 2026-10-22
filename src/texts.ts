@@ -95,6 +95,7 @@ export const texts = {
     anotherSeed: 'Otra semilla',
     copySeed: 'Copiar semilla',
     copyCampaign: 'Copiar campaña',
+    sounds: 'Sonidos',
     fallbackHasNoSeed: '// Nivel {level}: nivel de reserva, su semilla no lo reproduce',
     pattern: 'Patrón',
     rejection: 'Rechazo',

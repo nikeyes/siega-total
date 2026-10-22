@@ -1,6 +1,7 @@
 import { createBreezeSound } from './audio/breeze';
 import { createCutBreeze } from './audio/cutBreeze';
 import { createMusicPlayer } from './audio/music';
+import { musicStyleFor, type Screen } from './audio/musicStyle';
 import { createSoundPlayer, type SoundName } from './audio/sounds';
 import { canVibrate, createVibration } from './audio/vibration';
 import { campaignSeeds } from './campaign';
@@ -242,7 +243,6 @@ const tutorialHint = createTutorialHint(container);
 const celebration = createCelebration(container);
 
 /** What the player sees; the game only steps while it is 'playing' or showing the result. */
-type Screen = 'home' | 'playing' | 'paused' | 'result' | 'shop' | 'settings';
 let screen: Screen = 'home';
 /** The shop's «Volver» goes back to where it was opened from. */
 let shopReturnsTo: 'home' | 'result' = 'home';
@@ -297,8 +297,9 @@ function applySettings(): void {
   updateMusic();
 }
 
-/** The music plays unless it is switched off, the game is paused or the tab is hidden. */
+/** The music plays unless it is switched off, the game is paused or the tab is hidden; the menus play their calmer style. */
 function updateMusic(): void {
+  musicPlayer.setStyle(musicStyleFor(screen));
   musicPlayer.setPlaying(save.settings.music && screen !== 'paused' && !document.hidden);
 }
 
@@ -420,6 +421,7 @@ if (debugging) {
         save.tutorialDone = false;
         writeSave(save);
       },
+      playSound: (name, variant) => soundPlayer.play(name, variant),
     }, qualityStatus);
   });
 }
@@ -467,12 +469,15 @@ function compassTarget(dt: number): { x: number; z: number } | null {
 function playFeedback(event: FeedbackEvent): void {
   switch (event.kind) {
     case 'obstacleCut':
-      soundPlayer.play('obstacleCut');
+      soundPlayer.play(`${event.obstacle}Break`);
       break;
     case 'sizeUp':
       sizeUpAge = 0;
       soundPlayer.play('sizeUp');
       vibration.pulse();
+      break;
+    case 'lowTime':
+      soundPlayer.play('lowTime');
       break;
     case 'winWave':
       soundPlayer.play('win');
@@ -566,6 +571,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
 
   const bladeOnScreen = cameraRig.toScreen(blade.x, 0, blade.z, container.clientWidth, container.clientHeight);
   hud.update({
+    playing: game.status === 'playing',
     timeLeft: game.timeLeft,
     timeTotal: game.timeTotal,
     remainingByTarget: remainingByTarget(game),
