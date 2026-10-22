@@ -540,6 +540,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   for (const event of events) playFeedback(event);
   const sizeUpEvent = events.find((event) => event.kind === 'sizeUp');
   const showBlocked = blockedNotice.step(result.blocked, dt);
+  const blockedSize = showBlocked ? result.neededSize : null;
   if (showBlocked) {
     soundPlayer.play('bounce');
     vibration.pulse();
@@ -567,7 +568,8 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
 
   followBlade(focus, blade.x, blade.z, blade.size, dt);
   const { halfVisibleX, halfVisibleZ } = halfVisible(focus.distance, cameraRig.camera.aspect);
-  const edgeMargin = bladeRadius(blade.size) + config.camera.edgeMarginMeters;
+  // The blade can reach the shore, so the camera follows it there.
+  const edgeMargin = bladeRadius(blade.size) + config.camera.edgeMarginMeters + config.field.shoreMeters;
   clampFocus(focus, field.width, field.depth, halfVisibleX, halfVisibleZ, edgeMargin);
 
   bladeView.update(blade, dt);
@@ -581,6 +583,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   cameraRig.update(focus);
   grass!.setTime(elapsedSeconds);
   sea.update(elapsedSeconds);
+  obstacleView!.update(elapsedSeconds);
   gameScene.renderer.render(gameScene.scene, cameraRig.camera);
 
   const bladeOnScreen = cameraRig.toScreen(blade.x, 0, blade.z, container.clientWidth, container.clientHeight);
@@ -593,7 +596,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     growthFraction: growthFraction(blade),
     sizeLabelX: bladeOnScreen.x,
     sizeLabelY: bladeOnScreen.y,
-    showBlocked,
+    blockedSize,
     // Banked coins are already in the balance, so only the rest of the level is added on top.
     coins: save.coins + unbankedCoins(game),
     floatCoins: coinFloats.step(result.coins, dt),

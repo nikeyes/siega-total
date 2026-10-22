@@ -35,7 +35,7 @@ export function isObstacleType(kind: TargetKind): kind is Exclude<ObstacleType, 
   return kind in config.obstacles;
 }
 
-/** Turns into sand every cell whose center lies inside a rock or a cactus. */
+/** Turns into sand every cell a rock or a cactus covers, even in part, so no grass grows where the blade cannot reach. */
 export function clearCellsUnderSolidObstacles(
   cells: (GrassType | null)[],
   cellSize: number,
@@ -45,9 +45,12 @@ export function clearCellsUnderSolidObstacles(
   for (const { type, x, z } of obstacles) {
     if (type !== 'rock' && type !== 'cactus') continue;
     cells.forEach((_, cell) => {
-      const centerX = ((cell % columns) + 0.5) * cellSize;
-      const centerZ = (Math.floor(cell / columns) + 0.5) * cellSize;
-      if (Math.hypot(centerX - x, centerZ - z) < obstacleRadius(type)) cells[cell] = null;
+      const left = (cell % columns) * cellSize;
+      const top = Math.floor(cell / columns) * cellSize;
+      // The cell's nearest point to the obstacle: any of its grass closer than the radius would sit under it.
+      const nearestX = Math.min(Math.max(x, left), left + cellSize);
+      const nearestZ = Math.min(Math.max(z, top), top + cellSize);
+      if (Math.hypot(nearestX - x, nearestZ - z) < obstacleRadius(type)) cells[cell] = null;
     });
   }
 }

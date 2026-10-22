@@ -38,6 +38,9 @@ function isInPlay(game: Game): boolean {
   return game.status === 'ready' || game.status === 'playing';
 }
 
+/** The blade can drive this far past the field edge, onto the island's shore. */
+const SHORE = config.field.shoreMeters;
+
 /** Gives up after a minute of game time, so a blade that never arrives (say, blocked by a wall) fails instead of hanging. */
 const MAX_DRIVE_STEPS = 60 / SIXTY_FPS_FRAME;
 
@@ -82,17 +85,17 @@ function stopBlade(game: Game, onStep?: StepListener) {
 function mowInZigzag(game: Game) {
   const { width, depth } = game.field;
   const laneSpacing = config.blade.baseRadius / 2;
-  driveUntil(game, NORTH, () => game.blade.z === 0);
+  driveUntil(game, NORTH, () => game.blade.z === -SHORE);
   stopBlade(game);
-  driveUntil(game, WEST, () => game.blade.x === 0);
+  driveUntil(game, WEST, () => game.blade.x === -SHORE);
   stopBlade(game);
   for (let lane = 0; isInPlay(game); lane++) {
     const goingEast = lane % 2 === 0;
-    const edgeX = goingEast ? width : 0;
+    const edgeX = goingEast ? width + SHORE : -SHORE;
     driveUntil(game, goingEast ? EAST : WEST, () => game.blade.x === edgeX);
     stopBlade(game);
-    if (game.blade.z === depth) return;
-    const nextLaneZ = Math.min(depth, game.blade.z + laneSpacing);
+    if (game.blade.z === depth + SHORE) return;
+    const nextLaneZ = Math.min(depth + SHORE, game.blade.z + laneSpacing);
     driveUntil(game, SOUTH, () => game.blade.z >= nextLaneZ);
     stopBlade(game);
   }
@@ -298,12 +301,12 @@ describe('stepGame', () => {
 
   it('only cuts blades within bladeRadius of the path when crossing the field from west to east', () => {
     const game = stripesGame();
-    driveUntil(game, WEST, () => game.blade.x === 0);
+    driveUntil(game, WEST, () => game.blade.x === -SHORE);
     stopBlade(game);
     const pathZ = game.blade.z;
     const farthestCuts: number[] = [];
     let cutsOnTheWay = 0;
-    driveUntil(game, EAST, () => game.blade.x === width, ({ cutIndices }, radius) => {
+    driveUntil(game, EAST, () => game.blade.x === width + SHORE, ({ cutIndices }, radius) => {
       cutsOnTheWay += cutIndices.length;
       for (const blade of cutIndices) {
         const distanceToBlade = Math.hypot(
@@ -326,9 +329,9 @@ describe('stepGame', () => {
       totalCut += cutIndices.length;
       totalSizesGained += sizesGained;
     };
-    driveUntil(game, WEST, () => game.blade.x === 0, record);
+    driveUntil(game, WEST, () => game.blade.x === -SHORE, record);
     stopBlade(game, record);
-    driveUntil(game, EAST, () => game.blade.x === width, record);
+    driveUntil(game, EAST, () => game.blade.x === width + SHORE, record);
 
     const reference = createBlade(0, 0);
     const expectedSizesGained = addCuts(reference, totalCut);
@@ -341,9 +344,9 @@ describe('stepGame', () => {
   it('cuts with the new, larger radius right after growing a size', () => {
     const game = stripesGame();
     let grown = false;
-    driveUntil(game, WEST, () => game.blade.x === 0);
+    driveUntil(game, WEST, () => game.blade.x === -SHORE);
     stopBlade(game);
-    driveUntil(game, EAST, () => grown || game.blade.x === width, ({ sizesGained }) => (grown = sizesGained > 0));
+    driveUntil(game, EAST, () => grown || game.blade.x === width + SHORE, ({ sizesGained }) => (grown = sizesGained > 0));
     expect(grown).toBe(true);
     const oldRadius = bladeRadius(game.blade.size - 1);
     const newRadius = bladeRadius(game.blade.size);
@@ -388,9 +391,9 @@ describe('stepGame', () => {
     expect(game.blade.growthProgress).toBe(reference.growthProgress);
   });
 
-  it('cuts every blade under the blade when it is pushed into a corner', () => {
+  it('cuts every blade in the field corner on its way into the corner of the island', () => {
     const game = stripesGame();
-    driveUntil(game, { x: -Math.SQRT1_2, z: -Math.SQRT1_2 }, () => game.blade.x === 0 && game.blade.z === 0);
+    driveUntil(game, { x: -Math.SQRT1_2, z: -Math.SQRT1_2 }, () => game.blade.x === -SHORE && game.blade.z === -SHORE);
     const atCorner = bladesWithin(game.field, 0, 0, bladeRadius(game.blade.size));
     expect(atCorner.every((blade) => game.field.cut[blade] === 1)).toBe(true);
   });
@@ -456,6 +459,19 @@ describe('collisions in play', () => {
     expect(stepGame(game, EAST, SIXTY_FPS_FRAME).blocked).toBe(true);
   });
 
+  it('reports the size the blade needs to get through what blocks it', () => {
+    const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    driveForSeconds(game, EAST, 1);
+    const result = stepGame(game, EAST, SIXTY_FPS_FRAME);
+    expect(result.blocked).toBe(true);
+    expect(result.neededSize).toBe(config.grassTypes.wheat.minSize);
+  });
+
+  it('needs no size when nothing blocks the blade', () => {
+    const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    expect(stepGame(game, EAST, SIXTY_FPS_FRAME).neededSize).toBeNull();
+  });
+
   it('does not report a resting blade blocked when growing makes it overlap grass it cannot cut', () => {
     const lavenderAhead = WHEAT_AHEAD.map((row) => row.replaceAll('w', 'l'));
     const game = createGame(levelFromRows(lavenderAhead, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
@@ -479,8 +495,8 @@ describe('collisions in play', () => {
   it('lets a blade big enough for wheat drive through the stripe', () => {
     const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     game.blade.size = config.grassTypes.wheat.minSize;
-    driveUntil(game, EAST, () => game.blade.x === game.field.width);
-    expect(game.blade.x).toBe(game.field.width);
+    driveUntil(game, EAST, () => game.blade.x === game.field.width + SHORE);
+    expect(game.blade.x).toBe(game.field.width + SHORE);
   });
 
   it('blocks a blade too small for a fruit, and cuts the fruit in the same step once big enough', () => {

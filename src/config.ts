@@ -23,6 +23,8 @@ export const config = {
     referenceBladeCount: 3_400,
     gridCellSize: 1,
     seed: 1,
+    /** A strip of island with no grass around the field, where the blade can still move. */
+    shoreMeters: 1.5,
   },
   world: {
     /** Height of the island's earth sides, from the ground down to the sea floor. */

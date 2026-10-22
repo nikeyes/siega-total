@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
 import { bladeRadius } from '../../src/logic/blade';
-import { resolveCollisions } from '../../src/logic/collision';
+import { resolveCollisions, sizeToPass } from '../../src/logic/collision';
 import type { GrassType } from '../../src/logic/field';
 import type { LevelDefinition, Obstacle } from '../../src/logic/levels';
 import { createObstacleField, obstacleRadius } from '../../src/logic/obstacles';
@@ -174,15 +174,22 @@ describe('resolveCollisions sliding along walls', () => {
   });
 });
 
-describe('resolveCollisions at the field edge', () => {
-  it('keeps the blade inside the west and south edges without counting as blocked', () => {
+describe('resolveCollisions at the island edge', () => {
+  const shore = config.field.shoreMeters;
+
+  it('lets the blade onto the shore past the field edge', () => {
     const result = resolveCollisions(worldOf(levelFromRows(['gg'])), -0.3, 1.4, radius, startSize);
-    expect(result).toEqual({ x: 0, z: 1, blocked: false });
+    expect(result).toEqual({ x: -0.3, z: 1.4, blocked: false });
   });
 
-  it('keeps the blade inside the north edge', () => {
-    const result = resolveCollisions(worldOf(levelFromRows(['gg', 'gg'])), 1, -0.3, radius, startSize);
-    expect(result).toEqual({ x: 1, z: 0, blocked: false });
+  it('keeps the blade inside the west and south edges of the island without counting as blocked', () => {
+    const result = resolveCollisions(worldOf(levelFromRows(['gg'])), -shore - 0.3, 1 + shore + 0.4, radius, startSize);
+    expect(result).toEqual({ x: -shore, z: 1 + shore, blocked: false });
+  });
+
+  it('keeps the blade inside the north edge of the island', () => {
+    const result = resolveCollisions(worldOf(levelFromRows(['gg', 'gg'])), 1, -shore - 0.3, radius, startSize);
+    expect(result).toEqual({ x: 1, z: -shore, blocked: false });
   });
 });
 
@@ -210,16 +217,17 @@ describe('resolveCollisions against obstacles', () => {
     expect(result).toEqual({ x: 3 + radius + rockRadius, z: 3, blocked: false });
   });
 
-  it('does not let the blade slip through a rock near the field edge at full speed', () => {
-    // A rock 1 m from the west edge leaves a gap narrower than the blade.
-    const world = worldOf(levelFromRows(OPEN_FIELD, [{ type: 'rock', x: 1, z: 3 }]));
+  it('does not let the blade slip through a rock near the island edge at full speed', () => {
+    // A rock 1 m from the west edge of the island leaves a gap narrower than the blade.
+    const rockX = 1 - config.field.shoreMeters;
+    const world = worldOf(levelFromRows(OPEN_FIELD, [{ type: 'rock', x: rockX, z: 3 }]));
     // Full speed during the longest frame the game steps (MAX_FRAME_SECONDS = 0.05 in main.ts).
     const step = config.blade.maxSpeed * 0.05;
-    let x = 0;
+    let x = -config.field.shoreMeters;
     let z = 0.5;
     for (let frame = 0; frame < 60; frame++) {
       ({ x, z } = resolveCollisions(world, x, z + step, radius, startSize));
-      expect(Math.hypot(x - 1, z - 3)).toBeGreaterThan(radius + rockRadius - 0.05);
+      expect(Math.hypot(x - rockX, z - 3)).toBeGreaterThan(radius + rockRadius - 0.05);
     }
     expect(z).toBeLessThan(3 - 1);
   });
@@ -259,5 +267,31 @@ describe('resolveCollisions between a rock and a wall', () => {
       ({ x, z } = resolveCollisions(world, x, z + 0.05, radius, startSize));
     }
     for (let row = 0; row < 6; row++) expect(depthIntoCell(x, z, radius, 4, row)).toBeLessThan(1e-6);
+  });
+});
+
+describe('sizeToPass', () => {
+  const lavenderSize = config.grassTypes.lavender.minSize;
+
+  it('is the size of the hard grass the blade runs into', () => {
+    expect(sizeToPass(worldOf(levelFromRows(WHEAT_STRIPE)), WHEAT_WEST_EDGE - radius + 0.1, 1.5, radius, startSize)).toBe(wheatSize);
+  });
+
+  it('is the bigger size when the blade runs into two hard grasses at once', () => {
+    expect(sizeToPass(worldOf(levelFromRows(['gwlg'])), 2, 0.5, radius, startSize)).toBe(lavenderSize);
+  });
+
+  it('is the size of a fruit too big for the blade', () => {
+    const world = worldOf(levelFromRows(OPEN_FIELD, [{ type: 'watermelon', x: 3, z: 3 }]));
+    expect(sizeToPass(world, 3.1, 3, radius, config.obstacles.watermelon.minSize - 1)).toBe(config.obstacles.watermelon.minSize);
+  });
+
+  it('is infinite against a rock, which no size cuts', () => {
+    expect(sizeToPass(worldOf(levelFromRows(OPEN_FIELD, [rock])), 3.1, 3, radius, startSize)).toBe(Infinity);
+  });
+
+  it('is null when nothing stands in the way', () => {
+    expect(sizeToPass(worldOf(levelFromRows(WHEAT_STRIPE)), 1.5, 1.5, radius, startSize)).toBeNull();
+    expect(sizeToPass(worldOf(levelFromRows(WHEAT_STRIPE)), WHEAT_WEST_EDGE + 0.5, 1.5, bladeRadius(wheatSize), wheatSize)).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import { config } from '../config';
 import { addCuts, bladeRadius, createBlade, moveBlade, type Blade, type Direction } from './blade';
-import { resolveCollisions } from './collision';
+import { resolveCollisions, sizeToPass } from './collision';
 import { coinsForCuts, timeBonus } from './economy';
 import { createField, cutBlade, cutInCircle, GRASS_TYPE_ORDER, levelFieldOptions, type Field } from './field';
 import { isObstacleType, sampleLevel, type LevelDefinition, type TargetKind } from './levels';
@@ -56,10 +56,12 @@ export interface StepResult {
   coins: number;
   /** True while the player pushes the blade against something it cannot cut yet. */
   blocked: boolean;
+  /** When blocked, the size that would get the blade through: Infinity for a rock. Null otherwise. */
+  neededSize: number | null;
 }
 
 function nothingHappened(): StepResult {
-  return { cutIndices: [], cutObstacles: [], sizesGained: 0, coins: 0, blocked: false };
+  return { cutIndices: [], cutObstacles: [], sizesGained: 0, coins: 0, blocked: false, neededSize: null };
 }
 
 /** The field of `level`, with the blade at its center, waiting for the first move. */
@@ -129,6 +131,8 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   const { x, z, blocked: pushedBack } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
   // Growing can make the blade overlap a wall too; only a push against where the player steers counts.
   const blocked = pushedBack && direction !== null && (x - blade.x) * direction.x + (z - blade.z) * direction.z < 0;
+  // Asked where the blade tried to go, before the walls pushed it back.
+  const neededSize = blocked ? sizeToPass(game, blade.x, blade.z, bladeRadius(blade.size), blade.size) : null;
   blade.x = x;
   blade.z = z;
   const radius = bladeRadius(blade.size);
@@ -147,7 +151,7 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
     game.status = 'lost';
     game.compassLeft = 0;
   }
-  return { cutIndices, cutObstacles, sizesGained, coins, blocked };
+  return { cutIndices, cutObstacles, sizesGained, coins, blocked, neededSize };
 }
 
 function maxSpeedOf(game: Game): number {
@@ -168,7 +172,7 @@ function stepWinWave(game: Game, wave: WinWave, dt: number): StepResult {
   const coins = coinsForCuts(game, cutIndices, cutObstacles);
   game.levelCoins += coins;
   if (wave.radius >= distanceToFarthestCorner(field, wave.x, wave.z)) game.status = 'won';
-  return { cutIndices, cutObstacles, sizesGained: 0, coins, blocked: false };
+  return { cutIndices, cutObstacles, sizesGained: 0, coins, blocked: false, neededSize: null };
 }
 
 function distanceToFarthestCorner(field: Field, x: number, z: number): number {
