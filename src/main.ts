@@ -45,6 +45,7 @@ import { createCameraRig, halfVisible } from './render/cameraRig';
 import { createGrassView, type GrassView } from './render/grass';
 import { createGameScene } from './render/scene';
 import { createSea } from './render/sea';
+import { countGameStarted } from './stats/visits';
 import { createHud } from './ui/hud';
 import { createJoystick } from './ui/joystick';
 import { createKeyboard } from './ui/keyboard';
@@ -504,6 +505,7 @@ function playFeedback(event: FeedbackEvent): void {
       soundPlayer.play('lose');
       break;
     case 'started':
+      countGameStarted();
       if (save.tutorialDone) break;
       tutorialHint.hide();
       save.tutorialDone = true;
