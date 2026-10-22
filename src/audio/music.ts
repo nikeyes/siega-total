@@ -1,12 +1,15 @@
 import { config } from '../config';
+import { sliderGain } from './volume';
 import { createLofiComposer, eighthSeconds, type LofiNote } from './lofi';
 
 export interface MusicPlayer {
   /** Fades the music in or out; it keeps its place in the song while it is silent. */
   setPlaying(playing: boolean): void;
+  /** The music slider, from 0 to 1. */
+  setVolume(position: number): void;
 }
 
-const SILENT_MUSIC: MusicPlayer = { setPlaying: () => {} };
+const SILENT_MUSIC: MusicPlayer = { setPlaying: () => {}, setVolume: () => {} };
 /** How often the scheduler wakes up, and how far ahead it books notes, so a late timer never drops one. */
 const SCHEDULER_MS = 60;
 const LOOKAHEAD_SECONDS = 0.25;
@@ -28,6 +31,7 @@ export function createMusicPlayer(context: AudioContext | null): MusicPlayer {
   reverb.connect(wet).connect(master);
 
   let playing = false;
+  let volume = 1;
   let timer: ReturnType<typeof setInterval> | null = null;
   let step = 0;
   let nextEighth = 0;
@@ -53,11 +57,20 @@ export function createMusicPlayer(context: AudioContext | null): MusicPlayer {
     else brush(ctx, master, note, time);
   }
 
+  function fade(): void {
+    const { fadeSeconds, volume: fullVolume } = config.audio.music;
+    master.gain.setTargetAtTime(playing ? fullVolume * sliderGain(volume) : 0, ctx.currentTime, fadeSeconds / 3);
+  }
+
+  function setVolume(position: number): void {
+    volume = position;
+    fade();
+  }
+
   function setPlaying(next: boolean): void {
     if (next === playing) return;
     playing = next;
-    const { fadeSeconds, volume } = config.audio.music;
-    master.gain.setTargetAtTime(playing ? volume : 0, ctx.currentTime, fadeSeconds / 3);
+    fade();
     if (playing && !timer) {
       timer = setInterval(schedule, SCHEDULER_MS);
       schedule();
@@ -69,11 +82,11 @@ export function createMusicPlayer(context: AudioContext | null): MusicPlayer {
         clearInterval(timer);
         timer = null;
         nextEighth = 0;
-      }, fadeSeconds * 1000);
+      }, config.audio.music.fadeSeconds * 1000);
     }
   }
 
-  return { setPlaying };
+  return { setPlaying, setVolume };
 }
 
 function frequencyOf(midi: number): number {

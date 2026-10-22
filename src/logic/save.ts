@@ -12,10 +12,13 @@ export interface Settings {
   music: boolean;
   vibration: boolean;
   quality: QualitySetting;
+  /** Where each volume slider sits, from 0 (silent) to 1 (full). */
+  soundVolume: number;
+  musicVolume: number;
 }
 
 export interface SaveData {
-  version: 4;
+  version: 5;
   /** Next level to play, ≥ 1. */
   level: number;
   coins: number;
@@ -28,7 +31,9 @@ export interface SaveData {
   tutorialDone: boolean;
 }
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
+/** The effects start a little down, so they sit well with the music at full. */
+const DEFAULT_SOUND_VOLUME = 0.65;
 
 export function defaultSave(): SaveData {
   return {
@@ -37,7 +42,7 @@ export function defaultSave(): SaveData {
     coins: 0,
     upgrades: Object.fromEntries(UPGRADE_KINDS.map((kind) => [kind, 0])) as SaveData['upgrades'],
     boosters: Object.fromEntries(BOOSTER_KINDS.map((kind) => [kind, config.boosters[kind].startUses])) as SaveData['boosters'],
-    settings: { sound: true, music: true, vibration: true, quality: 'auto' },
+    settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: DEFAULT_SOUND_VOLUME, musicVolume: 1 },
     tutorialDone: false,
   };
 }
@@ -61,6 +66,8 @@ function migrate(data: { version: number } & Record<string, unknown>): unknown {
   if (data.version === 2) data = { ...data, version: 3 };
   // Version 3 had no music setting; sanitize gives it the default, on.
   if (data.version === 3) data = { ...data, version: 4 };
+  // Version 4 had no volumes; sanitize gives them the defaults.
+  if (data.version === 4) data = { ...data, version: 5 };
   return data;
 }
 
@@ -111,6 +118,8 @@ function sanitizeSettings(stored: unknown, defaults: Settings): Settings {
     music: booleanOr(settings.music, defaults.music),
     vibration: booleanOr(settings.vibration, defaults.vibration),
     quality: oneOf(QUALITY_SETTINGS, settings.quality, defaults.quality),
+    soundVolume: fractionOr(settings.soundVolume, defaults.soundVolume),
+    musicVolume: fractionOr(settings.musicVolume, defaults.musicVolume),
   };
 }
 
@@ -120,6 +129,10 @@ function oneOf<Value>(allowed: readonly Value[], value: unknown, fallback: Value
 
 function booleanOr(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+function fractionOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && value >= 0 && value <= 1 ? value : fallback;
 }
 
 function wholeNumberAtLeast(min: number, value: unknown, fallback: number): number {

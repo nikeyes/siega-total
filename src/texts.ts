@@ -40,6 +40,9 @@ export const texts = {
     title: 'Ajustes',
     sound: 'Sonido',
     music: 'Música',
+    /** Read out for each volume slider, which sits under its switch. */
+    soundVolume: 'Volumen del sonido',
+    musicVolume: 'Volumen de la música',
     vibration: 'Vibración',
     quality: 'Calidad',
     qualityLevels: { auto: 'Auto', high: 'Alta', medium: 'Media', low: 'Baja' },

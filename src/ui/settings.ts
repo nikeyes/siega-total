@@ -8,14 +8,19 @@ import { createLayer, layerButton, layerTitle } from './layer';
 export interface SettingsActions {
   onToggleSound(): void;
   onToggleMusic(): void;
+  /** A volume slider moved, to `position` from 0 to 1. */
+  onSoundVolume(position: number): void;
+  onMusicVolume(position: number): void;
   onToggleVibration(): void;
   onCycleQuality(): void;
   onClearProgress(): void;
   onBack(): void;
 }
 
+type SwitchKey = 'sound' | 'music' | 'vibration' | 'quality';
+
 export interface SettingRow {
-  key: keyof Settings;
+  key: SwitchKey;
   label: string;
   valueLabel: string;
   /** On or off for the switches; null for the quality picker, which has no pressed state. */
@@ -42,25 +47,30 @@ function settingRow(settings: Settings, key: 'sound' | 'music' | 'vibration', la
   return { key, label, valueLabel: pressed ? texts.settings.on : texts.settings.off, pressed };
 }
 
-/** The sound, music and vibration switches, the quality picker, and «Borrar progreso» confirmed with a second press instead of a browser dialog. */
+/** The sound and music switches each with its volume slider under it, the vibration switch, the quality picker, and «Borrar progreso» confirmed with a second press instead of a browser dialog. */
 export function createSettingsScreen(
   container: HTMLElement,
   actions: SettingsActions,
   vibrationSupported: boolean,
 ): { readonly layer: HTMLElement; render(save: SaveData, activeQuality: QualityLevel): void } {
   const layer = createLayer(container, 'settings');
-  const actionOf: Record<keyof Settings, () => void> = {
+  const actionOf: Record<SwitchKey, () => void> = {
     sound: actions.onToggleSound,
     music: actions.onToggleMusic,
     vibration: actions.onToggleVibration,
     quality: actions.onCycleQuality,
   };
   // The rows only depend on the browser, so the buttons are made once and filled in by render.
-  const switches = settingRows(defaultSave(), vibrationSupported, config.quality.startLevel).map((row) => {
+  const rows = settingRows(defaultSave(), vibrationSupported, config.quality.startLevel);
+  const switches = rows.map((row) => {
     const button = layerButton(row.label, 'secondary', actionOf[row.key]);
     button.classList.add('settings-switch');
     return button;
   });
+  const sliders = {
+    sound: volumeSlider(texts.settings.soundVolume, actions.onSoundVolume),
+    music: volumeSlider(texts.settings.musicVolume, actions.onMusicVolume),
+  };
   const confirmState = createConfirmButtonState();
   const clear = layerButton(confirmState.label(performance.now()), 'secondary', () => {
     const now = performance.now();
@@ -74,7 +84,10 @@ export function createSettingsScreen(
   clear.classList.add('settings-clear');
   layer.append(
     layerTitle(texts.settings.title),
-    ...switches,
+    ...switches.flatMap((button, index) => {
+      const key = rows[index]!.key;
+      return key === 'sound' || key === 'music' ? [button, sliders[key]] : [button];
+    }),
     clear,
     layerButton(texts.settings.back, 'secondary', actions.onBack),
   );
@@ -86,7 +99,24 @@ export function createSettingsScreen(
       if (row.pressed === null) button.removeAttribute('aria-pressed');
       else button.setAttribute('aria-pressed', String(row.pressed));
     });
+    sliders.sound.value = String(Math.round(save.settings.soundVolume * SLIDER_STEPS));
+    sliders.music.value = String(Math.round(save.settings.musicVolume * SLIDER_STEPS));
   }
 
   return { layer, render };
+}
+
+/** Slider positions from silent to full. */
+const SLIDER_STEPS = 100;
+
+/** A volume slider that reports its position, from 0 to 1, while it moves. */
+function volumeSlider(label: string, onMove: (position: number) => void): HTMLInputElement {
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.max = String(SLIDER_STEPS);
+  slider.className = 'settings-volume';
+  slider.setAttribute('aria-label', label);
+  slider.addEventListener('input', () => onMove(Number(slider.value) / SLIDER_STEPS));
+  return slider;
 }

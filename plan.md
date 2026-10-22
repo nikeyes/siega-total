@@ -181,7 +181,7 @@ Victoria, Derrota y Pausa también vuelven a Inicio. En Derrota, el reloj sigue 
 2. Victoria muestra monedas ganadas y bonus. Botón principal: Siguiente. Botón secundario: Tienda.
 3. Pausa automática al perder el foco de la pestaña (`visibilitychange`).
 4. Primera partida: al pulsar Jugar por primera vez, una mano animada enseña el joystick. Desaparece con el primer movimiento.
-5. Ajustes: sonido, música, vibración, calidad, borrar progreso (con confirmación).
+5. Ajustes: sonido y música, cada uno con su regulador de volumen (efectos al 65 % y música al 100 % por defecto), vibración, calidad, borrar progreso (con confirmación).
 6. La música suena salvo en Pausa o con la pestaña oculta, con fundidos al entrar y salir.
 
 ### Guardado
@@ -236,7 +236,7 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | --- | --- |
 | Restos | Trozos del color de la hierba salen despedidos y caen al suelo. En Alto se quedan en el suelo; en Medio se desvanecen; en Bajo hay menos. |
 | "+N" flotante | Agrupado: un texto cada 0,2 s con la suma del intervalo. |
-| Sonido de corte | Brisa continua y suave («shhh» grave) que entra al cortar y se desvanece al parar. Sin pulsos y sin subir de tono, para que no canse. |
+| Sonido de corte | Siseo agudo y suave que va y viene a 7 Hz, con chasquidos de hierba cortada, mezclado bajo (−45 dBFS, 12–15 dB por debajo de los efectos). Entra al cortar y se desvanece al parar. |
 | Subida de tamaño | Destello, sonido ascendente, texto "Tamaño N". |
 | Obstáculo duro | Rebote, sonido sordo, vibración corta, texto "Necesitas más tamaño". |
 | Victoria | Onda que corta el campo restante desde la cuchilla, confeti, lluvia de monedas. |
@@ -249,7 +249,7 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | Briznas, cuchilla, restos, suelo | Código |
 | Obstáculos (cactus, rocas, frutas) | Paquetes CC0 en glTF (Kenney, Quaternius) |
 | Iconos de interfaz | Paquetes CC0 (Kenney) |
-| Efectos de sonido | Paquetes CC0 (Kenney), en MP3; la brisa del corte se genera en código |
+| Efectos de sonido | Paquetes CC0 (Kenney), en MP3; el sonido de corte se genera en código |
 | Música | Lo-fi relajante generada en código mientras suena: piano eléctrico, bajo, bombo y escobillas |
 
 Regla de estilo: colores planos y saturados, sin texturas fotográficas. Fuente redondeada y gruesa con contorno en la interfaz.
@@ -281,7 +281,7 @@ siega-total/
 │   │   └── save.ts        # esquema, migración, valores por defecto
 │   ├── render/            # Three.js: hierba, cuchilla, restos, cámara
 │   ├── ui/                # pantallas HTML + CSS, HUD, joystick
-│   ├── audio/             # efectos, brisa del corte y música lo-fi generada
+│   ├── audio/             # efectos, sonido de corte y música lo-fi generados
 │   └── debug/             # panel lil-gui (solo con ?debug)
 ├── tests/                 # Vitest sobre src/logic y las partes puras de render/ui/audio
 ├── public/                # glTF y sonidos CC0

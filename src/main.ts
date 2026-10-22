@@ -209,6 +209,14 @@ const settingsScreen = createSettingsScreen(
       save.settings.music = !save.settings.music;
       saveSettings();
     },
+    onSoundVolume: (position) => {
+      save.settings.soundVolume = position;
+      saveSettings();
+    },
+    onMusicVolume: (position) => {
+      save.settings.musicVolume = position;
+      saveSettings();
+    },
     onToggleVibration: () => {
       save.settings.vibration = !save.settings.vibration;
       saveSettings();
@@ -272,10 +280,13 @@ function renderSave(): void {
 let save = readSave();
 applySettings();
 
-/** Turns sound, music and vibration on or off as the save says. */
+/** Turns sound, music and vibration on or off and sets the volumes, as the save says. */
 function applySettings(): void {
   soundPlayer.setEnabled(save.settings.sound);
+  soundPlayer.setVolume(save.settings.soundVolume);
   breezeSound.setEnabled(save.settings.sound);
+  breezeSound.setVolume(save.settings.soundVolume);
+  musicPlayer.setVolume(save.settings.musicVolume);
   vibration.setEnabled(save.settings.vibration);
   updateMusic();
 }
@@ -285,7 +296,7 @@ function updateMusic(): void {
   musicPlayer.setPlaying(save.settings.music && screen !== 'paused' && !document.hidden);
 }
 
-/** Keeps a flipped switch: saves it, applies it at once and redraws the switches. */
+/** Keeps a changed setting: saves it, applies it at once and redraws the switches and sliders. */
 function saveSettings(): void {
   writeSave(save);
   applySettings();

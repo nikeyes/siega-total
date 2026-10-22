@@ -48,6 +48,6 @@ Cada recurso nuevo añade aquí su autor, su paquete y su licencia.
 
 ### Sonido y música propios, generados en código
 
-- **Brisa del corte** (`src/audio/breeze.ts`): ruido marrón en bucle con un paso bajo que oscila despacio; suena mientras la cuchilla corta.
+- **Sonido de corte** (`src/audio/cutLoop.ts` y `src/audio/breeze.ts`): un bucle sintetizado de siseo agudo que va y viene a 7 Hz, con pequeños chasquidos de hierba cortada encima; suena mientras la cuchilla corta.
 - **Música lo-fi** (`src/audio/lofi.ts` y `src/audio/music.ts`): se compone mientras suena, con piano eléctrico, bajo, bombo y escobillas sintetizados. No usa ningún archivo.
 - Ambos forman parte del código del juego, con su misma licencia MIT.
