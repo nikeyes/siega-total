@@ -5,15 +5,24 @@ import { defaultSave, loadSave, SAVE_VERSION, serializeSave, type SaveData } fro
 /** A save far from the defaults in every field. */
 function progressedSave(): SaveData {
   return {
-    version: 4,
+    version: 5,
     level: 12,
     coins: 34_500,
     upgrades: { startSize: 2, speed: 3, extraTime: 1, growth: 4 },
     boosters: { upgrade: 0, compass: 5, clock: 1 },
-    settings: { sound: false, music: false, vibration: true, quality: 'low' },
+    settings: { sound: false, music: false, vibration: true, quality: 'low', soundVolume: 0.4, musicVolume: 0.7 },
     tutorialDone: true,
   };
 }
+
+/** The volumes a save starts with. */
+function defaultVolumes() {
+  const { soundVolume, musicVolume } = defaultSave().settings;
+  return { soundVolume, musicVolume };
+}
+
+/** What a damaged field is called, the stored fields that damage it, and the fields it loads as. */
+type DamagedField = [name: string, damaged: Record<string, unknown>, repaired: Record<string, unknown>];
 
 /** Loads `progressedSave()` with `fields` replaced. */
 function loadWith(fields: Record<string, unknown>): SaveData {
@@ -25,15 +34,21 @@ function withInfinite(field: 'level' | 'coins'): string {
   return serializeSave(progressedSave()).replace(`"${field}":${progressedSave()[field]}`, `"${field}":1e999`);
 }
 
-/** `progressedSave()` as version 3 stored it, without the music setting. */
+/** `progressedSave()` as version 4 stored it, without the volumes. */
+function versionFourSave(): string {
+  const { soundVolume, musicVolume, ...settings } = progressedSave().settings;
+  return JSON.stringify({ ...progressedSave(), version: 4, settings });
+}
+
+/** `progressedSave()` as version 3 stored it, without the music setting or the volumes. */
 function versionThreeSave(): string {
-  const { music, ...settings } = progressedSave().settings;
+  const { music, soundVolume, musicVolume, ...settings } = progressedSave().settings;
   return JSON.stringify({ ...progressedSave(), version: 3, settings });
 }
 
-/** `progressedSave()` as version 2 stored it, without the quality and music settings. */
+/** `progressedSave()` as version 2 stored it, without the quality and music settings or the volumes. */
 function versionTwoSave(): string {
-  const { quality, music, ...settings } = progressedSave().settings;
+  const { quality, music, soundVolume, musicVolume, ...settings } = progressedSave().settings;
   return JSON.stringify({ ...progressedSave(), version: 2, settings });
 }
 
@@ -44,9 +59,9 @@ function versionOneSave(): string {
 }
 
 describe('default save', () => {
-  it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on and the tutorial pending', () => {
+  it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on with the effects a little down, and the tutorial pending', () => {
     expect(defaultSave()).toEqual({
-      version: 4,
+      version: 5,
       level: 1,
       coins: 0,
       upgrades: { startSize: 0, speed: 0, extraTime: 0, growth: 0 },
@@ -55,7 +70,7 @@ describe('default save', () => {
         compass: config.boosters.compass.startUses,
         clock: config.boosters.clock.startUses,
       },
-      settings: { sound: true, music: true, vibration: true, quality: 'auto' },
+      settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: 0.65, musicVolume: 1 },
       tutorialDone: false,
     });
   });
@@ -98,7 +113,7 @@ describe('loading a save', () => {
     expect(loadSave(versionTwoSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
-      settings: { ...progressedSave().settings, quality: 'auto', music: true },
+      settings: { ...progressedSave().settings, quality: 'auto', music: true, ...defaultVolumes() },
     });
   });
 
@@ -106,7 +121,15 @@ describe('loading a save', () => {
     expect(loadSave(versionThreeSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
-      settings: { ...progressedSave().settings, music: true },
+      settings: { ...progressedSave().settings, music: true, ...defaultVolumes() },
+    });
+  });
+
+  it('brings a version 4 save up to the current version, with the default volumes and the rest kept', () => {
+    expect(loadSave(versionFourSave())).toEqual({
+      ...progressedSave(),
+      version: SAVE_VERSION,
+      settings: { ...progressedSave().settings, ...defaultVolumes() },
     });
   });
 
@@ -117,7 +140,7 @@ describe('loading a save', () => {
 });
 
 describe('sanitizing a loaded save', () => {
-  it.each([
+  it.each<DamagedField>([
     ['negative coins', { coins: -5 }, { coins: defaultSave().coins }],
     ['coins of −1', { coins: -1 }, { coins: defaultSave().coins }],
     ['coins that are not a number', { coins: 'mucho' }, { coins: defaultSave().coins }],
@@ -126,17 +149,27 @@ describe('sanitizing a loaded save', () => {
     [
       'a sound setting that is not a boolean',
       { settings: { sound: 'no', music: false, vibration: false, quality: 'low' } },
-      { settings: { sound: defaultSave().settings.sound, music: false, vibration: false, quality: 'low' } },
+      { settings: { ...defaultSave().settings, sound: defaultSave().settings.sound, music: false, vibration: false, quality: 'low' } },
     ],
     [
       'a missing sound setting',
       { settings: { music: false, vibration: false, quality: 'low' } },
-      { settings: { sound: defaultSave().settings.sound, music: false, vibration: false, quality: 'low' } },
+      { settings: { ...defaultSave().settings, sound: defaultSave().settings.sound, music: false, vibration: false, quality: 'low' } },
     ],
     [
       'a music setting that is not a boolean',
       { settings: { sound: false, music: 'yes', vibration: true, quality: 'low' } },
-      { settings: { sound: false, music: defaultSave().settings.music, vibration: true, quality: 'low' } },
+      { settings: { ...defaultSave().settings, sound: false, music: defaultSave().settings.music, vibration: true, quality: 'low' } },
+    ],
+    ...[1.5, -0.2, 'alto', null].map((volume): DamagedField => [
+      `a sound volume of ${String(volume)}`,
+      { settings: { ...progressedSave().settings, soundVolume: volume } },
+      { settings: { ...progressedSave().settings, soundVolume: defaultSave().settings.soundVolume } },
+    ]),
+    [
+      'a music volume that is not a number',
+      { settings: { ...progressedSave().settings, musicVolume: 'bajo' } },
+      { settings: { ...progressedSave().settings, musicVolume: defaultSave().settings.musicVolume } },
     ],
     ['settings that are a number', { settings: 5 }, { settings: defaultSave().settings }],
     ['settings that are an array', { settings: [] }, { settings: defaultSave().settings }],

@@ -132,20 +132,15 @@ export const config = {
     levels: qualityLevels as Record<keyof typeof qualityLevels, QualityLevelSettings>,
   },
   audio: {
-    /** The cut sounds as one soft, continuous breeze while the blade cuts, instead of one sound per cut. */
+    /** The cut sounds as one soft, continuous loop of snips while the blade cuts, instead of one sound per cut. */
     breeze: {
       /** Without a cut for this long the breeze dies down; shorter gaps between cutting frames do not make it flutter. */
       holdSeconds: 0.15,
       /** Time constants of its fade in and fade out. */
       fadeInSeconds: 0.12,
       fadeOutSeconds: 0.25,
-      volume: 0.45,
-      /** A low «shhh»: brown noise kept between these frequencies… */
-      highpassHz: 160,
-      lowpassHz: 650,
-      /** …with the low-pass swaying slowly up and down, so it breathes instead of hissing. */
-      swayHz: 0.18,
-      swayDepthHz: 220,
+      /** Loudness as RMS in dBFS: a soft bed some 12–15 dB under the taps and the coins. */
+      levelDb: -45,
     },
     music: {
       volume: 0.36,

@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { sliderGain } from './volume';
 
 export type SoundName = keyof typeof config.audio.volume;
 
@@ -7,13 +8,15 @@ export interface SoundPlayer {
   play(name: SoundName, rate?: number): void;
   /** Muting also stops the sounds that are playing. */
   setEnabled(enabled: boolean): void;
+  /** The effects slider, from 0 to 1. */
+  setVolume(position: number): void;
   /** The audio context the breeze and the music play in too, so one gesture unlocks them all; null without WebAudio. */
   readonly context: AudioContext | null;
 }
 
 const SOUND_NAMES = Object.keys(config.audio.volume) as SoundName[];
 /** The player of a browser without WebAudio: the game just plays in silence. */
-const SILENT_PLAYER: SoundPlayer = { play: () => {}, setEnabled: () => {}, context: null };
+const SILENT_PLAYER: SoundPlayer = { play: () => {}, setEnabled: () => {}, setVolume: () => {}, context: null };
 
 /** Plays Kenney's sounds from `baseUrl` (one `<name>.mp3` each); `onPlayed` hears every sound actually sent out. */
 export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, rate: number) => void): SoundPlayer {
@@ -22,6 +25,7 @@ export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, 
   const buffers: Partial<Record<SoundName, AudioBuffer>> = {};
   const playing = new Set<AudioBufferSourceNode>();
   let enabled = true;
+  let volume = 1;
 
   // Browsers start the context suspended until a gesture. Layers stop pointerdown, so this listens in the capture phase.
   // A touch only counts as a gesture when it ends (pointerup, touchend on iPhone); pointerdown counts for the mouse.
@@ -62,7 +66,7 @@ export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, 
     source.buffer = buffer;
     source.playbackRate.value = rate;
     const gain = context.createGain();
-    gain.gain.value = config.audio.volume[name];
+    gain.gain.value = config.audio.volume[name] * sliderGain(volume);
     source.connect(gain).connect(context.destination);
     playing.add(source);
     source.onended = () => playing.delete(source);
@@ -77,5 +81,9 @@ export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, 
     playing.clear();
   }
 
-  return { play, setEnabled, context };
+  function setVolume(position: number): void {
+    volume = position;
+  }
+
+  return { play, setEnabled, setVolume, context };
 }

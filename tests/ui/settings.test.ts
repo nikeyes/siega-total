@@ -4,8 +4,8 @@ import { defaultSave, type SaveData, type Settings } from '../../src/logic/save'
 import { texts } from '../../src/texts';
 import { settingRows } from '../../src/ui/settings';
 
-function saveWith(settings: Settings) {
-  return { ...defaultSave(), settings };
+function saveWith(settings: Partial<Settings>) {
+  return { ...defaultSave(), settings: { ...defaultSave().settings, ...settings } };
 }
 
 /** The on/off rows, leaving the quality picker out. */
