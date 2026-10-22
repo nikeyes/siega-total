@@ -139,10 +139,14 @@ El generador acepta una semilla solo si el nivel es posible **con el tamaño ini
 
 ### Curva de introducción
 
-1. Niveles 1–3: solo verde. Enseñan el movimiento.
-2. Niveles 4–6: verde + hielo. Enseñan la hierba objetivo.
-3. Nivel 7: aparece el trigo. Enseña "Necesitas más tamaño".
-4. Después: lavanda (10), rocas (13), frutas (16), zarza (19) y cactus (22), uno nuevo cada 3 niveles.
+Al principio, algo nuevo en cada nivel; después, uno cada 3 niveles.
+
+1. Nivel 1: solo verde. Enseña el movimiento.
+2. Nivel 2: frutas (sandía y fresa). La cuchilla crece con la hierba y rompe la primera fruta: el primer premio.
+3. Nivel 3: hielo. Enseña la hierba objetivo y estrena su bioma.
+4. Nivel 4: trigo. Enseña "Necesitas más tamaño". Una hierba nueva que la cuchilla no puede cortar al empezar llega siempre con otra que sí.
+5. Nivel 5: rocas.
+6. Después: lavanda (7), zarza (10) y cactus (13).
 
 ## Economía, boosters, pantallas y guardado
 

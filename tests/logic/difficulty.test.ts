@@ -19,13 +19,22 @@ describe('curveValue', () => {
 });
 
 describe('difficultyFor', () => {
-  it('has only green grass and no obstacles in levels 1 to 3', () => {
-    for (const level of [1, 2, 3]) {
-      const difficulty = difficultyFor(level);
-      expect(difficulty.levelNumber).toBe(level);
-      expect(difficulty.grassTypes).toEqual(['green']);
-      expect(difficulty.obstacleTypes).toEqual([]);
-      expect([difficulty.rockCount, difficulty.fruitCount, difficulty.cactusCount]).toEqual([0, 0, 0]);
+  it('has only green grass and no obstacles in level 1', () => {
+    const difficulty = difficultyFor(1);
+    expect(difficulty.levelNumber).toBe(1);
+    expect(difficulty.grassTypes).toEqual(['green']);
+    expect(difficulty.obstacleTypes).toEqual([]);
+    expect([difficulty.rockCount, difficulty.fruitCount, difficulty.cactusCount]).toEqual([0, 0, 0]);
+  });
+
+  it('brings something new in each of the first five levels', () => {
+    expect([2, 3, 4, 5].map((level) => difficultyFor(level).newElement)).toEqual(['fruit', 'ice', 'wheat', 'rock']);
+  });
+
+  it('brings a grass the starting blade can cut along with a new grass it cannot', () => {
+    for (const type of ['wheat', 'lavender', 'bramble'] as const) {
+      expect(config.grassTypes[type].minSize).toBeGreaterThan(config.blade.startSize);
+      expect(difficultyFor(unlockLevel[type]).grassTypeCount, type).toBeGreaterThanOrEqual(2);
     }
   });
 
@@ -42,8 +51,8 @@ describe('difficultyFor', () => {
   it('lists the unlocked grass types and obstacles in order of appearance, fruit as both kinds', () => {
     const late = difficultyFor(60);
     expect(late.grassTypes).toEqual(['green', 'ice', 'wheat', 'lavender', 'bramble']);
-    expect(late.obstacleTypes).toEqual(['rock', 'watermelon', 'strawberry', 'cactus']);
-    expect(difficultyFor(unlockLevel.fruit - 1).obstacleTypes).toEqual(['rock']);
+    expect(late.obstacleTypes).toEqual(['watermelon', 'strawberry', 'rock', 'cactus']);
+    expect(difficultyFor(unlockLevel.rock - 1).obstacleTypes).toEqual(['watermelon', 'strawberry']);
   });
 
   it('never asks for more grass types than are unlocked', () => {
@@ -65,11 +74,14 @@ describe('difficultyFor', () => {
     }
   });
 
-  it('rounds the curve to the nearest whole for the grass type and target counts', () => {
+  it('rounds the curve to the nearest whole for the grass type and target counts, but for a grass too tough to start with', () => {
     const { grassTypeCount, targetCount } = config.generator;
+    const toughGrassLevels = new Set([unlockLevel.wheat, unlockLevel.lavender, unlockLevel.bramble]);
     for (const level of LEVELS) {
       const difficulty = difficultyFor(level);
-      expect(difficulty.grassTypeCount, `level ${level}`).toBe(Math.min(Math.round(curveValue(grassTypeCount, level)), difficulty.grassTypes.length));
+      const fromCurve = Math.min(Math.round(curveValue(grassTypeCount, level)), difficulty.grassTypes.length);
+      const expected = toughGrassLevels.has(level) ? Math.max(2, fromCurve) : fromCurve;
+      expect(difficulty.grassTypeCount, `level ${level}`).toBe(expected);
       expect(difficulty.targetCount, `level ${level}`).toBe(Math.round(curveValue(targetCount, level)));
     }
   });

@@ -64,8 +64,8 @@ describe('generateLevel', () => {
     }
   });
 
-  it('targets green in levels 1 to 3', () => {
-    for (const level of [1, 2, 3]) expect(generateLevel(level, 5).targets).toEqual(['green']);
+  it('targets green in level 1, before anything new comes', () => {
+    for (const seed of SEEDS) expect(generateLevel(1, seed).targets).toEqual(['green']);
   });
 
   it('gives each region a different grass type, so the field shows grassTypeCount types', () => {
@@ -77,12 +77,13 @@ describe('generateLevel', () => {
     }
   });
 
-  it('draws the pattern with green and sand in the one-grass levels 1 to 3', () => {
-    for (const level of [1, 2, 3]) {
+  it('draws the pattern with its one grass and sand in the one-grass levels: green in 1 and 2, the new ice in 3', () => {
+    for (const [level, grass] of [[1, 'green'], [2, 'green'], [3, 'ice']] as const) {
+      expect(difficultyFor(level).grassTypeCount).toBe(1);
       for (const seed of SEEDS) {
         const { cells } = generateLevel(level, seed);
         const description = `level ${level} seed ${seed}`;
-        expect(new Set(cells.filter((type) => type !== null)), description).toEqual(new Set(['green']));
+        expect(new Set(cells.filter((type) => type !== null)), description).toEqual(new Set([grass]));
         expect(cells.some((type, cell) => type === null && !isInStartClearing(cell)), description).toBe(true);
       }
     }
