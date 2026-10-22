@@ -15,4 +15,5 @@ export const BIOME_COLORS: Record<GrassType, { ground: number; glow: number }> =
 /** The island's earth sides, the same in every biome. */
 export const CLIFF_COLOR = 0xc8783a;
 
-export const SEA_COLORS = { base: 0x1fa8f0, streaks: 0x7fd6ff, foam: 0xeafcff };
+/** Clear water by the shore deepening further out, the waves leaving the shore, and the foam along it. */
+export const SEA_COLORS = { shallow: 0x4dd1f5, deep: 0x1785e0, waves: 0xd9f7ff, foam: 0xf2ffff };
