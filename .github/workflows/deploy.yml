@@ -28,6 +28,8 @@ jobs:
       - run: make test
       - run: make build
       - run: make size
+      # The runners come with Google Chrome, which the e2e tests use, so no browser is downloaded.
+      - run: make e2e
       - if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v5
         with:

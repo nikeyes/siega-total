@@ -131,7 +131,8 @@ describe('validateLevel', () => {
   });
 
   it('rejects a strawberry target the blade never grows big enough to cut', () => {
-    const strawberryByTheStart: Obstacle[] = [{ type: 'strawberry', x: CENTER - 0.5, z: CENTER - 0.5 }];
+    // In the green by the start, but clear of where the blade starts.
+    const strawberryByTheStart: Obstacle[] = [{ type: 'strawberry', x: CENTER - 0.8, z: CENTER + 0.8 }];
     const level = greenCenterThen(1, 'bramble', { obstacles: strawberryByTheStart, targets: ['strawberry'] });
     expect(validateLevel(level)).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
@@ -156,7 +157,9 @@ describe('validateLevel', () => {
     const strawberriesAt = (row: number): Obstacle[] =>
       Array.from({ length: 6 }, (_, index) => ({ type: 'strawberry', x: CENTER - 2.5 + index, z: row + 0.5 }));
     const overrides = { targets: ['lavender'] as const };
-    expect(validateLevel(cellLevel(typeOfCell, { ...overrides, obstacles: strawberriesAt(greenRow) }))).toEqual({ valid: true });
+    // In the green south of the start, where they block no way into the strip.
+    const inReachRow = CENTER + 2;
+    expect(validateLevel(cellLevel(typeOfCell, { ...overrides, obstacles: strawberriesAt(inReachRow) }))).toEqual({ valid: true });
     expect(validateLevel(cellLevel(typeOfCell, { ...overrides, obstacles: strawberriesAt(2) }))).toEqual({
       valid: false,
       reason: 'unreachableTargets',
@@ -185,6 +188,44 @@ describe('validateLevel', () => {
     const { maxTimeSeconds } = config.generator;
     expect(validateLevel(greenCenterThen(3, 'ice', { timeSeconds: maxTimeSeconds }))).toEqual({ valid: true });
     expect(validateLevel(greenCenterThen(3, 'ice', { timeSeconds: maxTimeSeconds + 1 }))).toEqual({ valid: false, reason: 'tooLong' });
+  });
+
+  /**
+   * Bramble everywhere but green round the start (the 2 × 2 cells around the field center) and a green corridor
+   * `width` cells wide heading east from it, to an ice target by the east edge with a strip of sand round it.
+   */
+  function corridorToIce(width: number): LevelDefinition {
+    const corridorRows = width === 1 ? [CENTER] : [CENTER - 1, CENTER];
+    return cellLevel((column, row) => {
+      const fromCenterRow = Math.abs(row + 0.5 - CENTER);
+      if (column >= SIDE - 3 && fromCenterRow <= 2) return 'ice';
+      if (column >= SIDE - 4 && fromCenterRow <= 3) return null;
+      if ((column === CENTER - 1 || column === CENTER) && (row === CENTER - 1 || row === CENTER)) return 'green';
+      if (column > CENTER && corridorRows.includes(row)) return 'green';
+      return 'bramble';
+    });
+  }
+
+  it('accepts a corridor wide enough for a blade of every start size the shop sells', () => {
+    expect(validateLevel(corridorToIce(2))).toEqual({ valid: true });
+  });
+
+  it('rejects a corridor only a size-1 blade fits through, since a player who bought a bigger start would be stuck', () => {
+    expect(bladeRadius(config.blade.startSize) * 2).toBeLessThanOrEqual(1);
+    expect(bladeRadius(config.blade.startSize + config.upgrades.startSize.perLevel) * 2).toBeGreaterThan(1);
+    expect(validateLevel(corridorToIce(1))).toEqual({ valid: false, reason: 'unreachableTargets' });
+  });
+
+  it('reaches a target the blade can only get to round the shore', () => {
+    // Ice in the north-west corner with sand round it, walled from the start by bramble but open to the edge of the field;
+    // sand everywhere else, so the blade never grows enough to cut the bramble.
+    const level = cellLevel((column, row) => {
+      if (column <= 1 && row <= 1) return 'ice';
+      if (column <= 2 && row <= 2) return null;
+      if (column <= 3 && row <= 3) return 'bramble';
+      return null;
+    });
+    expect(validateLevel(level)).toEqual({ valid: true });
   });
 
   it('rejects a level whose start is a wall', () => {
