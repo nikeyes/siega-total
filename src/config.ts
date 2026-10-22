@@ -50,7 +50,7 @@ export const config = {
     strawberry: { radius: 0.25, minSize: 2, growthCuts: 5, coins: 100 },
   },
   economy: {
-    coinsPerSecondLeft: 100,
+    coinsPerSecondLeft: 50,
     /** The floating «+N» shows the coins of this interval added together. */
     floatIntervalSeconds: 0.2,
   },
@@ -59,7 +59,7 @@ export const config = {
     priceRoundTo: 100,
     startSize: { max: 4, perLevel: 1, basePrice: 8000, priceGrowth: 2 },
     speed: { max: 10, perLevel: 0.06, basePrice: 5000, priceGrowth: 1.5 },
-    extraTime: { max: 10, perLevel: 5, basePrice: 5000, priceGrowth: 1.5 },
+    extraTime: { max: 10, perLevel: 3, basePrice: 5000, priceGrowth: 1.5 },
     growth: { max: 10, perLevel: 0.1, basePrice: 5000, priceGrowth: 1.5 },
   },
   boosters: {
@@ -101,7 +101,7 @@ export const config = {
     rockCount: { first: 1, last: 3 },
     fruitCount: { first: 4, last: 16 },
     cactusCount: { first: 1, last: 2 },
-    timeMargin: { first: 2.0, last: 1.3 },
+    timeMargin: { first: 2.0, last: 1.6 },
     /** Seconds to walk to and cut each target piece, on top of the swept area. */
     secondsPerTargetPiece: 1.5,
     /** Free space kept between obstacles, so the blade can pass between them. */
