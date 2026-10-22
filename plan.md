@@ -112,7 +112,7 @@ Cualquier hierba puede ser la hierba objetivo.
 1. El bioma de cada nivel es su hierba dominante: la que ocupa más celdas. En un empate gana la primera del orden verde, hielo, trigo, lavanda, zarza; un campo sin hierba es verde. No se guarda ni cambia el generador.
 2. El campo es una isla: una losa con acantilado de tierra anaranjada moteada, rodeada de mar. Alrededor de la hierba queda una orilla de 1,5 m sin hierba por la que la cuchilla también se mueve.
 3. El suelo de la isla toma el color del bioma (verde claro, blanco azulado, ocre, verde grisáceo o tierra oscura), con ruido suave y un borde más oscuro. Las celdas de arena y la hierba cortada dejan verlo.
-4. El mar tiene vetas claras que se mueven despacio y una línea de espuma que late junto a la orilla. En calidad Baja se queda quieto.
+4. El mar es claro junto a la isla y más oscuro mar adentro. Desde la orilla salen olas suaves que siguen su forma y se desvanecen al alejarse, y una línea de espuma late junto a ella. En calidad Baja se queda quieto.
 
 ### Generador
 
