@@ -13,8 +13,8 @@ export type GeneratedLevel = LevelDefinition & { pattern: PatternName };
 const PLACEMENT_TRIES = 20;
 /** The generator draws levels on 1 m cells. */
 const CELL_SIZE = 1;
-/** Levels up to this one only ask for green. */
-const LAST_GREEN_ONLY_LEVEL = 3;
+/** Levels up to this one only ask for green; the next ones each bring something new to ask for. */
+const LAST_GREEN_ONLY_LEVEL = 1;
 
 /** A level for `levelNumber` from `seed`; not validated. */
 export function generateLevel(levelNumber: number, seed: number): GeneratedLevel {

@@ -42,16 +42,24 @@ export function difficultyFor(levelNumber: number): Difficulty {
   const grassTypes = unlocked.filter((element): element is GrassType => (GRASS_TYPE_ORDER as readonly string[]).includes(element));
   const countIfUnlocked = (element: Unlockable, range: { first: number; last: number }) =>
     isUnlocked(element) ? Math.round(curveValue(range, levelNumber)) : 0;
+  const newElement = unlocked.find((element) => generator.unlockLevel[element] === levelNumber) ?? null;
+  const grassTypeCount = Math.min(Math.round(curveValue(generator.grassTypeCount, levelNumber)), grassTypes.length);
   return {
     levelNumber,
     grassTypes,
     obstacleTypes: unlocked.flatMap((element) => OBSTACLES_OF[element] ?? []),
-    newElement: unlocked.find((element) => generator.unlockLevel[element] === levelNumber) ?? null,
-    grassTypeCount: Math.min(Math.round(curveValue(generator.grassTypeCount, levelNumber)), grassTypes.length),
+    newElement,
+    // The blade has to grow on another grass before it can cut a new one too tough for its starting size.
+    grassTypeCount: isToughGrass(newElement) ? Math.max(2, grassTypeCount) : grassTypeCount,
     targetCount: Math.round(curveValue(generator.targetCount, levelNumber)),
     rockCount: countIfUnlocked('rock', generator.rockCount),
     fruitCount: countIfUnlocked('fruit', generator.fruitCount),
     cactusCount: countIfUnlocked('cactus', generator.cactusCount),
     timeMargin: curveValue(generator.timeMargin, levelNumber),
   };
+}
+
+/** A grass the blade cannot cut at its starting size. */
+function isToughGrass(element: Unlockable | null): boolean {
+  return element !== null && element in config.grassTypes && config.grassTypes[element as GrassType].minSize > config.blade.startSize;
 }
