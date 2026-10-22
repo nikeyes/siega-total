@@ -130,10 +130,10 @@ function chooseTargets(
   return shuffle(random, [...grassPresent, ...piecesPresent]).slice(0, Math.max(1, targetCount));
 }
 
-/** The estimate times the level's margin, rounded up to roundTimeToSeconds. */
+/** The estimate times the level's margin, rounded up to roundTimeToSeconds, plus extraSeconds. */
 function levelTime(level: LevelDefinition, difficulty: Difficulty): number {
-  const { roundTimeToSeconds } = config.generator;
-  return Math.ceil((estimateSeconds(level) * difficulty.timeMargin) / roundTimeToSeconds) * roundTimeToSeconds;
+  const { roundTimeToSeconds, extraSeconds } = config.generator;
+  return Math.ceil((estimateSeconds(level) * difficulty.timeMargin) / roundTimeToSeconds) * roundTimeToSeconds + extraSeconds;
 }
 
 function pick<T>(random: () => number, items: readonly T[]): T {

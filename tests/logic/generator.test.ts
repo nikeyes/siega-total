@@ -188,10 +188,10 @@ describe('generateLevel', () => {
     }
   });
 
-  it("gives the estimate times the level's margin, rounded up to roundTimeToSeconds", () => {
+  it("gives the estimate times the level's margin, rounded up to roundTimeToSeconds, plus extraSeconds", () => {
     for (const level of LEVELS) {
       const generated = generateLevel(level, 7);
-      const exact = estimateSeconds(generated) * difficultyFor(level).timeMargin;
+      const exact = estimateSeconds(generated) * difficultyFor(level).timeMargin + config.generator.extraSeconds;
       expect(generated.timeSeconds % roundTimeToSeconds, `level ${level}`).toBe(0);
       expect(generated.timeSeconds, `level ${level}`).toBeGreaterThanOrEqual(exact);
       expect(generated.timeSeconds, `level ${level}`).toBeLessThan(exact + roundTimeToSeconds);
@@ -209,8 +209,8 @@ describe('fallbackLevel', () => {
     expect(level.cells).toEqual(level.cells.map((_, cell) => (isInStartClearing(cell) ? null : firstType)));
   });
 
-  it('asks for that grass only, with the time margin of level 1', () => {
-    const exact = estimateSeconds(level) * difficultyFor(1).timeMargin;
+  it('asks for that grass only, with the time margin of level 1 and extraSeconds', () => {
+    const exact = estimateSeconds(level) * difficultyFor(1).timeMargin + config.generator.extraSeconds;
     expect(level.targets).toEqual([firstType]);
     expect(level.timeSeconds).toBeGreaterThanOrEqual(exact);
     expect(level.timeSeconds).toBeLessThan(exact + roundTimeToSeconds);
