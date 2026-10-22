@@ -190,7 +190,7 @@ Victoria, Derrota y Pausa también vuelven a Inicio. En Derrota, el reloj sigue 
 4. Primera partida: al pulsar Jugar por primera vez, una mano animada enseña el joystick. Desaparece con el primer movimiento.
 5. Ajustes: sonido y música, cada uno con su regulador de volumen (efectos al 65 % y música al 100 % por defecto), vibración, calidad, borrar progreso (con confirmación).
 6. La música suena salvo en Pausa o con la pestaña oculta, con fundidos al entrar y salir.
-7. La música tiene dos estilos: el de partida (Jugando y Pausa) y uno más tranquilo para los menús (Inicio, Tienda, Ajustes y Resultado), a 60 bpm, sin bombo y con otra progresión. Al cambiar de estilo hay un fundido cruzado de 1,5 s.
+7. La música tiene dos estilos: el de partida (Jugando y Pausa) y uno más tranquilo para los menús (Inicio, Tienda, Ajustes y Resultado), a 60 bpm, sin bombo, con acordes que suenan todo el compás y otra progresión. Al cambiar de estilo hay un fundido cruzado de 1,5 s.
 
 ### Guardado
 

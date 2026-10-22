@@ -40,7 +40,7 @@ const CHORD_ECHO_EIGHTH = 3;
 const KICK_EIGHTHS = [0, 4];
 /** The notes of a chord come this far apart, like fingers on a keyboard. */
 const STRUM_SECONDS = 0.012;
-const RING_SECONDS = { chord: 2.6, chordEcho: 1.4, melody: 1.2, bass: 1.4, kick: 0.3, brush: 0.06 };
+const RING_SECONDS = { melody: 1.2, bass: 1.4, kick: 0.3, brush: 0.06 };
 /** Scale steps the melody can take from one note to the next, the small ones more often. */
 const MELODY_STEPS = [-2, -1, -1, 0, 1, 1, 2];
 
@@ -59,7 +59,7 @@ export function createLofiComposer(style: MusicStyle, random: () => number = Mat
   let melodyIndex = Math.floor(LOFI_SCALE.length / 2);
 
   function eighth(step: number): LofiNote[] {
-    const { swing, melodyChance, levels } = config.audio.music.styles[style];
+    const { swing, melodyChance, levels, ringSeconds } = config.audio.music.styles[style];
     const inBar = step % EIGHTHS_PER_BAR;
     const chord = chords[Math.floor(step / EIGHTHS_PER_BAR) % chords.length]!;
     const delay = step % 2 === 1 ? swing * eighthSeconds(style) : 0;
@@ -68,10 +68,10 @@ export function createLofiComposer(style: MusicStyle, random: () => number = Mat
       chord.forEach((midi, finger) => notes.push({ instrument: 'chord', midi, delaySeconds: delay + finger * STRUM_SECONDS, seconds, level }));
 
     if (inBar === 0) {
-      strum(RING_SECONDS.chord, levels.chord);
+      strum(ringSeconds.chord, levels.chord);
       notes.push({ instrument: 'bass', midi: chord[0]! - 12, delaySeconds: delay, seconds: RING_SECONDS.bass, level: levels.bass });
     }
-    if (inBar === CHORD_ECHO_EIGHTH) strum(RING_SECONDS.chordEcho, levels.chordEcho);
+    if (inBar === CHORD_ECHO_EIGHTH) strum(ringSeconds.chordEcho, levels.chordEcho);
     if (levels.kick > 0 && KICK_EIGHTHS.includes(inBar)) notes.push({ instrument: 'kick', delaySeconds: delay, seconds: RING_SECONDS.kick, level: levels.kick });
     const brushLevel = inBar % 2 === 0 ? levels.brushOnBeat : levels.brushOffBeat;
     notes.push({ instrument: 'brush', delaySeconds: delay, seconds: RING_SECONDS.brush, level: brushLevel });

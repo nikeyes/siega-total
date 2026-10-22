@@ -168,12 +168,16 @@ export const config = {
           bpm: 70,
           swing: 0.16,
           melodyChance: 0.14,
+          /** How long the chord and its softer echo ring, in seconds. */
+          ringSeconds: { chord: 2.6, chordEcho: 1.4 },
           levels: { chord: 0.035, chordEcho: 0.022, melody: 0.04, bass: 0.1, kick: 0.12, brushOnBeat: 0.03, brushOffBeat: 0.018 },
         },
         menu: {
           bpm: 60,
           swing: 0.12,
           melodyChance: 0.08,
+          // Without the kick to carry the bar, the chords ring on into the next one.
+          ringSeconds: { chord: 10, chordEcho: 5 },
           levels: { chord: 0.035, chordEcho: 0.022, melody: 0.04, bass: 0.07, kick: 0, brushOnBeat: 0.015, brushOffBeat: 0.009 },
         },
       },

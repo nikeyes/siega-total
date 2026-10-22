@@ -736,6 +736,8 @@ Dos estilos del compositor y fundido cruzado entre ellos.
 - **Fase 5:** bugmagnet encontró que un crujido del cactus en los 2 primeros ms hacía clic. Los crujidos empiezan a los 5 ms.
 - **Fase 6:** el aviso de poco tiempo pone la segunda nota a los 0,5 s, así cada mitad del sonido tiene una sola nota dominante.
 - **Fase 8:** los destellos del confeti van de 2 a 4 kHz (no hasta 5 kHz), con un paso bajo de cuarto orden a 4,5 kHz: menos agudos que la regla general.
+- **Tras probar en Chrome:** el brillo no se veía en hielo (aditivo sobre casi blanco) y en lavanda se quemaba a blanco. El suelo de hielo pasa a `0xc6dbe9` y el brillo de lavanda a `0x9a5fb0`.
+- **Tras probar en Chrome:** la música de menú quedaba en silencio unos 2 s de cada compás y 8,5 dB por debajo de la de partida. Sus acordes suenan ahora 10 s (eco 5 s), con `ringSeconds` por estilo en `config`, y queda unos 2 dB por debajo.
 - **Comprobación en el navegador:** con Chrome headless (SwiftShader) y Playwright, porque la extensión de Chrome no estaba conectada.
 
 ## Estrategia de pruebas

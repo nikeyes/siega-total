@@ -96,4 +96,10 @@ describe('lo-fi composer, menu style', () => {
     const melodyNotes = (style: MusicStyle) => compose(2000, 7, style).flatMap((notes) => of(notes, 'melody')).length;
     expect(melodyNotes('menu')).toBeLessThan(melodyNotes('game'));
   });
+
+  it('lets each chord ring through its whole bar, so the menu never falls silent between chords', () => {
+    const barSeconds = eighthSeconds('menu') * EIGHTHS_PER_BAR;
+    const firstChord = of(compose(1, 7, 'menu')[0]!, 'chord');
+    firstChord.forEach((note) => expect(note.seconds).toBeGreaterThan(barSeconds));
+  });
 });
