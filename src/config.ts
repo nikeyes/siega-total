@@ -86,6 +86,8 @@ export const config = {
     maxAttempts: 50,
     maxTimeSeconds: 180,
     roundTimeToSeconds: 5,
+    /** Every generated level gets this on top of its estimate: turning, braking and hunting down the last blades. */
+    extraSeconds: 30,
     startClearingMeters: 3,
     /** Patterns always split the field at least this much; regions with no grass type left are sand, so even one-grass levels show their shape. */
     minPatternRegions: 2,
