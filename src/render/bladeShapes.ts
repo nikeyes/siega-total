@@ -1,28 +1,31 @@
-export type BladeShape =
-  | { kind: 'arms'; arms: number; width: number; teeth: number; hubHole: boolean }
-  | { kind: 'disc'; teeth: number };
+export interface BladeShape {
+  arms: number;
+  /** Times the width of the size-1 arm. */
+  width: number;
+  teeth: number;
+  hubHole: boolean;
+}
 
-/** Shapes for sizes 1 to 6; size 7 and up is the disc. */
-const ARM_SHAPES: readonly BladeShape[] = [
-  { kind: 'arms', arms: 2, width: 1, teeth: 0, hubHole: false },
-  { kind: 'arms', arms: 3, width: 1, teeth: 0, hubHole: false },
-  { kind: 'arms', arms: 4, width: 1, teeth: 0, hubHole: false },
-  { kind: 'arms', arms: 5, width: 1.4, teeth: 0, hubHole: true },
-  { kind: 'arms', arms: 6, width: 1.2, teeth: 3, hubHole: false },
-  { kind: 'arms', arms: 8, width: 1, teeth: 3, hubHole: false },
+/** Shapes for sizes 1 to 7; bigger blades keep the last one. */
+const SHAPES: readonly BladeShape[] = [
+  { arms: 2, width: 1, teeth: 0, hubHole: false },
+  { arms: 3, width: 1, teeth: 0, hubHole: false },
+  { arms: 4, width: 1, teeth: 0, hubHole: false },
+  { arms: 5, width: 1.4, teeth: 0, hubHole: true },
+  { arms: 6, width: 1.2, teeth: 3, hubHole: false },
+  { arms: 8, width: 1, teeth: 3, hubHole: false },
+  { arms: 10, width: 0.9, teeth: 4, hubHole: true },
 ];
-const DISC_SHAPE: BladeShape = { kind: 'disc', teeth: 24 };
 
-/** Sizes 1–6 add arms, teeth from 5; size 7 and up is a toothed disc. */
+/** Always arms: each size up to 7 adds some, teeth from 5. */
 export function bladeShapeFor(size: number): BladeShape {
-  return ARM_SHAPES[Math.max(size, 1) - 1] ?? DISC_SHAPE;
+  return SHAPES[Math.min(Math.max(size, 1), SHAPES.length) - 1]!;
 }
 
 /** Radius of the hub at the blade's centre, in blade radii. */
 export const HUB_RADIUS = 0.22;
 /** Radius of the hole through the hub, in blade radii. */
 export const HUB_HOLE_RADIUS = 0.11;
-const HOLE_SEGMENTS = 24;
 
 export interface Vec2 {
   x: number;
@@ -91,17 +94,6 @@ function quadraticPoint(start: Vec2, control: Vec2, end: Vec2, t: number): Vec2 
     x: u * u * start.x + 2 * u * t * control.x + t * t * end.x,
     y: u * u * start.y + 2 * u * t * control.y + t * t * end.y,
   };
-}
-
-/** A disc of radius 1 with `teeth` saw teeth and a hole for the hub. */
-export function discOutline(teeth: number): { outer: Vec2[]; hole: Vec2[] } {
-  const toothAngle = (Math.PI * 2) / teeth;
-  const outer = Array.from({ length: teeth }, (_, tooth) => [
-    polar(1, tooth * toothAngle),
-    polar(1 - TOOTH_DEPTH, (tooth + TOOTH_BACK_SHARE) * toothAngle),
-  ]).flat();
-  const hole = Array.from({ length: HOLE_SEGMENTS }, (_, step) => polar(HUB_HOLE_RADIUS, (step / HOLE_SEGMENTS) * Math.PI * 2));
-  return { outer, hole };
 }
 
 function polar(radius: number, angle: number): Vec2 {

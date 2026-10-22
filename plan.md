@@ -249,7 +249,7 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | Restos | Trozos del color de la hierba salen despedidos y caen al suelo. En Alto se quedan en el suelo; en Medio se desvanecen; en Bajo hay menos. |
 | "+N" flotante | Agrupado: un texto cada 0,2 s con la suma del intervalo. |
 | Sonido de corte | Siseo agudo y suave que va y viene a 7 Hz, con chasquidos de hierba cortada, mezclado bajo (−45 dBFS, 12–15 dB por debajo de los efectos). Entra al cortar y se desvanece al parar. |
-| Subida de tamaño | Destello, sonido ascendente, texto "Tamaño N". La cuchilla cambia de forma: 2, 3 y 4 brazos curvos; 5 brazos más anchos con agujero en el buje; 6 y 8 brazos con dientes de sierra; disco dentado desde el tamaño 7. Ninguna forma pasa del radio de corte. |
+| Subida de tamaño | Destello, sonido ascendente, texto "Tamaño N". La cuchilla cambia de forma: 2, 3 y 4 brazos curvos; 5 brazos más anchos con agujero en el buje; 6 y 8 brazos con dientes de sierra; 10 brazos con dientes y agujero en el buje desde el tamaño 7. Siempre tiene aspas, y ninguna forma pasa del radio de corte. |
 | Brillo | Halo suave bajo la cuchilla, de 1,5 veces su radio, teñido según el bioma. |
 | Rotura | Cada obstáculo que se rompe suena con su propio sonido (sandía, fresa o cactus), en 4 variantes y con el tono ±6 %. Como mucho uno por tipo en cada paso. |
 | Poco tiempo | Por debajo de 10 s, el anillo del reloj pasa a ámbar y late, y suena una vez un aviso blando de dos notas. Si el reloj vuelve a subir, el aviso se rearma. |

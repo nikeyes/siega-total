@@ -6,14 +6,13 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
-  Path,
   Shape,
   ShapeGeometry,
   Vector2,
   type Scene,
 } from 'three';
 import { bladeRadius, type Blade } from '../logic/blade';
-import { armOutline, bladeShapeFor, discOutline, HUB_HOLE_RADIUS, HUB_RADIUS, type BladeShape, type Vec2 } from './bladeShapes';
+import { armOutline, bladeShapeFor, HUB_HOLE_RADIUS, HUB_RADIUS, type BladeShape, type Vec2 } from './bladeShapes';
 
 const HUB_COLOR = 0x1fb6f2;
 const BLADE_COLOR = 0xf2f4f7;
@@ -31,7 +30,7 @@ export interface BladeView {
   setShadowVisible(visible: boolean): void;
 }
 
-/** A blue hub with the arms or disc of `bladeShapeFor(size)`, sized to a radius of 1 and scaled to `bladeRadius(size)`, plus a fake shadow. */
+/** A blue hub with the arms of `bladeShapeFor(size)`, sized to a radius of 1 and scaled to `bladeRadius(size)`, plus a fake shadow. */
 export function createBladeView(scene: Scene): BladeView {
   const spinner = new Group();
   spinner.add(
@@ -42,7 +41,7 @@ export function createBladeView(scene: Scene): BladeView {
   const shapeGroups = new Map<string, Group>();
   let currentShape: Group | null = null;
 
-  /** The blade's arms or disc for `shape`, built the first time it is needed. */
+  /** The blade's arms for `shape`, built the first time it is needed. */
   function shapeGroup(shape: BladeShape): Group {
     const key = JSON.stringify(shape);
     let group = shapeGroups.get(key);
@@ -88,16 +87,9 @@ export function createBladeView(scene: Scene): BladeView {
   return { update, setShadowVisible };
 }
 
-/** The arms around the hub, or the disc, drawn flat at a radius of 1. */
+/** The arms around the hub, drawn flat at a radius of 1. */
 function createShapeGroup(shape: BladeShape, bladeMaterial: MeshLambertMaterial, hubHoleMaterial: MeshBasicMaterial): Group {
   const group = new Group();
-  if (shape.kind === 'disc') {
-    const { outer, hole } = discOutline(shape.teeth);
-    const disc = new Shape(outer.map(toVector2));
-    disc.holes.push(new Path(hole.map(toVector2)));
-    group.add(new Mesh(flatGeometry(disc), bladeMaterial));
-    return group;
-  }
   const armGeometry = flatGeometry(new Shape(armOutline(shape.width, shape.teeth).map(toVector2)));
   for (let arm = 0; arm < shape.arms; arm++) {
     const armMesh = new Mesh(armGeometry, bladeMaterial);
