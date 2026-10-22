@@ -16,6 +16,7 @@ import { GRASS_TYPE_ORDER, type Field } from '../logic/field';
 import { createRandom } from '../logic/random';
 import { GRASS_COLORS } from './grassColors';
 import { changedInstanceRanges, layoutGrass, type GrassLayout } from './grassLayout';
+import { WIND_DIRECTION, WIND_LEAN_GLSL } from './windMath';
 
 /** Each field blade is drawn as a tuft of pointed spikes, so the field looks dense with few instances. */
 const SPIKES_PER_TUFT = 7;
@@ -31,7 +32,6 @@ const TUFT_HEIGHT_VARIATION = 0.2;
 const TUFT_SHADE_VARIATION = 0.12;
 /** The two faces of a spike get different brightness, like a folded leaf lit from one side. */
 const SPIKE_DARK_FACE_SHADE = 0.78;
-const WIND_SWAY_METERS = 0.05;
 /** Height a cut blade keeps, as a fraction of its standing height. */
 const CUT_HEIGHT_FRACTION = 0.08;
 /** A cut tuft also shrinks sideways, so the cut path shows the sand with only small clippings. */
@@ -55,6 +55,7 @@ const vertexShader = /* glsl */ `
   varying float vRelativeHeight;
   varying float vShade;
   varying float vHighlight;
+  ${WIND_LEAN_GLSL}
 
   void main() {
     float heightScale = 1.0;
@@ -74,8 +75,8 @@ const vertexShader = /* glsl */ `
     local.xz *= spreadScale;
     vec4 world = modelMatrix * instanceMatrix * vec4(local, 1.0);
     vec2 root = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
-    float sway = sin(time * 2.0 + root.x * 0.5 + root.y * 0.3) * relativeHeight * relativeHeight;
-    world.xz += sway * heightScale * ${WIND_SWAY_METERS.toFixed(3)};
+    vec2 windDirection = vec2(${WIND_DIRECTION.x.toFixed(6)}, ${WIND_DIRECTION.z.toFixed(6)});
+    world.xz += windDirection * windLean(root, time) * relativeHeight * relativeHeight * heightScale;
     vRelativeHeight = relativeHeight;
     vShade = spikeShade * instanceShade;
     gl_Position = projectionMatrix * viewMatrix * world;

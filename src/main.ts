@@ -6,6 +6,7 @@ import { canVibrate, createVibration } from './audio/vibration';
 import { campaignSeeds } from './campaign';
 import { config } from './config';
 import type { DebugPanel, QualityStatus } from './debug/panel';
+import { dominantGrassType } from './logic/biome';
 import { bladeRadius, growthFraction } from './logic/blade';
 import { GRASS_TYPE_ORDER } from './logic/field';
 import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
@@ -36,11 +37,13 @@ import { OBSTACLE_COLORS } from './render/obstacleColors';
 import { loadObstacleModels, placeholderObstacleModels, type ObstacleModels } from './render/obstacleModels';
 import { createObstacleView, type ObstacleView } from './render/obstacles';
 import { combineDirections } from './logic/input';
+import { createBladeGlow } from './render/bladeGlow';
 import { createBladeView } from './render/blade';
 import { createCompassView } from './render/compass';
 import { createCameraRig, halfVisible } from './render/cameraRig';
 import { createGrassView, type GrassView } from './render/grass';
 import { createGameScene } from './render/scene';
+import { createSea } from './render/sea';
 import { createHud } from './ui/hud';
 import { createJoystick } from './ui/joystick';
 import { createKeyboard } from './ui/keyboard';
@@ -99,6 +102,7 @@ container.addEventListener('click', (event) => {
 });
 
 const gameScene = createGameScene(container, config.field.width, config.field.depth);
+const sea = createSea(gameScene.scene, config.field.width, config.field.depth);
 const burst = createBurstView(gameScene.scene);
 const qualityMonitor = createQualityMonitor();
 const groundClippings = createGroundClippings(gameScene.scene, config.quality.groundClippings);
@@ -113,6 +117,7 @@ let sizeUpAge = Infinity;
 const blockedNotice = createBlockedNotice();
 const coinFloats = createCoinFloats();
 const bladeView = createBladeView(gameScene.scene);
+const bladeGlow = createBladeGlow(gameScene.scene);
 
 /** Builds the next attempt at `next`: pixel ratio, blade shadow and clippings; the ground and the air are always swept clean. */
 function applyQuality(next: QualityLevel): void {
@@ -123,6 +128,7 @@ function applyQuality(next: QualityLevel): void {
   const settings = config.quality.levels[next];
   gameScene.setMaxPixelRatio(settings.maxPixelRatio);
   bladeView.setShadowVisible(settings.shadow);
+  sea.setAnimated(next !== 'low');
   clippings?.dispose();
   clippings = createBurstView(gameScene.scene, {
     ...clippingOptions(next),
@@ -322,6 +328,9 @@ function playLevel(level: LevelDefinition): void {
   // Until the first move, every new level brings the hand back; the CSS only shows it while playing.
   if (save.tutorialDone) tutorialHint.hide();
   else tutorialHint.show();
+  const biome = dominantGrassType(level.cells);
+  gameScene.setBiome(biome);
+  bladeGlow.setBiome(biome);
   grass = createGrassView(gameScene.scene, game.field, level.seed);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);
@@ -543,6 +552,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   clampFocus(focus, field.width, field.depth, halfVisibleX, halfVisibleZ, edgeMargin);
 
   bladeView.update(blade, dt);
+  bladeGlow.update(blade);
   sizeUpAge += dt;
   const ring = sizeUpRing(sizeUpAge, bladeRadius(blade.size));
   sizeUpRingView.show(blade.x, blade.z, ring?.radius ?? 0, ring?.opacity ?? 0);
@@ -551,6 +561,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   compassView.update(blade, compassTarget(dt));
   cameraRig.update(focus);
   grass!.setTime(elapsedSeconds);
+  sea.update(elapsedSeconds);
   gameScene.renderer.render(gameScene.scene, cameraRig.camera);
 
   const bladeOnScreen = cameraRig.toScreen(blade.x, 0, blade.z, container.clientWidth, container.clientHeight);
