@@ -3,7 +3,8 @@ import { texts } from '../../src/texts';
 import { config } from '../../src/config';
 import { defaultSave } from '../../src/logic/save';
 import { formatCount } from '../../src/ui/formatCount';
-import { continueButton, resultLines } from '../../src/ui/result';
+import { continueButton, resultLines, resultStarDelays } from '../../src/ui/result';
+import { victorySteps } from '../../src/ui/victorySequence';
 
 const SUMMARY = { levelCoins: 12_840, bonusCoins: 4_000 };
 
@@ -62,5 +63,23 @@ describe('continueButton', () => {
     const save = { ...defaultSave(), coins: price - 1 };
     save.boosters.clock = 0;
     expect(continueButton(save).disabled).toBe(true);
+  });
+});
+
+describe('resultStarDelays', () => {
+  it('after a win, brings in three stars one after another', () => {
+    const delays = resultStarDelays('won');
+    expect(delays).toHaveLength(3);
+    expect(delays[1]).toBeGreaterThan(delays[0]!);
+    expect(delays[2]).toBeGreaterThan(delays[1]!);
+  });
+
+  it('pops each star in at the moment its note plays', () => {
+    const starNotes = victorySteps().filter(({ step }) => step.kind === 'star').map(({ at }) => at);
+    expect(resultStarDelays('won')).toEqual(starNotes);
+  });
+
+  it('shows no stars after a defeat', () => {
+    expect(resultStarDelays('lost')).toEqual([]);
   });
 });

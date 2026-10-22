@@ -2,8 +2,9 @@ import { config } from '../config';
 import type { SaveData } from '../logic/save';
 import { texts } from '../texts';
 import { formatCount } from './formatCount';
-import { coinIconSvg } from './icons';
+import { coinIconSvg, starIconSvg } from './icons';
 import { createLayer, layerButton, layerTitle } from './layer';
+import { victorySteps } from './victorySequence';
 
 export type Outcome = 'won' | 'lost';
 
@@ -22,6 +23,12 @@ export interface ResultOverlay {
 const TITLES: Record<Outcome, string> = { won: texts.result.wonTitle, lost: texts.result.lostTitle };
 
 /** A win shows the coins cut, the time bonus and their total; a defeat, only the coins cut. */
+/** When each star pops in after a win, in seconds, in step with its note; none after a defeat. */
+export function resultStarDelays(outcome: Outcome): number[] {
+  if (outcome === 'lost') return [];
+  return victorySteps().flatMap(({ at, step }) => (step.kind === 'star' ? [at] : []));
+}
+
 export function resultLines(outcome: Outcome, { levelCoins, bonusCoins }: ResultSummary): string[] {
   const coins = `${texts.result.coins} ${formatCount(levelCoins)}`;
   if (outcome === 'lost') return [coins];
@@ -62,11 +69,13 @@ export interface ResultActions {
 export function createResultOverlay(container: HTMLElement, actions: ResultActions): ResultOverlay {
   const layer = createLayer(container, 'result');
   const title = layerTitle('');
+  const stars = document.createElement('div');
+  stars.className = 'result-stars';
   const lines = document.createElement('div');
   lines.className = 'result-lines';
   const buttons = document.createElement('div');
   buttons.className = 'layer-buttons';
-  layer.append(title, lines, buttons);
+  layer.append(title, stars, lines, buttons);
   const buttonsFor: Record<Outcome, HTMLButtonElement[]> = {
     won: [
       layerButton(texts.result.wonButton, 'primary', actions.onNext),
@@ -88,6 +97,10 @@ export function createResultOverlay(container: HTMLElement, actions: ResultActio
     continueElement.disabled = disabled;
     title.textContent = TITLES[outcome];
     layer.dataset.outcome = outcome;
+    // New elements each time, so the pop animation plays again on every win.
+    stars.innerHTML = resultStarDelays(outcome)
+      .map((delay) => starIconSvg('result-star').replace('<svg ', `<svg style="animation-delay: ${delay}s" `))
+      .join('');
     lines.replaceChildren(
       ...resultLines(outcome, summary).map((text) => {
         const line = document.createElement('p');

@@ -37,3 +37,12 @@ export function handIconSvg(className: string): string {
     <rect x="13.5" y="1.5" width="7" height="24" rx="3.5" fill="#ffd2a8" ${OUTLINE} />
   </svg>`;
 }
+
+/** A rounded gold star with a dark outline. */
+export function starIconSvg(className: string): string {
+  return `<svg class="${className}" viewBox="0 0 40 40" aria-hidden="true">
+    <path d="M20 3.5 l4.9 10.4 11.3 1.3 -8.4 7.8 2.3 11.2 -10.1 -5.7 -10.1 5.7 2.3 -11.2 -8.4 -7.8 11.3 -1.3 z"
+      fill="#ffd23f" stroke="#16324f" stroke-width="3" stroke-linejoin="round" />
+    <path d="M14 15.5 l4 -0.5" fill="none" stroke="#fff6c8" stroke-width="2.5" stroke-linecap="round" />
+  </svg>`;
+}

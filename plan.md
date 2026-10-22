@@ -107,6 +107,13 @@ Cualquier hierba puede ser la hierba objetivo.
 | Cactus | Se corta con tamaño ≥ 4. Antes, bloquea. |
 | Fruta (sandía, fresa) | Se corta con tamaño ≥ 2. Da monedas extra y una explosión de color. |
 
+### Bioma e isla
+
+1. El bioma de cada nivel es su hierba dominante: la que ocupa más celdas. En un empate gana la primera del orden verde, hielo, trigo, lavanda, zarza; un campo sin hierba es verde. No se guarda ni cambia el generador.
+2. El campo es una isla: una losa con acantilado de tierra anaranjada moteada, rodeada de mar.
+3. El suelo de la isla toma el color del bioma (verde claro, blanco azulado, ocre, verde grisáceo o tierra oscura), con ruido suave y un borde más oscuro. Las celdas de arena y la hierba cortada dejan verlo.
+4. El mar tiene vetas claras que se mueven despacio y una línea de espuma que late junto a la orilla. En calidad Baja se queda quieto.
+
 ### Generador
 
 1. Una biblioteca de patrones: franjas, tablero de ajedrez, círculos, espiral, camino serpenteante, campo de fútbol, islas. Cada patrón tiene al menos 2 regiones; en los niveles de un solo tipo de hierba, el patrón se dibuja con hierba y arena.
@@ -183,6 +190,7 @@ Victoria, Derrota y Pausa también vuelven a Inicio. En Derrota, el reloj sigue 
 4. Primera partida: al pulsar Jugar por primera vez, una mano animada enseña el joystick. Desaparece con el primer movimiento.
 5. Ajustes: sonido y música, cada uno con su regulador de volumen (efectos al 65 % y música al 100 % por defecto), vibración, calidad, borrar progreso (con confirmación).
 6. La música suena salvo en Pausa o con la pestaña oculta, con fundidos al entrar y salir.
+7. La música tiene dos estilos: el de partida (Jugando y Pausa) y uno más tranquilo para los menús (Inicio, Tienda, Ajustes y Resultado), a 60 bpm, sin bombo y con otra progresión. Al cambiar de estilo hay un fundido cruzado de 1,5 s.
 
 ### Guardado
 
@@ -228,7 +236,7 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 
 1. Cada brizna es un triángulo o dos, con degradado de color por tipo.
 2. Todas las briznas de un tipo forman un `InstancedMesh`.
-3. El vertex shader aplica un balanceo suave por viento y baja la brizna cortada.
+3. El vertex shader inclina la hierba siempre a favor del viento, hasta 0,12 m, con una ola de ráfaga que recorre el campo en su dirección y un pequeño desfase por brizna. También baja la brizna cortada.
 
 ### Efectos
 
@@ -237,19 +245,22 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | Restos | Trozos del color de la hierba salen despedidos y caen al suelo. En Alto se quedan en el suelo; en Medio se desvanecen; en Bajo hay menos. |
 | "+N" flotante | Agrupado: un texto cada 0,2 s con la suma del intervalo. |
 | Sonido de corte | Siseo agudo y suave que va y viene a 7 Hz, con chasquidos de hierba cortada, mezclado bajo (−45 dBFS, 12–15 dB por debajo de los efectos). Entra al cortar y se desvanece al parar. |
-| Subida de tamaño | Destello, sonido ascendente, texto "Tamaño N". |
+| Subida de tamaño | Destello, sonido ascendente, texto "Tamaño N". La cuchilla cambia de forma: 2, 3 y 4 brazos curvos; 5 brazos más anchos con agujero en el buje; 6 y 8 brazos con dientes de sierra; disco dentado desde el tamaño 7. Ninguna forma pasa del radio de corte. |
+| Brillo | Halo suave bajo la cuchilla, de 1,5 veces su radio, teñido según el bioma. |
+| Rotura | Cada obstáculo que se rompe suena con su propio sonido (sandía, fresa o cactus), en 4 variantes y con el tono ±6 %. Como mucho uno por tipo en cada paso. |
+| Poco tiempo | Por debajo de 10 s, el anillo del reloj pasa a ámbar y late, y suena una vez un aviso blando de dos notas. Si el reloj vuelve a subir, el aviso se rearma. |
 | Obstáculo duro | Rebote, sonido sordo, vibración corta, texto "Necesitas más tamaño". |
-| Victoria | Onda que corta el campo restante desde la cuchilla, confeti, lluvia de monedas. |
+| Victoria | Onda que corta el campo restante desde la cuchilla, con un arpegio de «barra completa». En el resultado entran tres estrellas, una cada 0,35 s y cada una con su nota más aguda, y después caen el confeti y la lluvia de monedas. Los botones se pueden pulsar desde el principio; salir del resultado cancela lo que falte. |
 | Vibración | 10 ms en subida de tamaño y rebote. Solo donde el navegador lo permite (no en iPhone). Desactivable. |
 
 ### Recursos
 
 | Recurso | Origen |
 | --- | --- |
-| Briznas, cuchilla, restos, suelo | Código |
+| Briznas, cuchilla, restos, suelo, isla, mar | Código |
 | Obstáculos (cactus, rocas, frutas) | Paquetes CC0 en glTF (Kenney, Quaternius) |
 | Iconos de interfaz | Paquetes CC0 (Kenney) |
-| Efectos de sonido | Paquetes CC0 (Kenney), en MP3; el sonido de corte se genera en código |
+| Efectos de sonido | Paquetes CC0 (Kenney), en MP3, solo para subida de tamaño, rebote, derrota y toque. El corte, las roturas, el aviso de poco tiempo y la victoria se generan en código, con un volumen contenido: nada más fuerte que los MP3. |
 | Música | Lo-fi relajante generada en código mientras suena: piano eléctrico, bajo, bombo y escobillas |
 
 Regla de estilo: colores planos y saturados, sin texturas fotográficas. Fuente redondeada y gruesa con contorno en la interfaz.

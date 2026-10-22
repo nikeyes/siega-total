@@ -610,6 +610,47 @@ body,
   flex-shrink: 0;
 }
 
+.result-stars {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.result-stars:empty {
+  display: none;
+}
+
+/* Dim until its turn, then it pops in and stays lit. */
+.result-star {
+  width: 56px;
+  height: 56px;
+  opacity: 0.3;
+  filter: grayscale(1);
+  animation: result-star-pop 0.3s ease-out forwards;
+}
+
+.result-star:nth-child(2) {
+  translate: 0 -10px;
+}
+
+@keyframes result-star-pop {
+  0% {
+    scale: 0;
+    opacity: 1;
+    filter: none;
+  }
+  60% {
+    scale: 1.2;
+    opacity: 1;
+    filter: none;
+  }
+  100% {
+    scale: 1;
+    opacity: 1;
+    filter: none;
+  }
+}
+
 .result-lines {
   display: flex;
   flex-direction: column;

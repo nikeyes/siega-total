@@ -181,14 +181,17 @@ export const config = {
     volume: {
       sizeUp: 0.8,
       bounce: 0.8,
-      win: 0.8,
       lose: 0.8,
       tap: 0.5,
-      coins: 0.7,
       watermelonBreak: 0.8,
       strawberryBreak: 0.8,
       cactusBreak: 0.8,
       lowTime: 0.6,
+      levelComplete: 0.7,
+      star1: 0.6,
+      star2: 0.6,
+      star3: 0.6,
+      confetti: 0.6,
     },
     /** Versions of each break, picked at random. */
     variants: 4,
@@ -206,5 +209,8 @@ export const config = {
     confettiPieces: 60,
     coinRainPieces: 20,
     celebrationSeconds: 2,
+    /** The result's stars start this long after it shows, one every starIntervalSeconds; the confetti follows the last. */
+    starsDelaySeconds: 0.3,
+    starIntervalSeconds: 0.35,
   },
 };

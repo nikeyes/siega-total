@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { createRandom } from '../logic/random';
 import { synthesizeBreak } from './breakSounds';
-import { synthesizeLowTime } from './chimes';
+import { synthesizeConfetti, synthesizeLevelComplete, synthesizeLowTime, synthesizeStar } from './chimes';
 
 type Synthesizer = (sampleRate: number, random: () => number) => Float32Array;
 
@@ -11,6 +11,11 @@ export const SYNTHESIZED_SOUNDS = {
   strawberryBreak: (sampleRate, random) => synthesizeBreak('strawberry', sampleRate, random),
   cactusBreak: (sampleRate, random) => synthesizeBreak('cactus', sampleRate, random),
   lowTime: (sampleRate) => synthesizeLowTime(sampleRate),
+  levelComplete: (sampleRate) => synthesizeLevelComplete(sampleRate),
+  star1: (sampleRate) => synthesizeStar(1, sampleRate),
+  star2: (sampleRate) => synthesizeStar(2, sampleRate),
+  star3: (sampleRate) => synthesizeStar(3, sampleRate),
+  confetti: (sampleRate, random) => synthesizeConfetti(sampleRate, random),
 } satisfies Record<string, Synthesizer>;
 
 export type SynthesizedSoundName = keyof typeof SYNTHESIZED_SOUNDS;
