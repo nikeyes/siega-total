@@ -1,4 +1,5 @@
 import GUI from 'lil-gui';
+import { SYNTHESIZED_SOUND_NAMES, variantsOf, type SynthesizedSoundName } from '../audio/synthesizedSounds';
 import { campaignSeeds } from '../campaign';
 import { pickCampaign } from '../logic/campaignPicker';
 import { config } from '../config';
@@ -58,6 +59,18 @@ export interface DebugActions {
   clearSave(): void;
   /** Makes the next «Jugar» show the tutorial hand again. */
   resetTutorial(): void;
+  /** Plays `variant` of a synthesized sound, to tune it by ear. */
+  playSound(name: SynthesizedSoundName, variant: number): void;
+}
+
+/** One button per synthesized sound; each press of a varied one plays its next variant. */
+function addSoundsFolder(gui: GUI, actions: DebugActions): void {
+  const folder = gui.addFolder(texts.debug.sounds);
+  for (const name of SYNTHESIZED_SOUND_NAMES) {
+    let presses = 0;
+    folder.add({ [name]: () => actions.playSound(name, presses++ % variantsOf(name)) }, name);
+  }
+  folder.close();
 }
 
 /** A nested group of numeric settings, like `config.generator`. */
@@ -97,6 +110,7 @@ export function createDebugPanel(getGame: () => Game, actions: DebugActions, get
   addNumberFolder(gui, 'generator', config.generator, () => {}, texts.debug.onGenerate);
 
   addLevelFolder(gui, getGame, actions);
+  addSoundsFolder(gui, actions);
 
   const simulation = { simulatedFps: 0 };
   gui.addFolder(texts.debug.quality).add(simulation, 'simulatedFps', 0, MAX_SIMULATED_FPS, 1).name(texts.debug.simulatedFps);

@@ -1,11 +1,12 @@
 import { config } from '../config';
+import { isSynthesized, playbackRate, synthesizeVariants } from './synthesizedSounds';
 import { sliderGain } from './volume';
 
 export type SoundName = keyof typeof config.audio.volume;
 
 export interface SoundPlayer {
-  /** Plays `name` at `rate`; silent while locked, muted or still loading. */
-  play(name: SoundName, rate?: number): void;
+  /** Plays `variant` of `name`, or a random one; silent while locked, muted or still loading. */
+  play(name: SoundName, variant?: number): void;
   /** Muting also stops the sounds that are playing. */
   setEnabled(enabled: boolean): void;
   /** The effects slider, from 0 to 1. */
@@ -18,11 +19,14 @@ const SOUND_NAMES = Object.keys(config.audio.volume) as SoundName[];
 /** The player of a browser without WebAudio: the game just plays in silence. */
 const SILENT_PLAYER: SoundPlayer = { play: () => {}, setEnabled: () => {}, setVolume: () => {}, context: null };
 
-/** Plays Kenney's sounds from `baseUrl` (one `<name>.mp3` each); `onPlayed` hears every sound actually sent out. */
+/**
+ * Plays the sounds synthesized in code and Kenney's from `baseUrl` (one `<name>.mp3` each);
+ * `onPlayed` hears every sound actually sent out.
+ */
 export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, rate: number) => void): SoundPlayer {
   if (typeof AudioContext === 'undefined') return SILENT_PLAYER;
   const context = new AudioContext();
-  const buffers: Partial<Record<SoundName, AudioBuffer>> = {};
+  const buffers: Partial<Record<SoundName, AudioBuffer[]>> = {};
   const playing = new Set<AudioBufferSourceNode>();
   let enabled = true;
   let volume = 1;
@@ -45,6 +49,17 @@ export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, 
   listenForUnlock();
 
   for (const name of SOUND_NAMES) {
+    if (isSynthesized(name)) {
+      // One sound per task, so synthesizing them all does not hold up the first frames on a phone.
+      setTimeout(() => {
+        buffers[name] = synthesizeVariants(name, context.sampleRate).map((samples) => {
+          const buffer = context.createBuffer(1, samples.length, context.sampleRate);
+          buffer.getChannelData(0).set(samples);
+          return buffer;
+        });
+      });
+      continue;
+    }
     fetch(baseUrl + name + '.mp3')
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -53,15 +68,17 @@ export function createSoundPlayer(baseUrl: string, onPlayed?: (name: SoundName, 
       .then((data) => context.decodeAudioData(data))
       .then(
         (buffer) => {
-          buffers[name] = buffer;
+          buffers[name] = [buffer];
         },
         (error: unknown) => console.warn(`Sound ${name} failed to load; it stays silent.`, error),
       );
   }
 
-  function play(name: SoundName, rate = 1): void {
-    const buffer = buffers[name];
-    if (!enabled || context.state !== 'running' || !buffer) return;
+  function play(name: SoundName, variant?: number): void {
+    const variants = buffers[name];
+    if (!enabled || context.state !== 'running' || !variants) return;
+    const buffer = variants[(variant ?? Math.floor(Math.random() * variants.length)) % variants.length]!;
+    const rate = playbackRate(name, Math.random);
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.playbackRate.value = rate;

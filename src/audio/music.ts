@@ -1,15 +1,27 @@
 import { config } from '../config';
 import { sliderGain } from './volume';
-import { createLofiComposer, eighthSeconds, type LofiNote } from './lofi';
+import { createLofiComposer, eighthSeconds, type LofiComposer, type LofiNote, type MusicStyle } from './lofi';
 
 export interface MusicPlayer {
   /** Fades the music in or out; it keeps its place in the song while it is silent. */
   setPlaying(playing: boolean): void;
   /** The music slider, from 0 to 1. */
   setVolume(position: number): void;
+  /** Crossfades to `style` over config.audio.music.crossfadeSeconds. */
+  setStyle(style: MusicStyle): void;
 }
 
-const SILENT_MUSIC: MusicPlayer = { setPlaying: () => {}, setVolume: () => {} };
+const SILENT_MUSIC: MusicPlayer = { setPlaying: () => {}, setVolume: () => {}, setStyle: () => {} };
+const STYLES: readonly MusicStyle[] = ['game', 'menu'];
+
+/** One style's own composer, place in the song and gains, so two styles can sound at once while they crossfade. */
+interface StyleBus {
+  composer: LofiComposer;
+  step: number;
+  nextEighth: number;
+  dry: GainNode;
+  reverbSend: GainNode;
+}
 /** How often the scheduler wakes up, and how far ahead it books notes, so a late timer never drops one. */
 const SCHEDULER_MS = 60;
 const LOOKAHEAD_SECONDS = 0.25;
@@ -20,7 +32,6 @@ const REVERB_DECAY = 2.6;
 export function createMusicPlayer(context: AudioContext | null): MusicPlayer {
   if (!context) return SILENT_MUSIC;
   const ctx = context;
-  const composer = createLofiComposer();
   const master = ctx.createGain();
   master.gain.value = 0;
   master.connect(ctx.destination);
@@ -30,31 +41,65 @@ export function createMusicPlayer(context: AudioContext | null): MusicPlayer {
   wet.gain.value = config.audio.music.reverb;
   reverb.connect(wet).connect(master);
 
+  let style: MusicStyle = 'menu';
+  const buses = Object.fromEntries(
+    STYLES.map((busStyle): [MusicStyle, StyleBus] => {
+      const dry = ctx.createGain();
+      const reverbSend = ctx.createGain();
+      dry.gain.value = reverbSend.gain.value = busStyle === style ? 1 : 0;
+      dry.connect(master);
+      reverbSend.connect(reverb);
+      return [busStyle, { composer: createLofiComposer(busStyle), step: 0, nextEighth: 0, dry, reverbSend }];
+    }),
+  ) as Record<MusicStyle, StyleBus>;
+  /** The styles still booking notes: the current one, and the one fading out. */
+  const scheduling = new Set<MusicStyle>([style]);
+
   let playing = false;
   let volume = 1;
   let timer: ReturnType<typeof setInterval> | null = null;
-  let step = 0;
-  let nextEighth = 0;
 
   function schedule(): void {
+    for (const busStyle of scheduling) scheduleBus(busStyle, buses[busStyle]);
+  }
+
+  function scheduleBus(busStyle: MusicStyle, bus: StyleBus): void {
     // A suspended context's clock stands still: start booking again from now once it runs.
     if (ctx.state !== 'running') {
-      nextEighth = 0;
+      bus.nextEighth = 0;
       return;
     }
-    if (nextEighth < ctx.currentTime) nextEighth = ctx.currentTime + 0.05;
-    while (nextEighth < ctx.currentTime + LOOKAHEAD_SECONDS) {
-      for (const note of composer.eighth(step)) play(note, nextEighth + note.delaySeconds);
-      nextEighth += eighthSeconds();
-      step++;
+    if (bus.nextEighth < ctx.currentTime) bus.nextEighth = ctx.currentTime + 0.05;
+    while (bus.nextEighth < ctx.currentTime + LOOKAHEAD_SECONDS) {
+      for (const note of bus.composer.eighth(bus.step)) play(bus, note, bus.nextEighth + note.delaySeconds);
+      bus.nextEighth += eighthSeconds(busStyle);
+      bus.step++;
     }
   }
 
-  function play(note: LofiNote, time: number): void {
-    if (note.instrument === 'chord' || note.instrument === 'melody') electricPiano(ctx, [master, reverb], note, time);
-    else if (note.instrument === 'bass') sine(ctx, master, frequencyOf(note.midi!), note, time);
-    else if (note.instrument === 'kick') kick(ctx, master, note, time);
-    else brush(ctx, master, note, time);
+  function play(bus: StyleBus, note: LofiNote, time: number): void {
+    if (note.instrument === 'chord' || note.instrument === 'melody') electricPiano(ctx, [bus.dry, bus.reverbSend], note, time);
+    else if (note.instrument === 'bass') sine(ctx, bus.dry, frequencyOf(note.midi!), note, time);
+    else if (note.instrument === 'kick') kick(ctx, bus.dry, note, time);
+    else brush(ctx, bus.dry, note, time);
+  }
+
+  function setStyle(next: MusicStyle): void {
+    if (next === style) return;
+    const previous = style;
+    style = next;
+    const { crossfadeSeconds } = config.audio.music;
+    for (const busStyle of STYLES) {
+      const level = busStyle === next ? 1 : 0;
+      for (const gain of [buses[busStyle].dry.gain, buses[busStyle].reverbSend.gain]) {
+        gain.setTargetAtTime(level, ctx.currentTime, crossfadeSeconds / 3);
+      }
+    }
+    scheduling.add(next);
+    // The outgoing style keeps playing under the fade, then stops booking notes.
+    setTimeout(() => {
+      if (style !== previous) scheduling.delete(previous);
+    }, crossfadeSeconds * 1000);
   }
 
   function fade(): void {
@@ -81,12 +126,12 @@ export function createMusicPlayer(context: AudioContext | null): MusicPlayer {
         if (playing || !timer) return;
         clearInterval(timer);
         timer = null;
-        nextEighth = 0;
+        for (const bus of Object.values(buses)) bus.nextEighth = 0;
       }, config.audio.music.fadeSeconds * 1000);
     }
   }
 
-  return { setPlaying, setVolume };
+  return { setPlaying, setVolume, setStyle };
 }
 
 function frequencyOf(midi: number): number {

@@ -3,6 +3,7 @@ import { texts } from '../../src/texts';
 import { boosterButtons, hudDisplay, levelLabel, type HudState } from '../../src/ui/hud';
 
 const STATE: HudState = {
+  playing: true,
   timeLeft: 45.3,
   timeTotal: 90,
   remainingByTarget: [1284, 3],
@@ -30,6 +31,12 @@ describe('hudDisplay', () => {
     const display = hudDisplay(STATE);
     expect(display.clock).toBe('0:46');
     expect(display.timePercent).toBe(50);
+  });
+
+  it('turns the clock amber at lowTimeSeconds and below, only while playing', () => {
+    expect(hudDisplay({ ...STATE, timeLeft: 10 }).lowTime).toBe(true);
+    expect(hudDisplay({ ...STATE, timeLeft: 10.1 }).lowTime).toBe(false);
+    expect(hudDisplay({ ...STATE, timeLeft: 5, playing: false }).lowTime).toBe(false);
   });
 
   it('shows one counter per target, in the order of the level', () => {

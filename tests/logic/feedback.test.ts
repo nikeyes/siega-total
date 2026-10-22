@@ -50,13 +50,40 @@ describe('cutting', () => {
     expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([]);
   });
 
-  it.each(['strawberry', 'cactus'] as const)('gives obstacleCut when the blade cuts a %s', (type) => {
+  it.each(['strawberry', 'cactus'] as const)('gives obstacleCut with the obstacle when the blade cuts a %s', (type) => {
     const obstacleUnderTheBlade: Obstacle = { type, ...SAND_CENTER };
     const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [obstacleUnderTheBlade] }));
     game.blade.size = config.obstacles[type].minSize;
     const tracker = createFeedbackTracker();
     tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
-    expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([{ kind: 'started' }, { kind: 'obstacleCut' }]);
+    expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([
+      { kind: 'started' },
+      { kind: 'obstacleCut', obstacle: type },
+    ]);
+  });
+
+  it('gives no obstacleCut when the blade breaks against a rock', () => {
+    const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [{ type: 'rock', ...SAND_CENTER }] }));
+    const tracker = createFeedbackTracker();
+    tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
+    expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).not.toContainEqual(expect.objectContaining({ kind: 'obstacleCut' }));
+  });
+
+  it('gives one obstacleCut per kind cut in a step, in the order of config.obstacles', () => {
+    const obstacles: Obstacle[] = [
+      { type: 'strawberry', x: SAND_CENTER.x - 0.3, z: SAND_CENTER.z },
+      { type: 'watermelon', ...SAND_CENTER },
+      { type: 'strawberry', x: SAND_CENTER.x + 0.3, z: SAND_CENTER.z },
+    ];
+    const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles }));
+    game.blade.size = 3;
+    const tracker = createFeedbackTracker();
+    tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
+    expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([
+      { kind: 'started' },
+      { kind: 'obstacleCut', obstacle: 'watermelon' },
+      { kind: 'obstacleCut', obstacle: 'strawberry' },
+    ]);
   });
 });
 
@@ -109,7 +136,7 @@ describe('winning', () => {
     tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
     expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([
       { kind: 'started' },
-      { kind: 'obstacleCut' },
+      { kind: 'obstacleCut', obstacle: 'strawberry' },
       { kind: 'winWave' },
     ]);
   });
@@ -256,5 +283,48 @@ describe('switching games', () => {
     const result = stepGame(game, EAST, SIXTY_FPS_FRAME);
     expect(first.step(game, result)).toEqual([{ kind: 'started' }]);
     expect(second.step(game, result)).toEqual([]);
+  });
+});
+
+describe('running low on time', () => {
+  /** A game in play on sand, with `seconds` left on the clock. */
+  function playingWith(seconds: number) {
+    const game = createGame(levelFromRows(SAND_WITH_FAR_ICE));
+    const tracker = createFeedbackTracker();
+    tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME));
+    game.timeLeft = seconds;
+    tracker.track(game);
+    return { game, tracker };
+  }
+
+  it('gives lowTime once, in the step the clock crosses lowTimeSeconds', () => {
+    const { game, tracker } = playingWith(config.level.lowTimeSeconds + SIXTY_FPS_FRAME / 2);
+    expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([{ kind: 'lowTime' }]);
+    expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([]);
+  });
+
+  it('gives lowTime again after the clock is lifted back above lowTimeSeconds and falls again', () => {
+    const { game, tracker } = playingWith(config.level.lowTimeSeconds + SIXTY_FPS_FRAME / 2);
+    tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME));
+    game.timeLeft = config.level.lowTimeSeconds + 5;
+    expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([]);
+    game.timeLeft = config.level.lowTimeSeconds + SIXTY_FPS_FRAME / 2;
+    tracker.track(game);
+    expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([{ kind: 'lowTime' }]);
+  });
+
+  it('gives only lost when the clock runs out in one step from above lowTimeSeconds', () => {
+    const { game, tracker } = playingWith(config.level.lowTimeSeconds + 0.001);
+    expect(tracker.step(game, stepGame(game, EAST, config.level.lowTimeSeconds + 1))).toEqual([{ kind: 'lost' }]);
+  });
+
+  it('gives no lowTime before the first move', () => {
+    const game = createGame(levelFromRows(SAND_WITH_FAR_ICE));
+    game.timeLeft = config.level.lowTimeSeconds + 1;
+    const tracker = createFeedbackTracker();
+    tracker.track(game);
+    game.timeLeft = config.level.lowTimeSeconds - 1;
+    expect(game.status).toBe('ready');
+    expect(tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME))).toEqual([]);
   });
 });

@@ -30,7 +30,7 @@ Cada recurso nuevo añade aquí su autor, su paquete y su licencia.
 - Autor: Kenney ([www.kenney.nl](https://www.kenney.nl))
 - Paquete: [Impact Sounds](https://kenney.nl/assets/impact-sounds)
 - Licencia: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
-- Archivos usados: `Audio/impactSoft_heavy_000.ogg` → `public/sounds/bounce.mp3`, `Audio/impactPunch_medium_000.ogg` → `public/sounds/obstacleCut.mp3`
+- Archivos usados: `Audio/impactSoft_heavy_000.ogg` → `public/sounds/bounce.mp3`
 
 ### Kenney: Music Jingles
 
@@ -49,5 +49,6 @@ Cada recurso nuevo añade aquí su autor, su paquete y su licencia.
 ### Sonido y música propios, generados en código
 
 - **Sonido de corte** (`src/audio/cutLoop.ts` y `src/audio/breeze.ts`): un bucle sintetizado de siseo agudo que va y viene a 7 Hz, con pequeños chasquidos de hierba cortada encima; suena mientras la cuchilla corta.
+- **Rotura de obstáculos** (`src/audio/breakSounds.ts` y `src/audio/synthesis.ts`): la sandía, la fresa y el cactus suenan con su propio golpe sintetizado, en cuatro variantes y con el tono algo distinto cada vez.
 - **Música lo-fi** (`src/audio/lofi.ts` y `src/audio/music.ts`): se compone mientras suena, con piano eléctrico, bajo, bombo y escobillas sintetizados. No usa ningún archivo.
-- Ambos forman parte del código del juego, con su misma licencia MIT.
+- Todos forman parte del código del juego, con su misma licencia MIT.

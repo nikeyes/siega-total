@@ -79,6 +79,8 @@ export const config = {
     stripeWidthMeters: 3,
     winWaveSpeed: 25,
     highlightBelow: 10,
+    /** Below this many seconds the clock turns amber and a soft warning plays once. */
+    lowTimeSeconds: 10,
   },
   generator: {
     maxAttempts: 50,
@@ -154,18 +156,44 @@ export const config = {
     },
     music: {
       volume: 0.36,
-      bpm: 70,
-      /** Off-beat eighths come this share of an eighth late. */
-      swing: 0.16,
-      /** Chance of a melody note on each eighth. */
-      melodyChance: 0.14,
-      levels: { chord: 0.035, chordEcho: 0.022, melody: 0.04, bass: 0.1, kick: 0.12, brushOnBeat: 0.03, brushOffBeat: 0.018 },
       /** Fade when the music starts or stops: pausing, leaving the tab or switching it off. */
       fadeSeconds: 1.2,
       /** Share of the music sent to the reverb. */
       reverb: 0.35,
+      /** The menu and game styles blend into each other over this long. */
+      crossfadeSeconds: 1.5,
+      /** `swing`: off-beat eighths come this share of an eighth late. `melodyChance`: chance of a melody note on each eighth. */
+      styles: {
+        game: {
+          bpm: 70,
+          swing: 0.16,
+          melodyChance: 0.14,
+          levels: { chord: 0.035, chordEcho: 0.022, melody: 0.04, bass: 0.1, kick: 0.12, brushOnBeat: 0.03, brushOffBeat: 0.018 },
+        },
+        menu: {
+          bpm: 60,
+          swing: 0.12,
+          melodyChance: 0.08,
+          levels: { chord: 0.035, chordEcho: 0.022, melody: 0.04, bass: 0.07, kick: 0, brushOnBeat: 0.015, brushOffBeat: 0.009 },
+        },
+      },
     },
-    volume: { sizeUp: 0.8, bounce: 0.8, obstacleCut: 0.7, win: 0.8, lose: 0.8, tap: 0.5, coins: 0.7 },
+    volume: {
+      sizeUp: 0.8,
+      bounce: 0.8,
+      win: 0.8,
+      lose: 0.8,
+      tap: 0.5,
+      coins: 0.7,
+      watermelonBreak: 0.8,
+      strawberryBreak: 0.8,
+      cactusBreak: 0.8,
+      lowTime: 0.6,
+    },
+    /** Versions of each break, picked at random. */
+    variants: 4,
+    /** Each break plays up to this share higher or lower. */
+    pitchJitter: 0.06,
   },
   vibration: {
     milliseconds: 10,

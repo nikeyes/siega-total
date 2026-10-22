@@ -566,10 +566,10 @@ Filtros compartidos, reproductor que mezcla MP3 y buffers sintetizados con varia
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
-- [ ] `obstacleCut.mp3` ya no existe y nadie lo cita: `! grep -rq obstacleCut src public CREDITS.md`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
+- [x] `obstacleCut.mp3` ya no existe y nadie lo cita: `! grep -rqE "obstacleCut\.mp3|'obstacleCut'\)|obstacleCut:" src public CREDITS.md` (desviación: el `grep` original no puede pasar, porque el evento sigue llamándose `obstacleCut`, como dice el plan, y existe `obstacleCutSize` en `src/logic`)
 
 #### Verificación manual (usuario):
 - [ ] Cada rotura se reconoce, suena agradable y no cansa tras 20 seguidas (botones del panel).
@@ -605,9 +605,9 @@ Reloj ámbar que late y un aviso blando, una sola vez.
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
 
 #### Verificación manual (usuario):
 - [ ] El aviso se nota sin estresar.
@@ -648,10 +648,10 @@ Dos estilos del compositor y fundido cruzado entre ellos.
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
 
 #### Verificación manual (usuario):
 - [ ] La música de menú relaja más que la de partida, y el fundido al pulsar Jugar y al ver el resultado no se nota a saltos.
