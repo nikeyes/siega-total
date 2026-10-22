@@ -24,6 +24,16 @@ export const config = {
     gridCellSize: 1,
     seed: 1,
   },
+  world: {
+    /** Height of the island's earth sides, from the ground down to the sea floor. */
+    slabThickness: 1.2,
+    /** The sea reaches this far past each side of the field. */
+    seaMargin: 60,
+    /** The grass leans towards `direction` (x, z), up to swayMeters, as a gust wave of waveNumber radians per meter travels across it. */
+    wind: { direction: { x: 0.8, z: 0.6 }, swayMeters: 0.12, speed: 1.6, waveNumber: 0.35, phaseJitter: 0.6 },
+    /** The glow under the blade spans scale times its radius. */
+    glow: { scale: 1.5, opacity: 0.55 },
+  },
   grassTypes: {
     green: { minSize: 1, coins: 1 },
     ice: { minSize: 1, coins: 1 },
