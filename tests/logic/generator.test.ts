@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
 import { difficultyFor, type Unlockable } from '../../src/logic/difficulty';
 import { fallbackLevel, generateLevel } from '../../src/logic/generator';
+import { createField, levelFieldOptions } from '../../src/logic/field';
 import { isObstacleType } from '../../src/logic/levels';
 import { obstacleRadius } from '../../src/logic/obstacles';
 import { PATTERNS } from '../../src/logic/patterns';
@@ -103,6 +104,34 @@ describe('generateLevel', () => {
     const fruits = new Set(SEEDS.flatMap((seed) => generateLevel(40, seed).obstacles.map(({ type }) => type)));
     expect(fruits).toContain('watermelon');
     expect(fruits).toContain('strawberry');
+  });
+
+  it('grows no grass under a rock or a cactus, where the blade could never reach it', () => {
+    for (const level of [unlockLevel.rock, unlockLevel.cactus, 25, 40]) {
+      for (const seed of SEEDS) {
+        const generated = generateLevel(level, seed);
+        const field = createField(levelFieldOptions(generated, config.field.referenceBladeCount));
+        const solids = generated.obstacles.filter(({ type }) => type === 'rock' || type === 'cactus');
+        for (const { type, x, z } of solids) {
+          for (let blade = 0; blade < field.bladeCount; blade++) {
+            const distance = Math.hypot(field.positionsX[blade]! - x, field.positionsZ[blade]! - z);
+            expect(distance, `level ${level} seed ${seed} ${type} at (${x.toFixed(1)}, ${z.toFixed(1)})`).toBeGreaterThanOrEqual(obstacleRadius(type));
+          }
+        }
+      }
+    }
+  });
+
+  it('keeps rocks and cacti obstacleGapMeters from the field edge, so the blade can go round them', () => {
+    const { width, depth } = config.field;
+    for (const level of [unlockLevel.rock, unlockLevel.cactus, 25, 40]) {
+      for (const seed of SEEDS) {
+        for (const { type, x, z } of generateLevel(level, seed).obstacles.filter(({ type }) => type === 'rock' || type === 'cactus')) {
+          const gap = Math.min(x, z, width - x, depth - z) - obstacleRadius(type);
+          expect(gap, `level ${level} seed ${seed} ${type}`).toBeGreaterThanOrEqual(obstacleGapMeters);
+        }
+      }
+    }
   });
 
   it('puts rocks on the field from their unlock level', () => {

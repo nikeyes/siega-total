@@ -95,15 +95,12 @@ describe('clearCellsUnderSolidObstacles', () => {
     return Array<GrassType | null>(COLUMNS * COLUMNS).fill('green');
   }
 
-  it('turns into sand the cells whose center lies inside a rock, and leaves the cells around it', () => {
+  it('turns into sand every cell a rock covers even in part, so no grass grows under it, and leaves the cells around', () => {
     const cells = greenCells();
+    // A 1 m rock on the center of cell (3, 3) reaches into its 8 neighbors, corners included, and no further.
     clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'rock', x: 3.5, z: 3.5 }]);
-    const centerInsideRock = (cell: number) =>
-      Math.hypot((cell % COLUMNS) + 0.5 - 3.5, Math.floor(cell / COLUMNS) + 0.5 - 3.5) < obstacleRadius('rock');
-    const expected = cells.flatMap((_, cell) => (centerInsideRock(cell) ? [cell] : []));
-    expect(expected.length).toBeGreaterThan(0);
-    expect(expected.length).toBeLessThan(cells.length);
-    expect(sandCells(cells)).toEqual(expected);
+    const block = [2, 3, 4].flatMap((row) => [2, 3, 4].map((column) => row * COLUMNS + column));
+    expect(sandCells(cells)).toEqual(block);
   });
 
   it('keeps the grass under fruit', () => {
@@ -115,16 +112,17 @@ describe('clearCellsUnderSolidObstacles', () => {
     expect(sandCells(cells)).toEqual([]);
   });
 
-  it('leaves the grass whose center lies exactly on the edge of a rock', () => {
+  it('leaves the grass of a cell the rock only touches at its edge', () => {
     const cells = greenCells();
     const radius = obstacleRadius('rock');
-    // Rock centered so that cell (3, 3)'s center is exactly `radius` to its east.
-    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'rock', x: 3.5 - radius, z: 3.5 }]);
+    // Rock centered so that its edge just reaches cell (3, 3)'s west side.
+    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'rock', x: 3 - radius, z: 3.5 }]);
     expect(cells[3 * COLUMNS + 3]).toBe('green');
   });
 
-  it('uses the cell size to find each cell center', () => {
-    const cellSize = 2 * obstacleRadius('cactus');
+  it('uses the cell size to find which cells an obstacle covers', () => {
+    // Cells wider than the cactus, so one centered in a cell stays inside it.
+    const cellSize = 3 * obstacleRadius('cactus');
     const cells = greenCells();
     // Center of cell (column 2, row 1) when cells are `cellSize` wide.
     clearCellsUnderSolidObstacles(cells, cellSize, COLUMNS, [{ type: 'cactus', x: 2.5 * cellSize, z: 1.5 * cellSize }]);
@@ -265,9 +263,12 @@ describe('sampleLevel', () => {
 
   it('only turns into sand the cells under the rocks and the cactus, and the start clearing', () => {
     level.cells.forEach((type, cell) => {
-      const centerX = ((cell % columns) + 0.5) * level.cellSize;
-      const centerZ = (Math.floor(cell / columns) + 0.5) * level.cellSize;
-      const underSolid = solid.some(({ type: kind, x, z }) => Math.hypot(centerX - x, centerZ - z) < obstacleRadius(kind));
+      const left = (cell % columns) * level.cellSize;
+      const top = Math.floor(cell / columns) * level.cellSize;
+      const centerX = left + level.cellSize / 2;
+      const centerZ = top + level.cellSize / 2;
+      const nearest = (from: number, start: number) => Math.min(Math.max(from, start), start + level.cellSize);
+      const underSolid = solid.some(({ type: kind, x, z }) => Math.hypot(nearest(x, left) - x, nearest(z, top) - z) < obstacleRadius(kind));
       const inClearing = Math.hypot(centerX - level.width / 2, centerZ - level.depth / 2) <= SAMPLE_START_CLEARING_METERS / 2;
       expect(type === null, `cell ${cell}`).toBe(underSolid || inClearing);
     });

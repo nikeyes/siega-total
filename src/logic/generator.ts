@@ -96,9 +96,11 @@ function placeObstacles(random: () => number, difficulty: Difficulty, cells: rea
     const type = typeOf();
     const radius = obstacleRadius(type);
     const isFruit = type === 'watermelon' || type === 'strawberry';
+    // A rock or cactus leaves room to go round it between itself and the edge; fruit is cut, not gone round.
+    const edgeGap = isFruit ? 0 : obstacleGapMeters;
     for (let attempt = 0; attempt < PLACEMENT_TRIES; attempt++) {
-      const x = radius + random() * (width - 2 * radius);
-      const z = radius + random() * (depth - 2 * radius);
+      const x = radius + edgeGap + random() * (width - 2 * (radius + edgeGap));
+      const z = radius + edgeGap + random() * (depth - 2 * (radius + edgeGap));
       const outsideClearing = Math.hypot(x - width / 2, z - depth / 2) > startClearingMeters / 2 + radius;
       const onGrass = !isFruit || cells[Math.floor(z / CELL_SIZE) * columns + Math.floor(x / CELL_SIZE)] !== null;
       const apart = placed.every(
