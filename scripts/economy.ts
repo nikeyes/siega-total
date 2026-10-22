@@ -70,7 +70,7 @@ function nextGoal(game: Game, avoided: readonly Avoided[]): { x: number; z: numb
 }
 
 /** Plays one attempt of `game` the way a quick, sensible player would; returns when the level is won or lost. */
-function playAttempt(game: Game, random: () => number): void {
+export function playAttempt(game: Game, random: () => number): void {
   let goal: { x: number; z: number } | null = null;
   let secondsToRetarget = 0;
   let detour: Direction | null = null;

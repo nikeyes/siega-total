@@ -113,10 +113,11 @@ describe('generateLevel', () => {
         const field = createField(levelFieldOptions(generated, config.field.referenceBladeCount));
         const solids = generated.obstacles.filter(({ type }) => type === 'rock' || type === 'cactus');
         for (const { type, x, z } of solids) {
+          let nearest = Infinity;
           for (let blade = 0; blade < field.bladeCount; blade++) {
-            const distance = Math.hypot(field.positionsX[blade]! - x, field.positionsZ[blade]! - z);
-            expect(distance, `level ${level} seed ${seed} ${type} at (${x.toFixed(1)}, ${z.toFixed(1)})`).toBeGreaterThanOrEqual(obstacleRadius(type));
+            nearest = Math.min(nearest, Math.hypot(field.positionsX[blade]! - x, field.positionsZ[blade]! - z));
           }
+          expect(nearest, `level ${level} seed ${seed} ${type} at (${x.toFixed(1)}, ${z.toFixed(1)})`).toBeGreaterThanOrEqual(obstacleRadius(type));
         }
       }
     }

@@ -3,7 +3,7 @@ import { config } from '../../src/config';
 import { bladeRadius, cutsToNextSize } from '../../src/logic/blade';
 import type { GrassType } from '../../src/logic/field';
 import { clearCellsUnderSolidObstacles, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
-import { analyzeLevel, estimateSeconds, validateLevel } from '../../src/logic/validation';
+import { analyzeLevel, estimateSeconds, travelSeconds, validateLevel } from '../../src/logic/validation';
 
 /** The fixtures are as big as a real field, so their grass has the reference density. */
 const SIDE = config.field.width;
@@ -216,7 +216,7 @@ describe('validateLevel', () => {
     expect(validateLevel(corridorToIce(1))).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
-  it('reaches a target the blade can only get to round the shore', () => {
+  it('does not count on the shore: a target the blade could only get to round the edge of the field is rejected', () => {
     // Ice in the north-west corner with sand round it, walled from the start by bramble but open to the edge of the field;
     // sand everywhere else, so the blade never grows enough to cut the bramble.
     const level = cellLevel((column, row) => {
@@ -225,7 +225,7 @@ describe('validateLevel', () => {
       if (column <= 3 && row <= 3) return 'bramble';
       return null;
     });
-    expect(validateLevel(level)).toEqual({ valid: true });
+    expect(validateLevel(level)).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
   it('rejects a level whose start is a wall', () => {
@@ -269,11 +269,12 @@ describe('analyzeLevel', () => {
 });
 
 describe('estimateSeconds', () => {
-  it('sweeps each cell at full speed with the blade as wide as it has grown', () => {
+  it('sweeps each cell at full speed with the blade as wide as it has grown, and adds the travel between the targets', () => {
     // 2 cells at size 1 and 4 at size 2 grow the blade to size 3, then the 6 lavender cells are swept at size 3.
     const secondsPerCell = (size: number) => 1 / (2 * bladeRadius(size) * config.blade.maxSpeed);
-    const expected = 2 * secondsPerCell(1) + 4 * secondsPerCell(2) + LAVENDER_IN_THE_CORNER * secondsPerCell(3);
-    expect(estimateSeconds(lavenderCornerLevel(['lavender']))).toBeCloseTo(expected, 9);
+    const sweep = 2 * secondsPerCell(1) + 4 * secondsPerCell(2) + LAVENDER_IN_THE_CORNER * secondsPerCell(3);
+    const level = lavenderCornerLevel(['lavender']);
+    expect(estimateSeconds(level)).toBeCloseTo(sweep + travelSeconds(level), 9);
   });
 
   it('grows with the target area', () => {
@@ -288,12 +289,40 @@ describe('estimateSeconds', () => {
     const targets = ['ice', 'strawberry'] as const;
     const few = estimateSeconds(greenCenterThen(3, 'ice', { obstacles: strawberries(2), targets }));
     const many = estimateSeconds(greenCenterThen(3, 'ice', { obstacles: strawberries(6), targets }));
-    expect(many - few).toBeCloseTo(4 * config.generator.secondsPerTargetPiece, 9);
+    expect(many - few).toBeGreaterThanOrEqual(4 * config.generator.secondsPerTargetPiece);
   });
 
   it('takes longer when the targets need a bigger blade first', () => {
     const ice = estimateSeconds(greenCenterThen(3, 'ice'));
     const bramble = estimateSeconds(greenCenterThen(3, 'bramble', { targets: ['bramble'] }));
     expect(bramble).toBeGreaterThan(ice);
+  });
+});
+
+describe('travelSeconds', () => {
+  /** Ice cells in the given columns of the row just north of the start, green everywhere else. */
+  const iceAt = (columns: number[], row = CENTER - 1) => cellLevel((column, cellRow) => (cellRow === row && columns.includes(column) ? 'ice' : 'green'));
+
+  it('is next to nothing for a target right by the start', () => {
+    expect(travelSeconds(iceAt([CENTER - 1, CENTER]))).toBeLessThan(0.2);
+  });
+
+  it('grows with how far the targets lie from the start', () => {
+    expect(travelSeconds(iceAt([0, 1], 0))).toBeGreaterThan(travelSeconds(iceAt([CENTER - 1, CENTER])));
+  });
+
+  it('takes longer when the same target area is split into patches far apart', () => {
+    const together = cellLevel((column, row) => (row === 1 && column <= 3 ? 'ice' : 'green'));
+    const apart = cellLevel((column, row) => (row === 1 && (column <= 1 || column >= SIDE - 2) ? 'ice' : row === SIDE - 2 && column === 1 ? 'ice' : 'green'));
+    expect(travelSeconds(apart)).toBeGreaterThan(travelSeconds(together));
+  });
+
+  it('follows the way the blade can go, round walls, not a straight line', () => {
+    // The same ice to the east of the start: open in one level, behind a bramble wall with a gap at the far north in the other.
+    const ice = (column: number, row: number) => column >= SIDE - 2 && row >= CENTER - 1 && row <= CENTER;
+    const open = cellLevel((column, row) => (ice(column, row) ? 'ice' : null));
+    const walled = cellLevel((column, row) => (ice(column, row) ? 'ice' : column === CENTER + 3 && row > 1 ? 'bramble' : null));
+    expect(validateLevel(walled)).toEqual({ valid: true });
+    expect(travelSeconds(walled)).toBeGreaterThan(travelSeconds(open) + 1);
   });
 });

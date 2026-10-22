@@ -35,7 +35,13 @@ export function isObstacleType(kind: TargetKind): kind is Exclude<ObstacleType, 
   return kind in config.obstacles;
 }
 
-/** Turns into sand every cell a rock or a cactus covers, even in part, so no grass grows where the blade cannot reach. */
+/**
+ * Cells this close to a rock or cactus are cleared too: a blade right against it lies exactly where the blade's
+ * circle stops, and rounding can leave it standing forever.
+ */
+const SOLID_CLEARANCE_METERS = 0.1;
+
+/** Turns into sand every cell a rock or a cactus covers or touches, even in part, so no grass grows where the blade cannot reach. */
 export function clearCellsUnderSolidObstacles(
   cells: (GrassType | null)[],
   cellSize: number,
@@ -50,7 +56,7 @@ export function clearCellsUnderSolidObstacles(
       // The cell's nearest point to the obstacle: any of its grass closer than the radius would sit under it.
       const nearestX = Math.min(Math.max(x, left), left + cellSize);
       const nearestZ = Math.min(Math.max(z, top), top + cellSize);
-      if (Math.hypot(nearestX - x, nearestZ - z) < obstacleRadius(type)) cells[cell] = null;
+      if (Math.hypot(nearestX - x, nearestZ - z) < obstacleRadius(type) + SOLID_CLEARANCE_METERS) cells[cell] = null;
     });
   }
 }

@@ -15,7 +15,10 @@ export interface LevelAnalysis {
 
 export type Rejection = 'noTargets' | 'unreachableTargets' | 'tooLong' | 'startBlocked';
 
-/** The blade's center walks on a grid of points this far apart, over the field and its shore. */
+/**
+ * The blade's center walks on a grid of points this far apart, over the field only: the shore gives room to turn,
+ * but a level that needs it as the way to a target would hide its path from the player.
+ */
 const STEP_METERS = 0.5;
 /** A target cell counts as cut when the blade reaches its corners, this far inside it. */
 const CORNER_INSET_METERS = 0.05;
@@ -24,7 +27,7 @@ const START_PUSH_METERS = 0.75;
 
 /**
  * The board the analysis walks on: the cells and their blades, and the points the blade's center can stand on,
- * row by row, from the north-west corner of the shore.
+ * row by row, from the north-west corner of the field.
  */
 interface Board {
   readonly level: LevelDefinition;
@@ -36,7 +39,7 @@ interface Board {
   readonly bladesPerGrassCell: number;
   readonly pointColumns: number;
   readonly pointRows: number;
-  /** Where the island's points start, past the field's north-west corner. */
+  /** Where the points start: the field's north-west corner. */
   readonly pointOrigin: number;
   /** The points round the field center, nearest first, where the blade can start once pushed out of a wall. */
   readonly startPoints: readonly number[];
@@ -72,7 +75,8 @@ function startSizes(): number[] {
 
 /**
  * Seconds to sweep the cells the level needs at full speed, with the blade widening as it grows,
- * plus a fixed time for each target piece. The generator multiplies it by the level's time margin.
+ * plus a fixed time for each target piece and the travel between the targets.
+ * The generator multiplies it by the level's time margin.
  */
 export function estimateSeconds(level: LevelDefinition): number {
   const board = boardOf(level);
@@ -90,7 +94,96 @@ export function estimateSeconds(level: LevelDefinition): number {
     }
   }
   const targetPieces = level.targets.filter(isObstacleType).reduce((pieces, target) => pieces + unitsOf(board, target), 0);
-  return seconds + targetPieces * config.generator.secondsPerTargetPiece;
+  return seconds + targetPieces * config.generator.secondsPerTargetPiece + travelSeconds(level);
+}
+
+/**
+ * Seconds at full speed to go from the start to each patch of target grass and each target piece in turn,
+ * always to the nearest one left, along the way the blade can go at the size it finishes the level with.
+ */
+export function travelSeconds(level: LevelDefinition): number {
+  const board = boardOf(level);
+  const reaches = new Map<number, SizeReach>();
+  const { finalSize } = analyzeBoard(board, config.blade.startSize, reaches);
+  const { reached } = reachOf(board, finalSize, reaches);
+  let current = startPointOf(board, finalSize);
+  if (current === null) return 0;
+  const stops = targetStops(board).map((spots) => goalPoints(board, reached, finalSize, spots));
+  const visited = stops.map(() => false);
+  let steps = 0;
+  for (;;) {
+    const distance = stepsFrom(board, reached, current);
+    let nearest: { stop: number; point: number; steps: number } | null = null;
+    stops.forEach((points, stop) => {
+      if (visited[stop]) return;
+      for (const point of points) {
+        if (distance[point]! >= 0 && (!nearest || distance[point]! < nearest.steps)) nearest = { stop, point, steps: distance[point]! };
+      }
+    });
+    if (!nearest) break;
+    const { stop, point, steps: stepsToStop } = nearest;
+    visited[stop] = true;
+    steps += stepsToStop;
+    current = point;
+  }
+  return (steps * STEP_METERS) / config.blade.maxSpeed;
+}
+
+/** Each place the player must go: a patch of touching target-grass cells, or a target piece, as the spots to reach and how near. */
+function targetStops(board: Board): { x: number; z: number; margin: number }[][] {
+  const { level, columns, rows } = board;
+  const stops: { x: number; z: number; margin: number }[][] = [];
+  const inPatch = new Uint8Array(level.cells.length);
+  level.cells.forEach((type, cell) => {
+    if (type === null || !level.targets.includes(type) || inPatch[cell] === 1) return;
+    const patch: { x: number; z: number; margin: number }[] = [];
+    const pending = [cell];
+    inPatch[cell] = 1;
+    while (pending.length > 0) {
+      const next = pending.pop()!;
+      patch.push({ ...cellCenter(board, next), margin: 0 });
+      const column = next % columns;
+      const row = Math.floor(next / columns);
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const neighborColumn = column + dc;
+        const neighborRow = row + dr;
+        if (neighborColumn < 0 || neighborRow < 0 || neighborColumn >= columns || neighborRow >= rows) continue;
+        const neighbor = neighborRow * columns + neighborColumn;
+        if (inPatch[neighbor] === 0 && level.cells[neighbor] === type) {
+          inPatch[neighbor] = 1;
+          pending.push(neighbor);
+        }
+      }
+    }
+    stops.push(patch);
+  });
+  level.obstacles.forEach(({ type, x, z }) => {
+    if (level.targets.some((target) => target === type)) stops.push([{ x, z, margin: obstacleRadius(type) }]);
+  });
+  return stops;
+}
+
+/** The reached points from which a blade of `size` covers one of the spots. */
+function goalPoints(board: Board, reached: Uint8Array, size: number, spots: { x: number; z: number; margin: number }[]): number[] {
+  const points = new Set<number>();
+  for (const { x, z, margin } of spots) for (const point of reachedPointsNear(board, reached, x, z, bladeRadius(size) + margin)) points.add(point);
+  return [...points];
+}
+
+/** Steps, half a meter each, from `from` to every reached point; −1 where it cannot get. */
+function stepsFrom(board: Board, reached: Uint8Array, from: number): Int32Array {
+  const steps = new Int32Array(reached.length).fill(-1);
+  steps[from] = 0;
+  const queue = [from];
+  for (let head = 0; head < queue.length; head++) {
+    const point = queue[head]!;
+    for (const next of neighbors(board, point)) {
+      if (reached[next] !== 1 || steps[next]! >= 0) continue;
+      steps[next] = steps[point]! + 1;
+      queue.push(next);
+    }
+  }
+  return steps;
 }
 
 function boardOf(level: LevelDefinition): Board {
@@ -98,11 +191,10 @@ function boardOf(level: LevelDefinition): Board {
   const rows = Math.ceil(level.depth / level.cellSize);
   const bladesInCell = bladesInCells(level.cells);
   const grassCells = bladesInCell.filter((blades) => blades > 0).length;
-  const shore = config.field.shoreMeters;
-  const pointColumns = Math.floor((level.width + 2 * shore) / STEP_METERS) + 1;
-  const pointRows = Math.floor((level.depth + 2 * shore) / STEP_METERS) + 1;
-  const centerColumn = Math.round((level.width / 2 + shore) / STEP_METERS);
-  const centerRow = Math.round((level.depth / 2 + shore) / STEP_METERS);
+  const pointColumns = Math.floor(level.width / STEP_METERS) + 1;
+  const pointRows = Math.floor(level.depth / STEP_METERS) + 1;
+  const centerColumn = Math.round(level.width / 2 / STEP_METERS);
+  const centerRow = Math.round(level.depth / 2 / STEP_METERS);
   const reachSteps = Math.floor(START_PUSH_METERS / STEP_METERS);
   const startPoints: number[] = [];
   for (let row = centerRow - reachSteps; row <= centerRow + reachSteps; row++) {
@@ -122,7 +214,7 @@ function boardOf(level: LevelDefinition): Board {
     bladesPerGrassCell: grassCells === 0 ? 0 : config.field.referenceBladeCount / grassCells,
     pointColumns,
     pointRows,
-    pointOrigin: -shore,
+    pointOrigin: 0,
     startPoints,
     world: { level, obstacles: createObstacleField(level.obstacles) },
   };
@@ -261,18 +353,23 @@ function isWithinReach(board: Board, reached: Uint8Array, size: number, x: numbe
 
 /** Some reached point lies within `distance` of (x, z). */
 function hasReachedPointNear(board: Board, reached: Uint8Array, x: number, z: number, distance: number): boolean {
-  const reach = distance;
-  const firstColumn = Math.max(0, Math.ceil((x - reach - board.pointOrigin) / STEP_METERS));
-  const lastColumn = Math.min(board.pointColumns - 1, Math.floor((x + reach - board.pointOrigin) / STEP_METERS));
-  const firstRow = Math.max(0, Math.ceil((z - reach - board.pointOrigin) / STEP_METERS));
-  const lastRow = Math.min(board.pointRows - 1, Math.floor((z + reach - board.pointOrigin) / STEP_METERS));
+  return reachedPointsNear(board, reached, x, z, distance).length > 0;
+}
+
+/** The reached points within `distance` of (x, z). */
+function reachedPointsNear(board: Board, reached: Uint8Array, x: number, z: number, distance: number): number[] {
+  const firstColumn = Math.max(0, Math.ceil((x - distance - board.pointOrigin) / STEP_METERS));
+  const lastColumn = Math.min(board.pointColumns - 1, Math.floor((x + distance - board.pointOrigin) / STEP_METERS));
+  const firstRow = Math.max(0, Math.ceil((z - distance - board.pointOrigin) / STEP_METERS));
+  const lastRow = Math.min(board.pointRows - 1, Math.floor((z + distance - board.pointOrigin) / STEP_METERS));
+  const found: number[] = [];
   for (let row = firstRow; row <= lastRow; row++) {
     for (let column = firstColumn; column <= lastColumn; column++) {
       const point = row * board.pointColumns + column;
-      if (reached[point] === 1 && Math.hypot(pointX(board, point) - x, pointZ(board, point) - z) <= reach) return true;
+      if (reached[point] === 1 && Math.hypot(pointX(board, point) - x, pointZ(board, point) - z) <= distance) found.push(point);
     }
   }
-  return false;
+  return found;
 }
 
 /** The cell's center: where its blades are on average. */

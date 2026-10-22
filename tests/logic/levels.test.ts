@@ -112,11 +112,19 @@ describe('clearCellsUnderSolidObstacles', () => {
     expect(sandCells(cells)).toEqual([]);
   });
 
-  it('leaves the grass of a cell the rock only touches at its edge', () => {
+  it('also clears a cell the rock only touches at its edge, so no blade grows right against it, out of the blade\'s reach', () => {
     const cells = greenCells();
     const radius = obstacleRadius('rock');
     // Rock centered so that its edge just reaches cell (3, 3)'s west side.
     clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'rock', x: 3 - radius, z: 3.5 }]);
+    expect(cells[3 * COLUMNS + 3]).toBeNull();
+  });
+
+  it('leaves the grass of a cell clear of the rock by more than a hand', () => {
+    const cells = greenCells();
+    const radius = obstacleRadius('rock');
+    // Rock centered so that its edge stays 0.2 m short of cell (3, 3)'s west side.
+    clearCellsUnderSolidObstacles(cells, 1, COLUMNS, [{ type: 'rock', x: 3 - radius - 0.2, z: 3.5 }]);
     expect(cells[3 * COLUMNS + 3]).toBe('green');
   });
 

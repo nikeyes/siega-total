@@ -127,11 +127,12 @@ Cualquier hierba puede ser la hierba objetivo.
 
 El generador acepta una semilla solo si el nivel es posible **con cualquier tamaño inicial que venda la tienda, sin boosters**. Un jugador que compró tamaño inicial no puede quedarse atascado donde uno sin mejoras pasa.
 
-- La validación mueve la cuchilla como el juego: su centro recorre puntos cada 0,5 m de la isla, orilla incluida, y en cada tamaño solo pisa donde su círculo no toca hierba ni obstáculos que aún no corta. Un pasillo más estrecho que la cuchilla no cuenta.
+- La validación mueve la cuchilla como el juego: su centro recorre puntos cada 0,5 m del campo, y en cada tamaño solo pisa donde su círculo no toca hierba ni obstáculos que aún no corta. Un pasillo más estrecho que la cuchilla no cuenta. La orilla no cuenta como camino: un nivel que solo se resuelve rodeando la isla escondería su camino al jugador.
+- No crece hierba debajo ni pegada a rocas y cactus (10 cm de margen), donde la cuchilla nunca llegaría.
 - Lo que corta de pequeña queda cortado al crecer, aunque de grande ya no quepa ahí.
 - El tamaño alcanzable con la hierba accesible supera el tamaño mínimo de toda la hierba objetivo.
 - Toda la hierba objetivo es alcanzable entera: la cuchilla llega a las esquinas de cada celda, también en los rincones entre dos muros.
-- El tiempo estimado de recorrido cabe en el tiempo del nivel.
+- El tiempo estimado de recorrido cabe en el tiempo del nivel. La estimación suma barrer las celdas objetivo, 1,5 s por pieza objetivo y el camino de una mancha objetivo a la siguiente, por donde la cuchilla puede ir. El tiempo del nivel es esa estimación por un margen que baja de 2,0 a 1,6, más 30 s.
 
 ### Campaña y modo infinito
 
@@ -158,7 +159,7 @@ Las monedas compran mejoras permanentes y boosters. No hay anuncios ni compras c
 
 1. Cada brizna cortada da las monedas de su tipo (tabla de hierbas).
 2. Las frutas dan monedas extra.
-3. Al ganar, el jugador recibe un bonus según el tiempo sobrante.
+3. Al ganar, el jugador recibe un bonus de 50 monedas por cada segundo sobrante.
 
 ### Mejoras permanentes
 
@@ -168,7 +169,7 @@ Cada mejora tiene niveles con precio creciente (valores en `config.ts`).
 | --- | --- |
 | Tamaño inicial | La cuchilla empieza con más tamaño |
 | Velocidad | Sube la velocidad máxima |
-| Tiempo extra | Suma segundos al tiempo de cada nivel |
+| Tiempo extra | Suma 3 s al tiempo de cada nivel por cada nivel de mejora |
 | Crecimiento | La barra de tamaño se llena más rápido |
 
 ### Boosters
