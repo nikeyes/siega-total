@@ -2,7 +2,7 @@ export const texts = {
   hud: {
     size: 'Tamaño',
     level: 'Nivel',
-    needBiggerSize: 'Necesitas más tamaño',
+    needSize: 'Necesitas tamaño {size}',
     sizeUp: '¡Tamaño {size}!',
   },
   result: {

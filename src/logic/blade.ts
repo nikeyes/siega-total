@@ -67,9 +67,10 @@ export function moveBlade(
     const brakedSpeed = blade.speed - deceleration * dt;
     blade.speed = brakedSpeed > STOPPED_SPEED_TOLERANCE ? brakedSpeed : 0;
   }
-  // Each axis is clamped on its own, so the blade slides along the edge.
-  blade.x = clamp(blade.x + Math.cos(blade.heading) * blade.speed * dt, 0, width);
-  blade.z = clamp(blade.z + Math.sin(blade.heading) * blade.speed * dt, 0, depth);
+  // Each axis is clamped on its own, so the blade slides along the edge of the island.
+  const shore = config.field.shoreMeters;
+  blade.x = clamp(blade.x + Math.cos(blade.heading) * blade.speed * dt, -shore, width + shore);
+  blade.z = clamp(blade.z + Math.sin(blade.heading) * blade.speed * dt, -shore, depth + shore);
 }
 
 function clamp(value: number, min: number, max: number): number {

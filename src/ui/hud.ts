@@ -11,9 +11,9 @@ import { boosterIconSvg, coinIconSvg, pauseIconSvg } from './icons';
 
 /** The size pill hangs this far below the blade's center on screen, clear of the blade itself. */
 const SIZE_PILL_OFFSET_PX = 34;
-/** «Necesitas más tamaño» floats this far above the blade's center on screen. */
+/** «Necesitas tamaño N» floats this far above the blade's center on screen. */
 const BLOCKED_NOTICE_OFFSET_PX = 70;
-/** «¡Tamaño N!» floats this far above the blade's center on screen, above «Necesitas más tamaño». */
+/** «¡Tamaño N!» floats this far above the blade's center on screen, above «Necesitas tamaño N». */
 const SIZE_UP_OFFSET_PX = 110;
 /** A «+N» starts this far above the blade's center on screen and rises from there. */
 const COIN_FLOAT_OFFSET_PX = 40;
@@ -33,8 +33,8 @@ export interface HudState {
   /** Where the size pill hangs from, in container pixels (the blade on screen). */
   sizeLabelX: number;
   sizeLabelY: number;
-  /** Starts «Necesitas más tamaño» above the blade. */
-  showBlocked: boolean;
+  /** In the frame the blocked notice should show, the size the blade needs; null otherwise. */
+  blockedSize: number | null;
   /** The balance with what this level has earned so far. */
   coins: number;
   /** Starts a «+N» above the blade with these coins. */
@@ -60,6 +60,8 @@ export interface HudDisplay {
   coinsLabel: string;
   /** «¡Tamaño N!» in the frame the blade grows. */
   sizeUpLabel: string | null;
+  /** «Necesitas tamaño N» in the frame the blade is blocked by something a bigger blade cuts. */
+  blockedLabel: string | null;
 }
 
 export function hudDisplay(state: HudState): HudDisplay {
@@ -74,6 +76,11 @@ export function hudDisplay(state: HudState): HudDisplay {
     sizeLabelY: Math.round(state.sizeLabelY),
     coinsLabel: formatCount(state.coins),
     sizeUpLabel: state.sizeUp === null ? null : texts.hud.sizeUp.replace('{size}', String(state.sizeUp)),
+    // A rock needs an infinite size: no size cuts it, so the bump says it all.
+    blockedLabel:
+      state.blockedSize === null || !Number.isFinite(state.blockedSize)
+        ? null
+        : texts.hud.needSize.replace('{size}', String(state.blockedSize)),
   };
 }
 
@@ -132,7 +139,6 @@ export function createHud(container: HTMLElement, actions: HudActions): Hud {
   const pillText = element('span', 'hud-size-text');
   pill.append(pillFill, pillText);
   const blockedNotice = element('div', 'hud-blocked');
-  blockedNotice.textContent = texts.hud.needBiggerSize;
   const sizeUpNotice = element('div', 'hud-size-up');
   const corner = element('div', 'hud-corner');
   const coins = element('div', 'hud-coins');
@@ -198,7 +204,10 @@ export function createHud(container: HTMLElement, actions: HudActions): Hud {
       blockedNotice.style.transform = `translate(calc(${display.sizeLabelX}px - 50%), ${display.sizeLabelY - BLOCKED_NOTICE_OFFSET_PX}px)`;
       sizeUpNotice.style.translate = `calc(${display.sizeLabelX}px - 50%) ${display.sizeLabelY - SIZE_UP_OFFSET_PX}px`;
     }
-    if (state.showBlocked) restartAnimation(blockedNotice, 'visible');
+    if (display.blockedLabel !== null) {
+      blockedNotice.textContent = display.blockedLabel;
+      restartAnimation(blockedNotice, 'visible');
+    }
     if (display.sizeUpLabel !== null) {
       sizeUpNotice.textContent = display.sizeUpLabel;
       restartAnimation(sizeUpNotice, 'visible');

@@ -1,6 +1,6 @@
 import { config } from '../config';
 import type { LevelDefinition } from './levels';
-import { canCutObstacle, obstacleRadius, type ObstacleField } from './obstacles';
+import { canCutObstacle, obstacleCutSize, obstacleRadius, type ObstacleField } from './obstacles';
 
 export interface CollisionWorld {
   readonly level: LevelDefinition;
@@ -22,7 +22,7 @@ export function isHardCell(level: LevelDefinition, cell: number, size: number): 
 
 /**
  * Pushes the circle (x, z, radius) out of every hard cell and every standing obstacle
- * that `size` cannot cut, then keeps it inside the field.
+ * that `size` cannot cut, then keeps it on the island: the field and its shore.
  */
 export function resolveCollisions(world: CollisionWorld, x: number, z: number, radius: number, size: number): ResolvedPosition {
   const position = { x, z, blocked: false };
@@ -31,11 +31,42 @@ export function resolveCollisions(world: CollisionWorld, x: number, z: number, r
     // Walls go after obstacles: when a gap is narrower than the blade, it may graze the rock but never enters the wall.
     pushOutOfObstacles(world.obstacles, position, radius, size);
     pushOutOfHardCells(level, position, radius, size);
-    // Inside the loop, so the next pass pushes again from where the field edge left the blade.
-    position.x = clamp(position.x, 0, level.width);
-    position.z = clamp(position.z, 0, level.depth);
+    // Inside the loop, so the next pass pushes again from where the island edge left the blade.
+    const shore = config.field.shoreMeters;
+    position.x = clamp(position.x, -shore, level.width + shore);
+    position.z = clamp(position.z, -shore, level.depth + shore);
   }
   return position;
+}
+
+/**
+ * The size that would cut everything the circle (x, z, radius) overlaps and `size` cannot cut yet:
+ * the hard grass and the standing obstacles in its way. Infinity for a rock; null when nothing is in the way.
+ */
+export function sizeToPass(world: CollisionWorld, x: number, z: number, radius: number, size: number): number | null {
+  const { level, obstacles } = world;
+  const { cellSize } = level;
+  const columns = Math.ceil(level.width / cellSize);
+  const rows = Math.ceil(level.depth / cellSize);
+  const firstColumn = Math.max(0, Math.floor((x - radius) / cellSize));
+  const lastColumn = Math.min(columns - 1, Math.floor((x + radius) / cellSize));
+  const firstRow = Math.max(0, Math.floor((z - radius) / cellSize));
+  const lastRow = Math.min(rows - 1, Math.floor((z + radius) / cellSize));
+  let needed: number | null = null;
+  const need = (minSize: number) => (needed = Math.max(needed ?? 0, minSize));
+  for (let row = firstRow; row <= lastRow; row++) {
+    for (let column = firstColumn; column <= lastColumn; column++) {
+      const cell = row * columns + column;
+      if (!isHardCell(level, cell, size)) continue;
+      const box = { left: column * cellSize, top: row * cellSize, right: (column + 1) * cellSize, bottom: (row + 1) * cellSize };
+      if (distanceToBox({ x, z, blocked: false }, box) < radius) need(config.grassTypes[level.cells[cell]!].minSize);
+    }
+  }
+  obstacles.obstacles.forEach(({ type, x: obstacleX, z: obstacleZ }, index) => {
+    if (obstacles.cut[index] === 1 || canCutObstacle(type, size)) return;
+    if (Math.hypot(x - obstacleX, z - obstacleZ) < radius + obstacleRadius(type)) need(obstacleCutSize(type));
+  });
+  return needed;
 }
 
 function pushOutOfHardCells(level: LevelDefinition, position: ResolvedPosition, radius: number, size: number): void {

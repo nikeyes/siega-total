@@ -11,7 +11,7 @@ const STATE: HudState = {
   growthFraction: 0.25,
   sizeLabelX: 195,
   sizeLabelY: 422,
-  showBlocked: false,
+  blockedSize: null,
   coins: 345,
   floatCoins: null,
   sizeUp: null,
@@ -37,6 +37,15 @@ describe('hudDisplay', () => {
     expect(hudDisplay({ ...STATE, timeLeft: 10 }).lowTime).toBe(true);
     expect(hudDisplay({ ...STATE, timeLeft: 10.1 }).lowTime).toBe(false);
     expect(hudDisplay({ ...STATE, timeLeft: 5, playing: false }).lowTime).toBe(false);
+  });
+
+  it('tells the size the blade needs when it is blocked', () => {
+    expect(hudDisplay({ ...STATE, blockedSize: 2 }).blockedLabel).toBe('Necesitas tamaño 2');
+  });
+
+  it('says nothing when the blade is not blocked, or hits a rock that no size cuts', () => {
+    expect(hudDisplay(STATE).blockedLabel).toBeNull();
+    expect(hudDisplay({ ...STATE, blockedSize: Infinity }).blockedLabel).toBeNull();
   });
 
   it('shows one counter per target, in the order of the level', () => {

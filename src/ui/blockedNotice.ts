@@ -1,7 +1,7 @@
 import { config } from '../config';
 
 export interface BlockedNotice {
-  /** True in the step where «Necesitas más tamaño» should appear. */
+  /** True in the step where «Necesitas tamaño N» should appear. */
   step(blocked: boolean, dt: number): boolean;
 }
 

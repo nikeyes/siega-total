@@ -43,7 +43,10 @@ export interface GameScene {
   setBiome(biome: GrassType): void;
 }
 
-/** Renderer, lights and the island: a slab whose top face, at y = 0, spans the field from `(0, 0)` to `(width, depth)`. */
+/**
+ * Renderer, lights and the island: a slab whose top face, at y = 0, spans the field from `(0, 0)` to `(width, depth)`
+ * and config.field.shoreMeters of shore with no grass around it.
+ */
 export function createGameScene(container: HTMLElement, width: number, depth: number): GameScene {
   const renderer = new WebGLRenderer({ antialias: true });
   container.appendChild(renderer.domElement);
@@ -58,12 +61,13 @@ export function createGameScene(container: HTMLElement, width: number, depth: nu
   const groundNoise = valueNoise(GROUND_TEXTURE_SIZE, GROUND_NOISE_CELLS, createRandom(TEXTURE_SEED));
   const cliffTexture = pixelTexture(cliffPixels(CLIFF_TEXTURE_SIZE, CLIFF_COLOR, createRandom(TEXTURE_SEED)), CLIFF_TEXTURE_SIZE);
   cliffTexture.wrapS = cliffTexture.wrapT = RepeatWrapping;
-  cliffTexture.repeat.set(Math.max(width, depth) / CLIFF_TILE_METERS, config.world.slabThickness / CLIFF_TILE_METERS);
+  cliffTexture.repeat.set((Math.max(width, depth) + 2 * config.field.shoreMeters) / CLIFF_TILE_METERS, config.world.slabThickness / CLIFF_TILE_METERS);
   const cliffMaterial = new MeshBasicMaterial({ map: cliffTexture });
   const groundMaterial = new MeshBasicMaterial();
   const faceMaterials = Array.from({ length: 6 }, (_, face) => (face === TOP_FACE ? groundMaterial : cliffMaterial));
 
-  const slab = new Mesh(new BoxGeometry(width, config.world.slabThickness, depth), faceMaterials);
+  const shore = config.field.shoreMeters;
+  const slab = new Mesh(new BoxGeometry(width + 2 * shore, config.world.slabThickness, depth + 2 * shore), faceMaterials);
   slab.position.set(width / 2, -config.world.slabThickness / 2, depth / 2);
   scene.add(slab);
 

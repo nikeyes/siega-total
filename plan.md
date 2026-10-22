@@ -62,7 +62,7 @@ El jugador gana al cortar el 100 % de la hierba objetivo antes de que el tiempo 
 
 1. Cada brizna cortada llena la barra de tamaño.
 2. Con la barra llena, la cuchilla sube un nivel. El radio aumenta.
-3. Cada hierba u obstáculo tiene un tamaño mínimo. Con tamaño menor, la cuchilla rebota y muestra "Necesitas más tamaño".
+3. Cada hierba u obstáculo tiene un tamaño mínimo. Con tamaño menor, la cuchilla rebota y muestra "Necesitas tamaño N", con el tamaño que la deja pasar. Una roca no se corta nunca: la cuchilla rebota sin texto.
 4. Cada nivel empieza con el tamaño inicial (base + mejora permanente).
 
 ### Control
@@ -103,14 +103,14 @@ Cualquier hierba puede ser la hierba objetivo.
 
 | Tipo | Comportamiento |
 | --- | --- |
-| Roca | Nunca se corta. Bloquea el paso. |
+| Roca | Nunca se corta. Bloquea el paso. No crece hierba debajo, y rocas y cactus quedan a 2 m del borde para poder rodearlos. |
 | Cactus | Se corta con tamaño ≥ 4. Antes, bloquea. |
-| Fruta (sandía, fresa) | Se corta con tamaño ≥ 2. Da monedas extra y una explosión de color. |
+| Fruta (sandía, fresa) | Se corta con tamaño ≥ 2. Da monedas extra y una explosión de color. Se ve más grande que su radio de corte y flota sobre la hierba, subiendo y bajando y girando despacio, para que destaque. |
 
 ### Bioma e isla
 
 1. El bioma de cada nivel es su hierba dominante: la que ocupa más celdas. En un empate gana la primera del orden verde, hielo, trigo, lavanda, zarza; un campo sin hierba es verde. No se guarda ni cambia el generador.
-2. El campo es una isla: una losa con acantilado de tierra anaranjada moteada, rodeada de mar.
+2. El campo es una isla: una losa con acantilado de tierra anaranjada moteada, rodeada de mar. Alrededor de la hierba queda una orilla de 1,5 m sin hierba por la que la cuchilla también se mueve.
 3. El suelo de la isla toma el color del bioma (verde claro, blanco azulado, ocre, verde grisáceo o tierra oscura), con ruido suave y un borde más oscuro. Las celdas de arena y la hierba cortada dejan verlo.
 4. El mar tiene vetas claras que se mueven despacio y una línea de espuma que late junto a la orilla. En calidad Baja se queda quieto.
 
@@ -144,7 +144,7 @@ Al principio, algo nuevo en cada nivel; después, uno cada 3 niveles.
 1. Nivel 1: solo verde. Enseña el movimiento.
 2. Nivel 2: frutas (sandía y fresa). La cuchilla crece con la hierba y rompe la primera fruta: el primer premio.
 3. Nivel 3: hielo. Enseña la hierba objetivo y estrena su bioma.
-4. Nivel 4: trigo. Enseña "Necesitas más tamaño". Una hierba nueva que la cuchilla no puede cortar al empezar llega siempre con otra que sí.
+4. Nivel 4: trigo. Enseña "Necesitas tamaño 2". Una hierba nueva que la cuchilla no puede cortar al empezar llega siempre con otra que sí.
 5. Nivel 5: rocas.
 6. Después: lavanda (7), zarza (10) y cactus (13).
 
@@ -253,7 +253,7 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | Brillo | Halo suave bajo la cuchilla, de 1,5 veces su radio, teñido según el bioma. |
 | Rotura | Cada obstáculo que se rompe suena con su propio sonido (sandía, fresa o cactus), en 4 variantes y con el tono ±6 %. Como mucho uno por tipo en cada paso. |
 | Poco tiempo | Por debajo de 10 s, el anillo del reloj pasa a ámbar y late, y suena una vez un aviso blando de dos notas. Si el reloj vuelve a subir, el aviso se rearma. |
-| Obstáculo duro | Rebote, sonido sordo, vibración corta, texto "Necesitas más tamaño". |
+| Obstáculo duro | Rebote, sonido sordo, vibración corta, texto "Necesitas tamaño N". Contra una roca, sin texto. |
 | Victoria | Onda que corta el campo restante desde la cuchilla, con un arpegio de «barra completa». En el resultado entran tres estrellas, una cada 0,35 s y cada una con su nota más aguda, y después caen el confeti y la lluvia de monedas. Los botones se pueden pulsar desde el principio; salir del resultado cancela lo que falte. |
 | Vibración | 10 ms en subida de tamaño y rebote. Solo donde el navegador lo permite (no en iPhone). Desactivable. |
 

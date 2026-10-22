@@ -49,8 +49,10 @@ function bladeMovingEastAtFullSpeed() {
   return blade;
 }
 
-function isInsideField(blade: Blade) {
-  return blade.x >= 0 && blade.x <= width && blade.z >= 0 && blade.z <= depth;
+/** On the field or its shore. */
+function isOnIsland(blade: Blade) {
+  const shore = config.field.shoreMeters;
+  return blade.x >= -shore && blade.x <= width + shore && blade.z >= -shore && blade.z <= depth + shore;
 }
 
 describe('addCuts', () => {
@@ -285,48 +287,56 @@ describe('moveBlade: turning', () => {
   });
 });
 
-describe('moveBlade: field edges', () => {
-  it('slides along the east edge when moving northeast into it', () => {
+describe('moveBlade: island edges, shoreMeters past the field', () => {
+  const shore = config.field.shoreMeters;
+
+  it('drives off the grass onto the shore', () => {
     const blade = createBlade(width - 0.1, depth / 2);
+    move(blade, EAST, 0.1);
+    expect(blade.x).toBeGreaterThan(width);
+  });
+
+  it('slides along the east edge of the island when moving northeast into it', () => {
+    const blade = createBlade(width + shore - 0.1, depth / 2);
     move(blade, NORTHEAST, 0.1);
     const zAtEdge = blade.z;
     move(blade, NORTHEAST, 0.1);
-    expect(blade.x).toBe(width);
+    expect(blade.x).toBe(width + shore);
     expect(blade.z).toBeLessThan(zAtEdge);
   });
 
-  it('stops dead at a corner without leaving the field', () => {
-    const blade = createBlade(width, 0);
+  it('stops dead at a corner without leaving the island', () => {
+    const blade = createBlade(width + shore, -shore);
     move(blade, NORTHEAST, 1);
-    expect(blade.x).toBe(width);
-    expect(blade.z).toBe(0);
+    expect(blade.x).toBe(width + shore);
+    expect(blade.z).toBe(-shore);
   });
 
-  it('stays inside the field with a huge dt (tab returning from background)', () => {
+  it('stays on the island with a huge dt (tab returning from background)', () => {
     const blade = bladeAtFieldCenter();
     move(blade, NORTHEAST, 0.1);
     move(blade, WEST, 30);
-    expect(blade.x).toBe(0);
+    expect(blade.x).toBe(-shore);
     expect(angleBetween(blade.heading, WEST_HEADING)).toBeLessThan(1e-9);
   });
 
-  it('stops at the east edge of a field narrower than it is deep', () => {
+  it('stops at the east edge of the island around a field narrower than it is deep', () => {
     const narrowWidth = 10;
     const deepDepth = 20;
-    const blade = createBlade(narrowWidth - 0.1, deepDepth / 2);
+    const blade = createBlade(narrowWidth + shore - 0.1, deepDepth / 2);
     moveBlade(blade, EAST, 1, narrowWidth, deepDepth);
-    expect(blade.x).toBe(narrowWidth);
+    expect(blade.x).toBe(narrowWidth + shore);
   });
 
-  it('stops at the south edge of a field deeper than it is wide', () => {
+  it('stops at the south edge of the island around a field deeper than it is wide', () => {
     const narrowWidth = 10;
     const deepDepth = 20;
-    const blade = createBlade(narrowWidth / 2, deepDepth - 0.1);
+    const blade = createBlade(narrowWidth / 2, deepDepth + shore - 0.1);
     moveBlade(blade, SOUTH, 1, narrowWidth, deepDepth);
-    expect(blade.z).toBe(deepDepth);
+    expect(blade.z).toBe(deepDepth + shore);
   });
 
-  it('never leaves the field during a long seeded random drive', () => {
+  it('never leaves the island during a long seeded random drive', () => {
     const random = createRandom(config.field.seed);
     const blade = bladeAtFieldCenter();
     let firstPositionOutside: { x: number; z: number } | undefined;
@@ -335,7 +345,7 @@ describe('moveBlade: field edges', () => {
       const direction = random() < 0.2 ? null : directionAt(angle);
       for (let step = 0; step < 100; step++) {
         move(blade, direction, random() * 0.05);
-        if (!isInsideField(blade)) {
+        if (!isOnIsland(blade)) {
           firstPositionOutside = { x: blade.x, z: blade.z };
           break;
         }

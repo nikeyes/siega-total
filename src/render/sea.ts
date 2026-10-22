@@ -23,7 +23,8 @@ const vertexShader = /* glsl */ `
 
 const fragmentShader = /* glsl */ `
   uniform float time;
-  uniform vec2 fieldSize;
+  uniform vec2 islandCenter;
+  uniform vec2 islandHalfSize;
   uniform vec3 baseColor;
   uniform vec3 streakColor;
   uniform vec3 foamColor;
@@ -34,7 +35,7 @@ const fragmentShader = /* glsl */ `
     float streak = smoothstep(0.94, 1.0, abs(sin((warped.x + warped.y * 0.4 - time * ${STREAK_SPEED.toFixed(3)}) * 0.9)));
     vec3 color = mix(baseColor, streakColor, streak * 0.6);
 
-    vec2 outside = max(abs(vWorld - fieldSize * 0.5) - fieldSize * 0.5, 0.0);
+    vec2 outside = max(abs(vWorld - islandCenter) - islandHalfSize, 0.0);
     float shoreDistance = length(outside);
     float foamWidth = ${FOAM_METERS.toFixed(3)} * (0.75 + 0.25 * sin(time * ${FOAM_PULSE_SPEED.toFixed(3)}));
     float foam = 1.0 - smoothstep(foamWidth * 0.5, foamWidth, shoreDistance);
@@ -52,7 +53,7 @@ export interface SeaView {
   setAnimated(animated: boolean): void;
 }
 
-/** Sea around the island that spans the field from `(0, 0)` to `(width, depth)`, as far as the camera reaches. */
+/** Sea around the island (the field from `(0, 0)` to `(width, depth)` and its shore), as far as the camera reaches. */
 export function createSea(scene: Scene, width: number, depth: number): SeaView {
   const { seaMargin, slabThickness } = config.world;
   const material = new ShaderMaterial({
@@ -60,7 +61,8 @@ export function createSea(scene: Scene, width: number, depth: number): SeaView {
     fragmentShader,
     uniforms: {
       time: { value: 0 },
-      fieldSize: { value: new Vector2(width, depth) },
+      islandCenter: { value: new Vector2(width / 2, depth / 2) },
+      islandHalfSize: { value: new Vector2(width / 2 + config.field.shoreMeters, depth / 2 + config.field.shoreMeters) },
       baseColor: { value: new Color(SEA_COLORS.base) },
       streakColor: { value: new Color(SEA_COLORS.streaks) },
       foamColor: { value: new Color(SEA_COLORS.foam) },
