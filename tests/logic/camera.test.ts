@@ -76,9 +76,9 @@ describe('clampFocus', () => {
   const halfVisibleZ = 4;
 
   it('leaves a focus already inside the allowed range untouched', () => {
-    const focus = createCameraFocus(12.5, 17.25, startSize);
+    const focus = createCameraFocus(width / 2 + 1.5, depth / 2 + 2.25, startSize);
     clampFocus(focus, width, depth, halfVisibleX, halfVisibleZ, edgeMarginMeters);
-    expect(focus).toEqual(createCameraFocus(12.5, 17.25, startSize));
+    expect(focus).toEqual(createCameraFocus(width / 2 + 1.5, depth / 2 + 2.25, startSize));
   });
 
   it('keeps a blade at any field edge at least the margin inside the visible area', () => {

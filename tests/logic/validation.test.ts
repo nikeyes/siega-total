@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
-import { bladeRadius } from '../../src/logic/blade';
+import { bladeRadius, cutsToNextSize } from '../../src/logic/blade';
 import type { GrassType } from '../../src/logic/field';
 import { clearCellsUnderSolidObstacles, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
 import { analyzeLevel, estimateSeconds, validateLevel } from '../../src/logic/validation';
@@ -45,15 +45,19 @@ function ringLevel(typeOfRing: (ring: number) => GrassType | null, overrides: Pa
   return cellLevel((column, row) => typeOfRing(ringOf(row * SIDE + column)), overrides);
 }
 
-/** Rocks walling in the 4 × 4 cells whose top-left cell is (column, row). */
-function rockPen(column: number, row: number): Obstacle[] {
-  return [0, 2, 4, 6].flatMap((step): Obstacle[] => [
+/** Rocks 2 m apart walling in the `cells` × `cells` cells whose top-left cell is (column, row); `cells` is even. */
+function rockPen(column: number, row: number, cells: number): Obstacle[] {
+  const steps = Array.from({ length: cells / 2 + 2 }, (_, step) => step * 2);
+  return steps.flatMap((step): Obstacle[] => [
     { type: 'rock', x: column - 1 + step, z: row - 1 },
-    { type: 'rock', x: column - 1 + step, z: row + 5 },
+    { type: 'rock', x: column - 1 + step, z: row + cells + 1 },
     { type: 'rock', x: column - 1, z: row - 1 + step },
-    { type: 'rock', x: column + 5, z: row - 1 + step },
+    { type: 'rock', x: column + cells + 1, z: row - 1 + step },
   ]);
 }
+
+/** Small enough for a pen in a corner to keep clear of the start. */
+const PEN_CELLS = 2;
 
 /** referenceBladeCount / 100 grass cells, so each holds 100 blades: 2 cells grow size 1 to 2, 4 more grow 2 to 3. */
 const GRASS_CELLS_OF_100_BLADES = config.field.referenceBladeCount / 100;
@@ -81,9 +85,9 @@ describe('validateLevel', () => {
   });
 
   it('rejects an ice island walled in by rocks', () => {
-    const level = ringLevel(() => 'green', { obstacles: rockPen(3, 3) });
+    const level = ringLevel(() => 'green', { obstacles: rockPen(1, 1, PEN_CELLS) });
     const cells = [...level.cells];
-    for (let row = 3; row <= 6; row++) for (let column = 3; column <= 6; column++) cells[row * SIDE + column] = 'ice';
+    for (let row = 1; row <= PEN_CELLS; row++) for (let column = 1; column <= PEN_CELLS; column++) cells[row * SIDE + column] = 'ice';
     expect(validateLevel({ ...level, cells })).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
@@ -111,7 +115,10 @@ describe('validateLevel', () => {
 
   it('rejects a strawberry target walled in by rocks', () => {
     // The pen is off the diagonal, so mixing up x and z would put the strawberry in the open.
-    const level = ringLevel(() => 'green', { obstacles: [...rockPen(3, SIDE - 10), { type: 'strawberry', x: 4.5, z: SIDE - 8.5 }], targets: ['strawberry'] });
+    const level = ringLevel(() => 'green', {
+      obstacles: [...rockPen(1, SIDE - 1 - PEN_CELLS, PEN_CELLS), { type: 'strawberry', x: 2, z: SIDE - PEN_CELLS }],
+      targets: ['strawberry'],
+    });
     expect(validateLevel(level)).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
@@ -170,7 +177,7 @@ describe('validateLevel', () => {
 
   it('rejects a target with no units on the field', () => {
     expect(validateLevel(ringLevel(() => 'green'))).toEqual({ valid: false, reason: 'noTargets' });
-    const onlyRocks = ringLevel(() => 'green', { obstacles: rockPen(3, 3), targets: ['strawberry'] });
+    const onlyRocks = ringLevel(() => 'green', { obstacles: rockPen(1, 1, PEN_CELLS), targets: ['strawberry'] });
     expect(validateLevel(onlyRocks)).toEqual({ valid: false, reason: 'noTargets' });
   });
 
@@ -188,7 +195,9 @@ describe('validateLevel', () => {
 describe('analyzeLevel', () => {
   it('reaches the size that every reachable cut adds up to', () => {
     const { finalSize, targetsReachable } = analyzeLevel(ringLevel(() => 'green', { targets: ['green'] }));
-    expect(finalSize).toBeGreaterThan(config.blade.startSize + 5);
+    let size = config.blade.startSize;
+    for (let cuts = config.field.referenceBladeCount; cuts >= cutsToNextSize(size); size++) cuts -= cutsToNextSize(size);
+    expect(finalSize).toBe(size);
     expect(targetsReachable).toBe(true);
   });
 

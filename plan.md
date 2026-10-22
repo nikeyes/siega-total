@@ -120,7 +120,7 @@ Cualquier hierba puede ser la hierba objetivo.
 2. Cada patrón tiene parámetros: tamaño, número de tipos, cantidad de obstáculos.
 3. Un PRNG con semilla combina patrones. La misma semilla da siempre el mismo nivel.
 4. Una curva de dificultad sube los parámetros con el número de nivel.
-5. La salida es una cuadrícula de tipos sobre un campo de 22 × 22 m. Las briznas se colocan sobre ella según la calidad activa. Cada brizna pesa `6 500 / briznas` para el crecimiento y las monedas, así que el nivel se juega igual en cualquier calidad.
+5. La salida es una cuadrícula de tipos sobre un campo de 16 × 16 m, con la hierba y los obstáculos a la misma densidad que en el de 22 × 22 m de antes. Las briznas se colocan sobre ella según la calidad activa. Cada brizna pesa `3 400 / briznas` para el crecimiento y las monedas, así que el nivel se juega igual en cualquier calidad.
 6. El total de briznas objetivo se calcula para la calidad activa. El contador siempre es exacto.
 
 ### Validación de semillas
@@ -221,9 +221,9 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 
 | Nivel | Briznas máx. | Restos en suelo | Sombra | Resolución máx. |
 | --- | --- | --- | --- | --- |
-| Alto | 10 800 | Persistentes | Falsa, bajo la cuchilla | 2× |
-| Medio | 6 500 | Se desvanecen | Falsa, bajo la cuchilla | 1,5× |
-| Bajo | 3 200 | Pocos | No | 1× |
+| Alto | 5 700 | Persistentes | Falsa, bajo la cuchilla | 2× |
+| Medio | 3 400 | Se desvanecen | Falsa, bajo la cuchilla | 1,5× |
+| Bajo | 1 700 | Pocos | No | 1× |
 
 1. Cada sesión empieza en Medio.
 2. En cada intento mide 3 s de juego, tras 0,5 s de calentamiento.

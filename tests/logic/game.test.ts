@@ -149,9 +149,16 @@ function stepThroughWinWave(game: Game, onStep: (result: StepResult) => void = (
   return steps;
 }
 
+/**
+ * Big enough to sweep the whole ice cell as it zigzags inside it, too small for the bramble around it.
+ * It used to reach it by cutting the ice, but that depended on how many blades the cell held.
+ */
+const ICE_CELL_SWEEPING_SIZE = 2;
+
 /** ICE_IN_BRAMBLE mowed until the ice is cut, so the win wave has just started and the bramble still stands. */
 function gameInWinWave(overrides: Partial<LevelDefinition> = {}): Game {
   const game = createGame(levelFromRows(ICE_IN_BRAMBLE, overrides));
+  game.blade.size = ICE_CELL_SWEEPING_SIZE;
   mowInZigzag(game);
   return game;
 }

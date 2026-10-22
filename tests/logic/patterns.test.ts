@@ -370,6 +370,13 @@ describe('islands', () => {
     expect(areasSeen).toEqual(new Set(discAreas));
   });
 
+  it('uses every region even on a field too small for all its islands', () => {
+    for (const seed of SEEDS) {
+      const present = regionsPresent(mapOf('islands', seed, 4, 16, 16));
+      expect([...present].sort(), `seed ${seed}`).toEqual([0, 1, 2, 3]);
+    }
+  });
+
   it('still uses every region when the first islands crowd the middle', () => {
     // Seed 505 draws two big islands in the middle; a third one of radius 5 no longer fits.
     const present = regionsPresent(mapOf('islands', 505, 4));

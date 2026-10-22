@@ -10,17 +10,17 @@ interface QualityLevelSettings {
 
 /** One clipping flies for every bladesPerClipping blades cut, and no more than maxClippingsPerFrame in one frame. */
 const qualityLevels = {
-  high: { bladeCount: 10_800, maxPixelRatio: 2, shadow: true, clippings: 'persistent', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
-  medium: { bladeCount: 6_500, maxPixelRatio: 1.5, shadow: true, clippings: 'fade', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
-  low: { bladeCount: 3_200, maxPixelRatio: 1, shadow: false, clippings: 'fade', bladesPerClipping: 9, maxClippingsPerFrame: 10 },
+  high: { bladeCount: 5_700, maxPixelRatio: 2, shadow: true, clippings: 'persistent', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
+  medium: { bladeCount: 3_400, maxPixelRatio: 1.5, shadow: true, clippings: 'fade', bladesPerClipping: 3, maxClippingsPerFrame: 30 },
+  low: { bladeCount: 1_700, maxPixelRatio: 1, shadow: false, clippings: 'fade', bladesPerClipping: 9, maxClippingsPerFrame: 10 },
 } satisfies Record<string, QualityLevelSettings>;
 
 export const config = {
   field: {
-    width: 22,
-    depth: 22,
+    width: 16,
+    depth: 16,
     /** The blade count the game rules are tuned for; each blade cut counts referenceBladeCount / bladeCount of it. */
-    referenceBladeCount: 6_500,
+    referenceBladeCount: 3_400,
     gridCellSize: 1,
     seed: 1,
   },
@@ -93,9 +93,9 @@ export const config = {
     unlockLevel: { green: 1, ice: 4, wheat: 7, lavender: 10, rock: 13, fruit: 16, bramble: 19, cactus: 22 },
     grassTypeCount: { first: 1, last: 4 },
     targetCount: { first: 1, last: 3 },
-    rockCount: { first: 2, last: 6 },
-    fruitCount: { first: 8, last: 30 },
-    cactusCount: { first: 1, last: 3 },
+    rockCount: { first: 1, last: 3 },
+    fruitCount: { first: 4, last: 16 },
+    cactusCount: { first: 1, last: 2 },
     timeMargin: { first: 2.0, last: 1.3 },
     /** Seconds to walk to and cut each target piece, on top of the swept area. */
     secondsPerTargetPiece: 1.5,

@@ -67,7 +67,7 @@ export function continueWithClock(save: SaveData, game: Game): boolean {
 
 /**
  * Position of the closest standing target unit (blade or piece) to (x, z), or null when none is left.
- * Walks every blade: about 6 500 every retargetSeconds while the compass points, which costs little.
+ * Walks every blade: about 3 400 every retargetSeconds while the compass points, which costs little.
  */
 export function nearestTarget(game: Game, x: number, z: number): { x: number; z: number } | null {
   const { field, obstacles, level } = game;

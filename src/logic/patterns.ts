@@ -123,19 +123,24 @@ function soccerField(random: () => number, params: PatternParams): RegionMap {
 
 const MIN_ISLANDS = 4;
 const MAX_ISLANDS = 8;
+const MIN_ISLAND_RADIUS = 2;
+const MAX_ISLAND_RADIUS = 5;
+/** On a smaller field the islands shrink: their radius is at most this share of the shorter side. */
+const MAX_ISLAND_RADIUS_SHARE = 1 / 5;
 /** Cells of region 0 kept between two islands, so they never touch. */
 const ISLAND_GAP = 2;
 const ISLAND_PLACEMENT_TRIES = 50;
 
-/** Region 0 with 4 to 8 round islands, 2 to 5 cells in radius, of the other regions in turn. */
+/** Region 0 with 4 to 8 round islands, 2 to 5 cells in radius (smaller on a small field), of the other regions in turn. */
 function islands(random: () => number, params: PatternParams): RegionMap {
   const { columns, rows, regionCount } = params;
+  const maxRadius = Math.max(MIN_ISLAND_RADIUS, Math.min(MAX_ISLAND_RADIUS, Math.floor(Math.min(columns, rows) * MAX_ISLAND_RADIUS_SHARE)));
   const placed: { x: number; z: number; radius: number }[] = [];
   const islandCount = randomInt(random, MIN_ISLANDS, MAX_ISLANDS);
   for (let island = 0; island < islandCount; island++) {
     for (let attempt = 0; attempt < ISLAND_PLACEMENT_TRIES; attempt++) {
       // A new radius on each try lets a smaller island fit where a big one does not.
-      const radius = randomInt(random, 2, 5);
+      const radius = randomInt(random, MIN_ISLAND_RADIUS, maxRadius);
       const x = randomInt(random, radius, columns - 1 - radius) + 0.5;
       const z = randomInt(random, radius, rows - 1 - radius) + 0.5;
       const apart = placed.every((other) => Math.hypot(other.x - x, other.z - z) >= other.radius + radius + ISLAND_GAP);
