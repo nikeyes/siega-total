@@ -50,6 +50,7 @@ import { createJoystick } from './ui/joystick';
 import { createKeyboard } from './ui/keyboard';
 import { createBlockedNotice } from './ui/blockedNotice';
 import { createCelebration } from './ui/celebration';
+import { createVictorySequence } from './ui/victorySequence';
 import { createCoinFloats } from './ui/coinFloats';
 import { createHomeScreen } from './ui/home';
 import { setLayerVisible } from './ui/layer';
@@ -241,6 +242,17 @@ const settingsScreen = createSettingsScreen(
 const tutorialHint = createTutorialHint(container);
 // Last in the container, so the confetti falls over the result layer.
 const celebration = createCelebration(container);
+/** After a win: the result's stars, each with its note, then the confetti and the coin rain. */
+const victorySequence = createVictorySequence({
+  onStep: (step) => {
+    if (step.kind === 'star') {
+      soundPlayer.play(`star${step.index}`);
+      return;
+    }
+    soundPlayer.play('confetti');
+    celebration.play(game.level.seed);
+  },
+});
 
 /** What the player sees; the game only steps while it is 'playing' or showing the result. */
 let screen: Screen = 'home';
@@ -260,7 +272,10 @@ function showScreen(next: Screen): void {
   screen = next;
   // The CSS hides the HUD on the screens away from the game.
   container!.dataset.screen = next;
-  if (next !== 'result') celebration.clear();
+  if (next !== 'result') {
+    victorySequence.cancel();
+    celebration.clear();
+  }
   for (const [name, layer] of Object.entries(SCREEN_LAYERS)) setLayerVisible(layer, name === next);
   renderSave();
   updateMusic();
@@ -480,11 +495,10 @@ function playFeedback(event: FeedbackEvent): void {
       soundPlayer.play('lowTime');
       break;
     case 'winWave':
-      soundPlayer.play('win');
+      soundPlayer.play('levelComplete');
       break;
     case 'won':
-      soundPlayer.play('coins');
-      celebration.play(game.level.seed);
+      victorySequence.play();
       break;
     case 'lost':
       soundPlayer.play('lose');

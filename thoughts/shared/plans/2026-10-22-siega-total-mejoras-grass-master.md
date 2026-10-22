@@ -692,11 +692,11 @@ Dos estilos del compositor y fundido cruzado entre ellos.
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] Los tipos pasan: `make check`
-- [ ] Todas las pruebas pasan: `make test`
-- [ ] La compilación termina: `make build`
-- [ ] La carga inicial pesa menos de 2 MB comprimidos: `make size`
-- [ ] Ya no quedan los MP3 retirados: `test ! -e public/sounds/win.mp3 && test ! -e public/sounds/coins.mp3`
+- [x] Los tipos pasan: `make check`
+- [x] Todas las pruebas pasan: `make test`
+- [x] La compilación termina: `make build`
+- [x] La carga inicial pesa menos de 2 MB comprimidos: `make size`
+- [x] Ya no quedan los MP3 retirados: `test ! -e public/sounds/win.mp3 && test ! -e public/sounds/coins.mp3`
 
 #### Verificación manual (usuario):
 - [ ] La secuencia se siente como un premio tranquilo, sin prisas, y sus sonidos no chocan con la música de menú.
@@ -724,9 +724,19 @@ Dos estilos del compositor y fundido cruzado entre ellos.
 ### Criterios de éxito
 
 #### Verificación automática:
-- [ ] `make check test build size` pasa.
+- [x] `make check test build size` pasa.
 
 ---
+
+## Desviaciones al implementar
+
+- **Fase 5:** la comprobación `! grep -rq obstacleCut src …` no puede pasar, porque el evento sigue llamándose `obstacleCut`, como dice el plan, y existe `obstacleCutSize` en `src/logic`. Se comprueba en su lugar que no quedan el MP3 ni el nombre del sonido.
+- **Fase 5:** `noiseBurst` recibe la duración del ataque en lugar de un factor de caída: cada generador cae −40 dB a lo largo de su duración. `mixAt` y `fadeEdges` reciben también la frecuencia de muestreo.
+- **Fase 5:** la síntesis se reparte en una tarea por sonido después del arranque (unos 45 ms en total en node), así no retiene los primeros frames en el móvil.
+- **Fase 5:** bugmagnet encontró que un crujido del cactus en los 2 primeros ms hacía clic. Los crujidos empiezan a los 5 ms.
+- **Fase 6:** el aviso de poco tiempo pone la segunda nota a los 0,5 s, así cada mitad del sonido tiene una sola nota dominante.
+- **Fase 8:** los destellos del confeti van de 2 a 4 kHz (no hasta 5 kHz), con un paso bajo de cuarto orden a 4,5 kHz: menos agudos que la regla general.
+- **Comprobación en el navegador:** con Chrome headless (SwiftShader) y Playwright, porque la extensión de Chrome no estaba conectada.
 
 ## Estrategia de pruebas
 
