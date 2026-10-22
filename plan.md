@@ -125,10 +125,12 @@ Cualquier hierba puede ser la hierba objetivo.
 
 ### Validación de semillas
 
-El generador acepta una semilla solo si el nivel es posible **con el tamaño inicial base, sin mejoras ni boosters**:
+El generador acepta una semilla solo si el nivel es posible **con cualquier tamaño inicial que venda la tienda, sin boosters**. Un jugador que compró tamaño inicial no puede quedarse atascado donde uno sin mejoras pasa.
 
+- La validación mueve la cuchilla como el juego: su centro recorre puntos cada 0,5 m de la isla, orilla incluida, y en cada tamaño solo pisa donde su círculo no toca hierba ni obstáculos que aún no corta. Un pasillo más estrecho que la cuchilla no cuenta.
+- Lo que corta de pequeña queda cortado al crecer, aunque de grande ya no quepa ahí.
 - El tamaño alcanzable con la hierba accesible supera el tamaño mínimo de toda la hierba objetivo.
-- Toda la hierba objetivo es alcanzable (no queda encerrada por rocas).
+- Toda la hierba objetivo es alcanzable entera: la cuchilla llega a las esquinas de cada celda, también en los rincones entre dos muros.
 - El tiempo estimado de recorrido cabe en el tiempo del nivel.
 
 ### Campaña y modo infinito

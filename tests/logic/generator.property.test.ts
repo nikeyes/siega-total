@@ -35,5 +35,6 @@ describe.each(LEVELS)('every accepted level %i out of 500 seeds', (levelNumber) 
       }
     }
     expect(accepted).toBeGreaterThan(SEEDS_PER_LEVEL / 4);
-  });
+    // Validating 500 levels takes a few seconds.
+  }, 30_000);
 });
