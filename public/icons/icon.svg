@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Mowed lawn: light and dark stripes, as the blade leaves them. -->
+  <rect width="512" height="512" fill="#6cc04a" />
+  <g fill="#82d35a">
+    <rect x="0" y="0" width="512" height="64" />
+    <rect x="0" y="128" width="512" height="64" />
+    <rect x="0" y="256" width="512" height="64" />
+    <rect x="0" y="384" width="512" height="64" />
+  </g>
+  <!-- The blade: four curved arms round a blue hub, inside the maskable safe zone. -->
+  <g transform="translate(256 256)">
+    <g id="arm" fill="#f2f4f7" stroke="#16324f" stroke-width="10" stroke-linejoin="round">
+      <path d="M 22 -26 Q 110 -44 168 26 Q 100 0 22 26 Z" />
+    </g>
+    <use href="#arm" transform="rotate(90)" />
+    <use href="#arm" transform="rotate(180)" />
+    <use href="#arm" transform="rotate(270)" />
+    <circle r="52" fill="#1fb6f2" stroke="#16324f" stroke-width="10" />
+    <circle r="22" fill="#0b3a4d" />
+    <path d="M -30 -26 A 40 40 0 0 1 4 -40" fill="none" stroke="#bdeeff" stroke-width="9" stroke-linecap="round" />
+  </g>
+</svg>
