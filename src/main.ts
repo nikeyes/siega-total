@@ -484,6 +484,9 @@ function compassTarget(dt: number): { x: number; z: number } | null {
 /** The sound and buzz of each feedback event; the cut zip follows its own rhythm. */
 function playFeedback(event: FeedbackEvent): void {
   switch (event.kind) {
+    case 'obstacleHit':
+      soundPlayer.play('fruitHit');
+      break;
     case 'obstacleCut':
       soundPlayer.play(`${event.obstacle}Break`);
       break;
@@ -549,9 +552,15 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   }
   grass!.markCut(result.cutIndices, elapsedSeconds);
   obstacleView!.markCut(result.cutObstacles);
+  obstacleView!.markHit(result.hitObstacles, elapsedSeconds);
   for (const index of result.cutObstacles) {
     const { type, x, z } = game.level.obstacles[index]!;
     if (type !== 'rock') burst.spawn(x, z, OBSTACLE_COLORS[type], BURST_PIECES[type]);
+  }
+  // A hit chips a few pieces off; the break throws the rest.
+  for (const index of result.hitObstacles) {
+    const { type, x, z } = game.level.obstacles[index]!;
+    if (type !== 'rock') burst.spawn(x, z, OBSTACLE_COLORS[type], Math.ceil(BURST_PIECES[type] / 4));
   }
   burst.update(dt);
   // The wave's cuts throw clippings too; the per-frame cap keeps it cheap.

@@ -39,3 +39,16 @@ export function synthesizeBreak(obstacle: BreakingObstacle, sampleRate: number, 
 }
 
 const BREAK_SECONDS: Record<BreakingObstacle, number> = { watermelon: 0.75, strawberry: 0.5, cactus: 0.4 };
+
+const HIT_SECONDS = 0.2;
+/** The hit stays below the break: dull, without the splash or the cracks. */
+const HIT_SOFTENING_HZ = 1500;
+
+/** A blow on a fruit that takes several: a dull thud and a little give, softer than the break that ends it. */
+export function synthesizeHit(sampleRate: number, random: () => number): Float32Array {
+  const between = (min: number, max: number) => min + (max - min) * random();
+  const sound = new Float32Array(Math.round(HIT_SECONDS * sampleRate));
+  mixAt(sound, pitchDrop(sampleRate, between(190, 230), between(110, 130), 0.12), 0, sampleRate);
+  mixAt(sound, noiseBurst(sampleRate, 0.15, 300, 1200, 0.006, random), 0, sampleRate, 1.5);
+  return fadeEdges(normalizePeak(lowPass(sound, sampleRate, HIT_SOFTENING_HZ), PEAK), sampleRate);
+}

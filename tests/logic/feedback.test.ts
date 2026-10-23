@@ -72,17 +72,33 @@ describe('cutting', () => {
   it('gives one obstacleCut per kind cut in a step, in the order of config.obstacles', () => {
     const obstacles: Obstacle[] = [
       { type: 'strawberry', x: SAND_CENTER.x - 0.3, z: SAND_CENTER.z },
-      { type: 'watermelon', ...SAND_CENTER },
+      { type: 'cactus', ...SAND_CENTER },
       { type: 'strawberry', x: SAND_CENTER.x + 0.3, z: SAND_CENTER.z },
     ];
     const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles }));
-    game.blade.size = 3;
+    game.blade.size = config.obstacles.cactus.minSize;
     const tracker = createFeedbackTracker();
     tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
     expect(tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME))).toEqual([
       { kind: 'started' },
-      { kind: 'obstacleCut', obstacle: 'watermelon' },
+      { kind: 'obstacleCut', obstacle: 'cactus' },
       { kind: 'obstacleCut', obstacle: 'strawberry' },
+    ]);
+  });
+});
+
+describe('hitting fruit', () => {
+  it('gives obstacleHit for each blow a watermelon takes before it breaks, and obstacleCut when it does', () => {
+    const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [{ type: 'watermelon', ...SAND_CENTER }] }));
+    game.blade.size = config.obstacles.watermelon.minSize;
+    const tracker = createFeedbackTracker();
+    tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
+    const events: FeedbackEvent[] = [];
+    for (let step = 0; step < 120; step++) events.push(...tracker.step(game, stepGame(game, step === 0 ? EAST : null, SIXTY_FPS_FRAME)));
+    const blows = events.filter((event) => event.kind === 'obstacleHit' || event.kind === 'obstacleCut');
+    expect(blows).toEqual([
+      ...Array.from({ length: config.obstacles.watermelon.hits - 1 }, () => ({ kind: 'obstacleHit', obstacle: 'watermelon' })),
+      { kind: 'obstacleCut', obstacle: 'watermelon' },
     ]);
   });
 });

@@ -1,13 +1,15 @@
 import { InstancedMesh, Matrix4, Quaternion, Vector3, type Scene } from 'three';
 import type { Obstacle, ObstacleType } from '../logic/levels';
 import { createRandom } from '../logic/random';
-import { fruitPose, FRUIT_POSE } from './fruitPose';
+import { fruitDamageScale, fruitPose, FRUIT_POSE, hitWobble } from './fruitPose';
 import type { ObstacleModels } from './obstacleModels';
 
 export interface ObstacleView {
   /** Hides the given obstacles. */
   markCut(indices: number[]): void;
-  /** Bobs and turns the standing fruit to `time`. */
+  /** Starts the shake of the given obstacles, hit at `time`, and shows them smaller for every hit taken. */
+  markHit(indices: number[], time: number): void;
+  /** Bobs, turns and shakes the standing fruit to `time`. */
   update(time: number): void;
   /** Takes the meshes out of the scene; the shared models stay loaded. */
   dispose(): void;
@@ -19,6 +21,7 @@ interface TypeMeshes {
 }
 
 const Y_AXIS = new Vector3(0, 1, 0);
+const X_AXIS = new Vector3(1, 0, 0);
 
 const isFruit = (type: ObstacleType) => type === 'watermelon' || type === 'strawberry';
 
@@ -30,6 +33,8 @@ export function createObstacleView(scene: Scene, obstacles: readonly Obstacle[],
   );
   const fruitPhases = obstacles.map(() => random());
   const cut = new Set<number>();
+  const hitsTaken = new Uint8Array(obstacles.length);
+  const lastHitAt = new Float64Array(obstacles.length).fill(-Infinity);
   const instanceOf = new Int32Array(obstacles.length);
   const byType = new Map<ObstacleType, TypeMeshes>();
   const countByType = new Map<ObstacleType, number>();
@@ -63,16 +68,26 @@ export function createObstacleView(scene: Scene, obstacles: readonly Obstacle[],
     }
   }
 
+  function markHit(indices: number[], time: number): void {
+    for (const index of indices) {
+      hitsTaken[index]!++;
+      lastHitAt[index] = time;
+    }
+  }
+
   const position = new Vector3();
   const turn = new Quaternion();
-  const fruitScale = new Vector3().setScalar(FRUIT_POSE.scale);
+  const tilt = new Quaternion();
+  const fruitScale = new Vector3();
   const fruitMatrix = new Matrix4();
 
   function update(time: number): void {
     obstacles.forEach(({ type, x, z }, index) => {
       if (!isFruit(type) || cut.has(index)) return;
       const pose = fruitPose(time, fruitPhases[index]!);
-      setMatrix(index, fruitMatrix.compose(position.set(x, pose.height, z), turn.setFromAxisAngle(Y_AXIS, pose.turn), fruitScale));
+      turn.setFromAxisAngle(Y_AXIS, pose.turn).multiply(tilt.setFromAxisAngle(X_AXIS, hitWobble(time - lastHitAt[index]!)));
+      fruitScale.setScalar(FRUIT_POSE.scale * fruitDamageScale(hitsTaken[index]!));
+      setMatrix(index, fruitMatrix.compose(position.set(x, pose.height, z), turn, fruitScale));
     });
   }
 
@@ -89,5 +104,5 @@ export function createObstacleView(scene: Scene, obstacles: readonly Obstacle[],
   update(0);
   // From the fruit already afloat, so the camera does not cull them; their bob stays well inside it.
   for (const { meshes } of byType.values()) for (const mesh of meshes) mesh.computeBoundingSphere();
-  return { markCut, update, dispose };
+  return { markCut, markHit, update, dispose };
 }

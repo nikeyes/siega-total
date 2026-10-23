@@ -499,16 +499,36 @@ describe('collisions in play', () => {
     expect(game.blade.x).toBe(game.field.width + SHORE);
   });
 
-  it('blocks a blade too small for a fruit, and cuts the fruit in the same step once big enough', () => {
-    const fruit: Obstacle = { type: 'watermelon', x: 2.3, z: 1 };
-    const small = sandGameWith([fruit], ['watermelon'], config.obstacles.watermelon.minSize - 1);
+  it('blocks a blade too small for a fruit, and cuts a one-hit fruit in the same step once big enough', () => {
+    const fruit: Obstacle = { type: 'strawberry', x: 2.3, z: 1 };
+    const small = sandGameWith([fruit], ['strawberry'], config.obstacles.strawberry.minSize - 1);
     expect(stepGame(small, EAST, SIXTY_FPS_FRAME).blocked).toBe(true);
     expect(remainingTargets(small)).toBe(1);
 
-    const big = sandGameWith([fruit], ['watermelon'], config.obstacles.watermelon.minSize);
+    const big = sandGameWith([fruit], ['strawberry'], config.obstacles.strawberry.minSize);
     const result = stepGame(big, EAST, SIXTY_FPS_FRAME);
     expect(result.blocked).toBe(false);
     expect(result.cutObstacles).toEqual([0]);
+  });
+
+  it('breaks a watermelon after its hits, while the blade rests on it, and only then pays its coins', () => {
+    const fruit: Obstacle = { type: 'watermelon', x: 2, z: 1 };
+    const game = sandGameWith([fruit, { type: 'strawberry', x: 0.3, z: 0.3 }], ['strawberry'], config.obstacles.watermelon.minSize);
+    Object.assign(game.blade, { x: 2, z: 1 });
+    // A first move starts the clock; then the blade rests on the watermelon.
+    const hitSteps: number[] = stepGame(game, EAST, 0).hitObstacles.includes(0) ? [-1] : [];
+    let cutStep = -1;
+    let coinsBeforeBreak = 0;
+    for (let step = 0; step < 120 && cutStep < 0; step++) {
+      const result = stepGame(game, null, SIXTY_FPS_FRAME);
+      if (result.hitObstacles.includes(0)) hitSteps.push(step);
+      if (result.cutObstacles.includes(0)) cutStep = step;
+      else coinsBeforeBreak += result.coins;
+    }
+    expect(hitSteps).toHaveLength(config.obstacles.watermelon.hits - 1);
+    expect(cutStep).toBeGreaterThan(hitSteps.at(-1)!);
+    expect(coinsBeforeBreak).toBe(0);
+    expect(game.levelCoins).toBe(config.obstacles.watermelon.coins);
   });
 
   it('keeps the blade out of a rock, but touching it, in every frame of two seconds driving into it', () => {
@@ -551,7 +571,7 @@ describe('cutting obstacles in play', () => {
   });
 
   it('reports a cut piece only once', () => {
-    const game = sandGameWith([{ type: 'watermelon', x: 2, z: 1 }, { type: 'watermelon', x: 3.9, z: 1.9 }], ['watermelon'], watermelon.minSize);
+    const game = sandGameWith([{ type: 'strawberry', x: 2, z: 1 }, { type: 'strawberry', x: 3.9, z: 1.9 }], ['strawberry'], strawberry.minSize);
     expect(stepGame(game, EAST, 0).cutObstacles).toEqual([0]);
     expect(stepGame(game, EAST, 0).cutObstacles).toEqual([]);
     expect(remainingByTarget(game)).toEqual([1]);
@@ -570,10 +590,11 @@ describe('cutting obstacles in play', () => {
   });
 
   it('grows the blade with the pieces it cuts even when they are not targets', () => {
-    const game = sandGameWith([{ type: 'watermelon', x: 2, z: 1 }, { type: 'strawberry', x: 0.5, z: 0.5 }], ['strawberry'], watermelon.minSize);
+    // The watermelon target stays out of reach, so the level goes on.
+    const game = sandGameWith([{ type: 'strawberry', x: 2, z: 1 }, { type: 'watermelon', x: 0.5, z: 0.5 }], ['watermelon'], strawberry.minSize);
     const result = stepGame(game, EAST, 0);
-    const reference = { ...createBlade(0, 0), size: watermelon.minSize };
-    addCuts(reference, watermelon.growthCuts);
+    const reference = { ...createBlade(0, 0), size: strawberry.minSize };
+    addCuts(reference, strawberry.growthCuts);
     expect(result.cutObstacles).toEqual([0]);
     expect(game.blade.growthProgress).toBe(reference.growthProgress);
     expect(game.status).toBe('playing');
@@ -888,9 +909,16 @@ describe('resetGame', () => {
   }
 
   function gameWithACutPiece(): Game {
-    const game = sandGameWith([{ type: 'watermelon', x: 2, z: 1 }], ['watermelon'], config.obstacles.watermelon.minSize);
+    const game = sandGameWith([{ type: 'strawberry', x: 2, z: 1 }], ['strawberry'], config.obstacles.strawberry.minSize);
     stepGame(game, EAST, 0);
     expect(game.obstacles.cut[0]).toBe(1);
+    return game;
+  }
+
+  function gameWithAHitWatermelon(): Game {
+    const game = sandGameWith([{ type: 'watermelon', x: 2, z: 1 }], ['watermelon'], config.obstacles.watermelon.minSize);
+    stepGame(game, EAST, 0);
+    expect(game.obstacles.hitsTaken[0]).toBe(1);
     return game;
   }
 
@@ -899,6 +927,7 @@ describe('resetGame', () => {
     ['a won game', wonGame],
     ['a game in the middle of the win wave', gameMidWinWave],
     ['a game with a cut piece', gameWithACutPiece],
+    ['a game with a watermelon hit once', gameWithAHitWatermelon],
   ] as const)('leaves %s just like a new game of the same level', (_, playedGame) => {
     const game = playedGame();
     resetGame(game);
@@ -958,10 +987,10 @@ describe('cutAllTargets (debug)', () => {
 
   it('does not return target pieces already cut', () => {
     const obstacles: Obstacle[] = [
-      { type: 'watermelon', x: 2, z: 1 },
-      { type: 'watermelon', x: 3.9, z: 1.9 },
+      { type: 'strawberry', x: 2, z: 1 },
+      { type: 'strawberry', x: 3.9, z: 1.9 },
     ];
-    const game = sandGameWith(obstacles, ['watermelon'], config.obstacles.watermelon.minSize);
+    const game = sandGameWith(obstacles, ['strawberry'], config.obstacles.strawberry.minSize);
     stepGame(game, EAST, 0);
     expect(cutAllTargets(game)).toEqual({ blades: [], obstacles: [1] });
   });

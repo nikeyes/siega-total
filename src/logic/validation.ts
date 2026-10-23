@@ -2,7 +2,7 @@ import { config } from '../config';
 import { bladeRadius, cutsToNextSize } from './blade';
 import { isHardCell, resolveCollisions, type CollisionWorld } from './collision';
 import { isObstacleType, type LevelDefinition, type TargetKind } from './levels';
-import { canCutObstacle, createObstacleField, obstacleCutSize, obstacleGrowthCuts, obstacleRadius } from './obstacles';
+import { canCutObstacle, createObstacleField, obstacleCutSize, obstacleGrowthCuts, obstacleHits, obstacleRadius } from './obstacles';
 
 export interface LevelAnalysis {
   /** Blade size reached after cutting everything reachable. */
@@ -75,7 +75,7 @@ function startSizes(): number[] {
 
 /**
  * Seconds to sweep the cells the level needs at full speed, with the blade widening as it grows,
- * plus a fixed time for each target piece and the travel between the targets.
+ * plus the time each target piece takes, its hits included, and the travel between the targets.
  * The generator multiplies it by the level's time margin.
  */
 export function estimateSeconds(level: LevelDefinition): number {
@@ -93,8 +93,12 @@ export function estimateSeconds(level: LevelDefinition): number {
       size++;
     }
   }
-  const targetPieces = level.targets.filter(isObstacleType).reduce((pieces, target) => pieces + unitsOf(board, target), 0);
-  return seconds + targetPieces * config.generator.secondsPerTargetPiece + travelSeconds(level);
+  // Each target piece takes its fixed time, plus a hit interval for every blow it takes after the first.
+  const pieceSeconds = level.targets.filter(isObstacleType).reduce((total, target) => {
+    const perPiece = config.generator.secondsPerTargetPiece + (obstacleHits(target) - 1) * config.collision.hitIntervalSeconds;
+    return total + unitsOf(board, target) * perPiece;
+  }, 0);
+  return seconds + pieceSeconds + travelSeconds(level);
 }
 
 /**
