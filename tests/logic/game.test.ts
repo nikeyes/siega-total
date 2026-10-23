@@ -16,7 +16,7 @@ import {
 } from '../../src/logic/game';
 import { obstacleRadius } from '../../src/logic/obstacles';
 import { sampleLevel, stripesLevel, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
-import { levelFromRows } from './levelFixtures';
+import { levelFromRows, oneBlowFromBreaking } from './levelFixtures';
 import { noBonuses, type GameBonuses } from '../../src/logic/upgrades';
 
 const { width, depth } = config.field;
@@ -499,13 +499,15 @@ describe('collisions in play', () => {
     expect(game.blade.x).toBe(game.field.width + SHORE);
   });
 
-  it('blocks a blade too small for a fruit, and cuts a one-hit fruit in the same step once big enough', () => {
+  it('blocks a blade too small for a fruit, and cuts a fruit on its last blow in the same step once big enough', () => {
     const fruit: Obstacle = { type: 'strawberry', x: 2.3, z: 1 };
     const small = sandGameWith([fruit], ['strawberry'], config.obstacles.strawberry.minSize - 1);
     expect(stepGame(small, EAST, SIXTY_FPS_FRAME).blocked).toBe(true);
     expect(remainingTargets(small)).toBe(1);
 
     const big = sandGameWith([fruit], ['strawberry'], config.obstacles.strawberry.minSize);
+
+    oneBlowFromBreaking(big);
     const result = stepGame(big, EAST, SIXTY_FPS_FRAME);
     expect(result.blocked).toBe(false);
     expect(result.cutObstacles).toEqual([0]);
@@ -531,7 +533,7 @@ describe('collisions in play', () => {
     expect(game.levelCoins).toBe(config.obstacles.watermelon.coins);
   });
 
-  it('keeps the blade out of a rock, but touching it, in every frame of two seconds driving into it', () => {
+  it('keeps the blade out of a rock in every frame of two seconds driving into it', () => {
     const rock: Obstacle = { type: 'rock', x: 6, z: 1.5 };
     const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, rock], targets: ['strawberry'] }));
     const touchingDistance = bladeRadius(startSize) + obstacleRadius('rock');
@@ -539,7 +541,52 @@ describe('collisions in play', () => {
     driveForSeconds(game, EAST, 2, () => distances.push(Math.hypot(game.blade.x - rock.x, game.blade.z - rock.z)));
     expect(game.status).toBe('playing');
     expect(Math.min(...distances)).toBeGreaterThanOrEqual(touchingDistance - 1e-9);
-    expect(distances.at(-1)).toBeCloseTo(touchingDistance, 9);
+  });
+
+  it('bounces the blade back off a rock it drives into, though the player keeps steering into it', () => {
+    const rock: Obstacle = { type: 'rock', x: 6, z: 1.5 };
+    const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, rock], targets: ['strawberry'] }));
+    const touchingX = rock.x - bladeRadius(startSize) - obstacleRadius('rock');
+    let bounceStep = -1;
+    const positions: number[] = [];
+    driveForSeconds(game, EAST, 1, (result) => {
+      positions.push(game.blade.x);
+      if (result.bouncedOffRock && bounceStep < 0) bounceStep = positions.length - 1;
+    });
+    expect(bounceStep).toBeGreaterThanOrEqual(0);
+    expect(positions[bounceStep]).toBeCloseTo(touchingX, 9);
+    const afterBounce = positions.slice(bounceStep, bounceStep + config.collision.rockBounce.seconds / SIXTY_FPS_FRAME);
+    expect(touchingX - Math.min(...afterBounce)).toBeGreaterThan(0.2);
+    // Once the bounce is over, the player's steering takes the blade back to the rock.
+    expect(positions.at(-1)!).toBeGreaterThan(Math.min(...afterBounce));
+  });
+
+  it('bounces once per knock, not on every frame the blade rests against the rock', () => {
+    const rock: Obstacle = { type: 'rock', x: 6, z: 1.5 };
+    const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, rock], targets: ['strawberry'] }));
+    let bounces = 0;
+    driveForSeconds(game, EAST, 1, (result) => (bounces += result.bouncedOffRock ? 1 : 0));
+    expect(bounces).toBeGreaterThan(0);
+    expect(bounces).toBeLessThanOrEqual(Math.ceil(1 / config.collision.rockBounce.seconds));
+  });
+
+  it('does not bounce off grass or a fruit the blade is too small for, only stops', () => {
+    const wheat = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    let bounced = false;
+    driveForSeconds(wheat, EAST, 1, (result) => (bounced ||= result.bouncedOffRock));
+    expect(bounced).toBe(false);
+
+    const melon = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, { type: 'watermelon', x: 6, z: 1.5 }], targets: ['strawberry'] }));
+    driveForSeconds(melon, EAST, 1, (result) => (bounced ||= result.bouncedOffRock));
+    expect(bounced).toBe(false);
+  });
+
+  it('starts a restarted level without the bounce of the last attempt', () => {
+    const rock: Obstacle = { type: 'rock', x: 4.9, z: 1.5 };
+    const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, rock], targets: ['strawberry'] }));
+    driveUntil(game, EAST, () => game.rockBounce !== null);
+    resetGame(game);
+    expect(game.rockBounce).toBeNull();
   });
 });
 
@@ -549,6 +596,7 @@ describe('cutting obstacles in play', () => {
   it('cuts a fruit that only touches the edge of the blade circle', () => {
     const touchingDistance = bladeRadius(strawberry.minSize) + strawberry.radius;
     const game = sandGameWith([{ type: 'strawberry', x: touchingDistance, z: 1 }], ['strawberry'], strawberry.minSize);
+    oneBlowFromBreaking(game);
     Object.assign(game.blade, { x: 0, z: 1 });
     expect(stepGame(game, EAST, 0).cutObstacles).toEqual([0]);
   });
@@ -567,11 +615,14 @@ describe('cutting obstacles in play', () => {
     expect(remainingTargets(tooSmall)).toBe(1);
 
     const bigEnough = sandGameWith([{ type: 'cactus', x: 2, z: 1 }], ['cactus'], cactus.minSize);
+
+    oneBlowFromBreaking(bigEnough);
     expect(stepGame(bigEnough, EAST, 0).cutObstacles).toEqual([0]);
   });
 
   it('reports a cut piece only once', () => {
     const game = sandGameWith([{ type: 'strawberry', x: 2, z: 1 }, { type: 'strawberry', x: 3.9, z: 1.9 }], ['strawberry'], strawberry.minSize);
+    oneBlowFromBreaking(game);
     expect(stepGame(game, EAST, 0).cutObstacles).toEqual([0]);
     expect(stepGame(game, EAST, 0).cutObstacles).toEqual([]);
     expect(remainingByTarget(game)).toEqual([1]);
@@ -579,6 +630,7 @@ describe('cutting obstacles in play', () => {
 
   it('adds blades and pieces cut in the same step to the size bar together', () => {
     const game = createGame(levelFromRows(['gg', 'gg'], { obstacles: [{ type: 'strawberry', x: 1, z: 1 }], targets: ['strawberry'] }));
+    oneBlowFromBreaking(game);
     game.blade.size = strawberry.minSize;
     const result = stepGame(game, EAST, 0);
     const reference = { ...createBlade(0, 0), size: strawberry.minSize };
@@ -592,6 +644,7 @@ describe('cutting obstacles in play', () => {
   it('grows the blade with the pieces it cuts even when they are not targets', () => {
     // The watermelon target stays out of reach, so the level goes on.
     const game = sandGameWith([{ type: 'strawberry', x: 2, z: 1 }, { type: 'watermelon', x: 0.5, z: 0.5 }], ['watermelon'], strawberry.minSize);
+    oneBlowFromBreaking(game);
     const result = stepGame(game, EAST, 0);
     const reference = { ...createBlade(0, 0), size: strawberry.minSize };
     addCuts(reference, strawberry.growthCuts);
@@ -606,6 +659,7 @@ describe('cutting obstacles in play', () => {
     config.obstacles.strawberry.growthCuts = tuned;
     try {
       const game = sandGameWith([{ type: 'strawberry', x: 2, z: 1 }], ['strawberry'], strawberry.minSize);
+      oneBlowFromBreaking(game);
       const before = game.blade.growthProgress;
       stepGame(game, EAST, 0);
       expect(game.blade.growthProgress - before).toBe(tuned);
@@ -643,6 +697,7 @@ describe('winning', () => {
 
   it('starts the win wave where the blade cuts the last piece', () => {
     const game = sandGameWith([{ type: 'strawberry', x: 2, z: 1 }], ['strawberry'], strawberry.minSize);
+    oneBlowFromBreaking(game);
     stepGame(game, EAST, 0);
     expect(game.status).toBe('winWave');
     expect(game.winWave).toEqual({ x: game.blade.x, z: game.blade.z, radius: 0 });
@@ -651,6 +706,7 @@ describe('winning', () => {
   it('does not win while another target is standing, and wins when the last strawberry is cut', () => {
     const level = levelFromRows(HALVES, { obstacles: [{ type: 'strawberry', x: 0.5, z: 0.5 }], targets: ['ice', 'strawberry'] });
     const game = createGame(level);
+    oneBlowFromBreaking(game);
     stepGame(game, WEST, 0);
     cutBladesOfTypeUntil(game, 'ice', 0);
     stepGame(game, null, 0);
@@ -664,6 +720,7 @@ describe('winning', () => {
 
   it('wins on a level of only piece targets once the pieces are cut, with grass still standing', () => {
     const game = createGame(levelFromRows(HALVES, { obstacles: [{ type: 'strawberry', x: 2, z: 2 }], targets: ['strawberry'] }));
+    oneBlowFromBreaking(game);
     game.blade.size = strawberry.minSize;
     stepGame(game, EAST, 0);
     expect(game.field.cutCount).toBeLessThan(game.field.bladeCount);
@@ -717,6 +774,7 @@ describe('win wave', () => {
     // Just out of the blade's collision reach, so it does not push the blade away from the strawberry.
     const cactusBesideIt: Obstacle = { type: 'cactus', x: 4 + bladeRadius(strawberry.minSize) + cactus.radius + 0.1, z: 1 };
     const game = createGame(levelFromRows(wideSand, { obstacles: [lastTarget, cactusBesideIt], targets: ['strawberry'] }));
+    oneBlowFromBreaking(game);
     game.blade.size = strawberry.minSize;
     expect(game.blade.size).toBeLessThan(cactus.minSize);
     stepGame(game, EAST, 0);
@@ -805,6 +863,7 @@ describe('losing', () => {
   it('wins instead when the last piece is cut in the step that runs out of time', () => {
     const obstacles: Obstacle[] = [{ type: 'strawberry', x: 2, z: 1 }];
     const game = createGame(levelFromRows(SAND, { obstacles, targets: ['strawberry'], timeSeconds: SIXTY_FPS_FRAME / 2 }));
+    oneBlowFromBreaking(game);
     game.blade.size = config.obstacles.strawberry.minSize;
     stepGame(game, EAST, SIXTY_FPS_FRAME);
     expect(game.status).toBe('winWave');
@@ -910,6 +969,7 @@ describe('resetGame', () => {
 
   function gameWithACutPiece(): Game {
     const game = sandGameWith([{ type: 'strawberry', x: 2, z: 1 }], ['strawberry'], config.obstacles.strawberry.minSize);
+    oneBlowFromBreaking(game);
     stepGame(game, EAST, 0);
     expect(game.obstacles.cut[0]).toBe(1);
     return game;
@@ -991,6 +1051,7 @@ describe('cutAllTargets (debug)', () => {
       { type: 'strawberry', x: 3.9, z: 1.9 },
     ];
     const game = sandGameWith(obstacles, ['strawberry'], config.obstacles.strawberry.minSize);
+    oneBlowFromBreaking(game);
     stepGame(game, EAST, 0);
     expect(cutAllTargets(game)).toEqual({ blades: [], obstacles: [1] });
   });

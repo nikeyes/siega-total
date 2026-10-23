@@ -1,6 +1,8 @@
 import { config } from '../../src/config';
 import type { GrassType } from '../../src/logic/field';
+import type { Game } from '../../src/logic/game';
 import type { LevelDefinition } from '../../src/logic/levels';
+import { obstacleHits } from '../../src/logic/obstacles';
 
 const GRASS_BY_LETTER: Record<string, GrassType | null> = { g: 'green', i: 'ice', w: 'wheat', l: 'lavender', b: 'bramble', '.': null };
 
@@ -21,4 +23,9 @@ export function levelFromRows(rows: string[], overrides: Partial<LevelDefinition
     timeSeconds: config.level.timeSeconds,
     ...overrides,
   };
+}
+
+/** Lands all but the last blow on every obstacle, so the next touch breaks it: for tests about cutting, not hitting. */
+export function oneBlowFromBreaking(game: Game): void {
+  game.obstacles.obstacles.forEach(({ type }, index) => (game.obstacles.hitsTaken[index] = obstacleHits(type) - 1));
 }

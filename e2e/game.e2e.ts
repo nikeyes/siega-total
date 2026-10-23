@@ -82,3 +82,28 @@ test('winning plays the level-complete chime, then three stars and the confetti 
   expect(victory).toEqual(['levelComplete', 'star1', 'star2', 'star3', 'confetti']);
   expect(errors).toEqual([]);
 });
+
+test('knocking into a rock plays the rock bump', async ({ page }) => {
+  const errors = await openGame(page);
+  // Level 5 brings the first rock.
+  await debugPanelTitle(page).click();
+  const levelFolder = page.locator('.lil-gui .lil-gui').filter({ has: page.locator('.lil-title', { hasText: /^Nivel$/ }) });
+  await levelFolder.locator('input').first().fill('5');
+  await levelFolder.locator('button').filter({ hasText: /^Ir al nivel$/ }).click();
+  await debugPanelTitle(page).click();
+  // «Ir al nivel» opens the level straight away; a first move starts the clock.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(() => page.evaluate(() => window.__siega.status)).toBe('playing');
+  await page.keyboard.up('ArrowUp');
+  // Half a meter west of the first rock, facing it.
+  await page.evaluate(() => {
+    const game = window.__siega;
+    const rock = game.obstacles.obstacles.find((obstacle) => obstacle.type === 'rock')!;
+    const gap = 0.5 + 0.2 * (game.blade.size - 1) + 1.0 + 0.5;
+    Object.assign(game.blade, { x: rock.x - gap, z: rock.z, speed: 0 });
+  });
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(() => soundsPlayed(page)).toContain('rockBump');
+  await page.keyboard.up('ArrowRight');
+  expect(errors).toEqual([]);
+});

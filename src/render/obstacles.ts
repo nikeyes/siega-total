@@ -1,7 +1,8 @@
 import { InstancedMesh, Matrix4, Quaternion, Vector3, type Scene } from 'three';
 import type { Obstacle, ObstacleType } from '../logic/levels';
 import { createRandom } from '../logic/random';
-import { fruitDamageScale, fruitPose, FRUIT_POSE, hitWobble } from './fruitPose';
+import { obstacleHits } from '../logic/obstacles';
+import { damageScale, fruitPose, FRUIT_POSE, hitWobble } from './fruitPose';
 import type { ObstacleModels } from './obstacleModels';
 
 export interface ObstacleView {
@@ -9,7 +10,7 @@ export interface ObstacleView {
   markCut(indices: number[]): void;
   /** Starts the shake of the given obstacles, hit at `time`, and shows them smaller for every hit taken. */
   markHit(indices: number[], time: number): void;
-  /** Bobs, turns and shakes the standing fruit to `time`. */
+  /** Bobs and turns the standing fruit, and shakes every piece hit, to `time`. */
   update(time: number): void;
   /** Takes the meshes out of the scene; the shared models stay loaded. */
   dispose(): void;
@@ -78,16 +79,23 @@ export function createObstacleView(scene: Scene, obstacles: readonly Obstacle[],
   const position = new Vector3();
   const turn = new Quaternion();
   const tilt = new Quaternion();
-  const fruitScale = new Vector3();
-  const fruitMatrix = new Matrix4();
+  const pieceScale = new Vector3();
+  const pieceMatrix = new Matrix4();
 
   function update(time: number): void {
     obstacles.forEach(({ type, x, z }, index) => {
-      if (!isFruit(type) || cut.has(index)) return;
-      const pose = fruitPose(time, fruitPhases[index]!);
-      turn.setFromAxisAngle(Y_AXIS, pose.turn).multiply(tilt.setFromAxisAngle(X_AXIS, hitWobble(time - lastHitAt[index]!)));
-      fruitScale.setScalar(FRUIT_POSE.scale * fruitDamageScale(hitsTaken[index]!));
-      setMatrix(index, fruitMatrix.compose(position.set(x, pose.height, z), turn, fruitScale));
+      if (cut.has(index)) return;
+      const shrink = damageScale(hitsTaken[index]!, obstacleHits(type));
+      const shake = tilt.setFromAxisAngle(X_AXIS, hitWobble(time - lastHitAt[index]!));
+      if (isFruit(type)) {
+        const pose = fruitPose(time, fruitPhases[index]!);
+        turn.setFromAxisAngle(Y_AXIS, pose.turn).multiply(shake);
+        pieceScale.setScalar(FRUIT_POSE.scale * shrink);
+        setMatrix(index, pieceMatrix.compose(position.set(x, pose.height, z), turn, pieceScale));
+      } else if (hitsTaken[index]! > 0) {
+        // A cactus stands still on the ground; only its hits shake and shrink it.
+        setMatrix(index, pieceMatrix.makeRotationFromQuaternion(shake).scale(pieceScale.setScalar(shrink)).premultiply(standingMatrices[index]!));
+      }
     });
   }
 

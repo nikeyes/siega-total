@@ -1,6 +1,6 @@
 import { config } from '../config';
 import { addCuts, bladeRadius, createBlade, moveBlade, type Blade, type Direction } from './blade';
-import { resolveCollisions, sizeToPass } from './collision';
+import { overlappedRock, resolveCollisions, sizeToPass } from './collision';
 import { coinsForCuts, timeBonus } from './economy';
 import { createField, cutBlade, cutInCircle, GRASS_TYPE_ORDER, levelFieldOptions, type Field } from './field';
 import { isObstacleType, sampleLevel, type LevelDefinition, type TargetKind } from './levels';
@@ -23,6 +23,14 @@ export interface WinWave {
   radius: number;
 }
 
+/** The blade thrown back by a rock it knocked into. */
+export interface RockBounce {
+  /** Meters per second at the start of the bounce. */
+  velocityX: number;
+  velocityZ: number;
+  secondsLeft: number;
+}
+
 export interface Game {
   readonly level: LevelDefinition;
   readonly field: Field;
@@ -39,6 +47,8 @@ export interface Game {
   winWave: WinWave | null;
   /** Seconds the compass booster still points for; 0 when it is off. */
   compassLeft: number;
+  /** While set, the blade flies back from a rock and the player does not steer it. */
+  rockBounce: RockBounce | null;
   /** Coins cut in this attempt, the win wave's included; fractional, as each blade pays its weight. */
   levelCoins: number;
   /** Bonus for the time left, set when the win wave starts. */
@@ -61,10 +71,12 @@ export interface StepResult {
   blocked: boolean;
   /** When blocked, the size that would get the blade through: Infinity for a rock. Null otherwise. */
   neededSize: number | null;
+  /** True in the step the blade knocked into a rock and started bouncing back. */
+  bouncedOffRock: boolean;
 }
 
 function nothingHappened(): StepResult {
-  return { cutIndices: [], cutObstacles: [], hitObstacles: [], sizesGained: 0, coins: 0, blocked: false, neededSize: null };
+  return { cutIndices: [], cutObstacles: [], hitObstacles: [], sizesGained: 0, coins: 0, blocked: false, neededSize: null, bouncedOffRock: false };
 }
 
 /** The field of `level`, with the blade at its center, waiting for the first move. */
@@ -86,6 +98,7 @@ export function createGame(
     timeTotal: startingTime(level, bonuses),
     winWave: null,
     compassLeft: 0,
+    rockBounce: null,
     levelCoins: 0,
     bonusCoins: 0,
     bankedCoins: 0,
@@ -112,6 +125,7 @@ export function resetGame(game: Game): void {
   game.status = 'ready';
   game.winWave = null;
   game.compassLeft = 0;
+  game.rockBounce = null;
   game.levelCoins = 0;
   game.bonusCoins = 0;
   game.bankedCoins = 0;
@@ -130,14 +144,18 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   }
   game.timeLeft = Math.max(0, game.timeLeft - dt);
   game.compassLeft = Math.max(0, game.compassLeft - dt);
-  moveBlade(blade, direction, dt, field.width, field.depth, maxSpeedOf(game));
+  const steering = game.rockBounce ? null : direction;
+  moveBlade(blade, steering, dt, field.width, field.depth, maxSpeedOf(game));
+  if (game.rockBounce) flyBack(game, game.rockBounce, dt);
   const { x, z, blocked: pushedBack } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
   // Growing can make the blade overlap a wall too; only a push against where the player steers counts.
-  const blocked = pushedBack && direction !== null && (x - blade.x) * direction.x + (z - blade.z) * direction.z < 0;
+  const blocked = pushedBack && steering !== null && (x - blade.x) * steering.x + (z - blade.z) * steering.z < 0;
   // Asked where the blade tried to go, before the walls pushed it back.
   const neededSize = blocked ? sizeToPass(game, blade.x, blade.z, bladeRadius(blade.size), blade.size) : null;
+  const rock = blocked ? overlappedRock(game, blade.x, blade.z, bladeRadius(blade.size)) : null;
   blade.x = x;
   blade.z = z;
+  if (rock) bounceOff(game, rock);
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
   const { cut: cutObstacles, hit: hitObstacles } = hitObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size, dt);
@@ -154,7 +172,26 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
     game.status = 'lost';
     game.compassLeft = 0;
   }
-  return { cutIndices, cutObstacles, hitObstacles, sizesGained, coins, blocked, neededSize };
+  return { cutIndices, cutObstacles, hitObstacles, sizesGained, coins, blocked, neededSize, bouncedOffRock: rock !== null };
+}
+
+/** Throws the blade straight away from the rock it knocked into, and stops it from going on. */
+function bounceOff(game: Game, rock: { x: number; z: number }): void {
+  const { blade } = game;
+  const { speed, seconds } = config.collision.rockBounce;
+  const distance = Math.hypot(blade.x - rock.x, blade.z - rock.z);
+  const [awayX, awayZ] = distance > 0 ? [(blade.x - rock.x) / distance, (blade.z - rock.z) / distance] : [-1, 0];
+  game.rockBounce = { velocityX: awayX * speed, velocityZ: awayZ * speed, secondsLeft: seconds };
+  blade.speed = 0;
+}
+
+/** Moves the blade along its bounce, slowing linearly to a stop at its end. */
+function flyBack(game: Game, bounce: RockBounce, dt: number): void {
+  const slowdown = bounce.secondsLeft / config.collision.rockBounce.seconds;
+  game.blade.x += bounce.velocityX * slowdown * dt;
+  game.blade.z += bounce.velocityZ * slowdown * dt;
+  bounce.secondsLeft -= dt;
+  if (bounce.secondsLeft <= 0) game.rockBounce = null;
 }
 
 function maxSpeedOf(game: Game): number {
@@ -175,7 +212,7 @@ function stepWinWave(game: Game, wave: WinWave, dt: number): StepResult {
   const coins = coinsForCuts(game, cutIndices, cutObstacles);
   game.levelCoins += coins;
   if (wave.radius >= distanceToFarthestCorner(field, wave.x, wave.z)) game.status = 'won';
-  return { cutIndices, cutObstacles, hitObstacles: [], sizesGained: 0, coins, blocked: false, neededSize: null };
+  return { cutIndices, cutObstacles, hitObstacles: [], sizesGained: 0, coins, blocked: false, neededSize: null, bouncedOffRock: false };
 }
 
 function distanceToFarthestCorner(field: Field, x: number, z: number): number {

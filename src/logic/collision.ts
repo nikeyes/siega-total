@@ -69,6 +69,16 @@ export function sizeToPass(world: CollisionWorld, x: number, z: number, radius: 
   return needed;
 }
 
+/** A standing obstacle no blade ever cuts, a rock, that the circle (x, z, radius) overlaps; null when none. */
+export function overlappedRock(world: CollisionWorld, x: number, z: number, radius: number): { x: number; z: number } | null {
+  const { obstacles } = world;
+  const rock = obstacles.obstacles.find(
+    ({ type, x: rockX, z: rockZ }, index) =>
+      obstacles.cut[index] === 0 && !Number.isFinite(obstacleCutSize(type)) && Math.hypot(x - rockX, z - rockZ) < radius + obstacleRadius(type),
+  );
+  return rock ?? null;
+}
+
 function pushOutOfHardCells(level: LevelDefinition, position: ResolvedPosition, radius: number, size: number): void {
   const { cellSize } = level;
   const columns = Math.ceil(level.width / cellSize);

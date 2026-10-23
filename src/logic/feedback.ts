@@ -7,6 +7,7 @@ export type FeedbackEvent =
   | { kind: 'cut' } // blades cut by the blade in this step
   | { kind: 'obstacleHit'; obstacle: BreakingObstacle } // one per kind of fruit hit by the blade in this step without breaking
   | { kind: 'obstacleCut'; obstacle: BreakingObstacle } // one per kind of fruit or cactus cut by the blade in this step
+  | { kind: 'rockBounce' } // the blade knocked into a rock and bounces back
   | { kind: 'sizeUp'; size: number } // the blade grew, by cutting or by the booster
   | { kind: 'lowTime' } // the clock went below config.level.lowTimeSeconds while playing
   | { kind: 'winWave' } // the last target fell; the wave starts
@@ -54,7 +55,7 @@ export function createFeedbackTracker(): FeedbackTracker {
   };
 }
 
-/** Always in the same order: started, cut, obstacleHit, obstacleCut, sizeUp, lowTime, winWave, won, lost. */
+/** Always in the same order: started, cut, obstacleHit, obstacleCut, rockBounce, sizeUp, lowTime, winWave, won, lost. */
 function eventsOfStep(game: Game, result: StepResult, previous: Previous): FeedbackEvent[] {
   const events: FeedbackEvent[] = [];
   // Only the blade's own cuts count; the win wave's cuts are covered by its jingle.
@@ -70,6 +71,7 @@ function eventsOfStep(game: Game, result: StepResult, previous: Previous): Feedb
     const cutTypes = typesOf(result.cutObstacles);
     for (const obstacle of BREAKING_OBSTACLES) if (hitTypes.has(obstacle)) events.push({ kind: 'obstacleHit', obstacle });
     for (const obstacle of BREAKING_OBSTACLES) if (cutTypes.has(obstacle)) events.push({ kind: 'obstacleCut', obstacle });
+    if (result.bouncedOffRock) events.push({ kind: 'rockBounce' });
   }
   // Compared between frames, so the upgrade booster used outside stepGame counts too.
   if (game.blade.size > previous.size) events.push({ kind: 'sizeUp', size: game.blade.size });

@@ -1,6 +1,6 @@
 import type { BreakingObstacle } from '../logic/feedback';
 import { lowPass } from './filters';
-import { fadeEdges, mixAt, noiseBurst, normalizePeak, pitchDrop } from './synthesis';
+import { bell, fadeEdges, mixAt, noiseBurst, normalizePeak, pitchDrop } from './synthesis';
 
 /** Every break peaks here before its volume in config.audio.volume. */
 const PEAK = 0.5;
@@ -51,4 +51,20 @@ export function synthesizeHit(sampleRate: number, random: () => number): Float32
   mixAt(sound, pitchDrop(sampleRate, between(190, 230), between(110, 130), 0.12), 0, sampleRate);
   mixAt(sound, noiseBurst(sampleRate, 0.15, 300, 1200, 0.006, random), 0, sampleRate, 1.5);
   return fadeEdges(normalizePeak(lowPass(sound, sampleRate, HIT_SOFTENING_HZ), PEAK), sampleRate);
+}
+
+const ROCK_BUMP_SECONDS = 0.3;
+/** Two bell partials this far apart ring like metal on stone, not like a note. */
+const CLINK_PARTIAL_RATIO = 1.48;
+
+/** The blade knocking into a rock it can never break: a dry knock under a short, hard clink. */
+export function synthesizeRockBump(sampleRate: number, random: () => number): Float32Array {
+  const between = (min: number, max: number) => min + (max - min) * random();
+  const sound = new Float32Array(Math.round(ROCK_BUMP_SECONDS * sampleRate));
+  const clinkHz = between(1000, 1150);
+  mixAt(sound, pitchDrop(sampleRate, between(150, 170), 90, 0.05), 0, sampleRate, 0.6);
+  mixAt(sound, bell(sampleRate, clinkHz, 0.18), 0, sampleRate, 0.6);
+  mixAt(sound, bell(sampleRate, clinkHz * CLINK_PARTIAL_RATIO, 0.12), 0, sampleRate, 0.35);
+  mixAt(sound, noiseBurst(sampleRate, 0.03, 800, 3000, 0.002, random), 0, sampleRate, 0.5);
+  return fadeEdges(normalizePeak(lowPass(sound, sampleRate, SOFTENING_HZ), PEAK), sampleRate);
 }

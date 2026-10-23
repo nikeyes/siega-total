@@ -296,7 +296,7 @@ describe('estimateSeconds', () => {
     const pieceAt = (type: 'strawberry' | 'watermelon'): Obstacle[] => [{ type, x: CENTER + 2, z: CENTER }];
     // Lavender targets ask for size 3 either way, so the blade grows alike and only the hits tell the levels apart.
     const level = (type: 'strawberry' | 'watermelon') => greenCenterThen(4, 'lavender', { obstacles: pieceAt(type), targets: ['lavender', type] });
-    const extraHits = config.obstacles.watermelon.hits - 1;
+    const extraHits = config.obstacles.watermelon.hits - config.obstacles.strawberry.hits;
     expect(estimateSeconds(level('watermelon')) - travelSeconds(level('watermelon'))).toBeCloseTo(
       estimateSeconds(level('strawberry')) - travelSeconds(level('strawberry')) + extraHits * config.collision.hitIntervalSeconds,
       9,
