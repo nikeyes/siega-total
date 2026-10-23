@@ -490,6 +490,10 @@ function playFeedback(event: FeedbackEvent): void {
     case 'obstacleCut':
       soundPlayer.play(`${event.obstacle}Break`);
       break;
+    case 'rockBounce':
+      soundPlayer.play('rockBump');
+      vibration.pulse();
+      break;
     case 'sizeUp':
       sizeUpAge = 0;
       soundPlayer.play('sizeUp');

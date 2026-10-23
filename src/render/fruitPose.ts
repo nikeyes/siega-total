@@ -7,8 +7,8 @@ export const FRUIT_POSE = {
   bobMeters: 0.08,
   bobSeconds: 1.8,
   turnSeconds: 6,
-  /** Each hit a fruit takes shrinks it this share of its size. */
-  shrinkPerHit: 0.15,
+  /** A piece one blow from breaking shows this share smaller; the hits before shrink it in even steps. */
+  shrinkBeforeBreaking: 0.4,
   /** Radians the fruit tilts as a hit shakes it, settling over wobbleSeconds. */
   wobbleRadians: 0.35,
   wobbleSeconds: 0.3,
@@ -25,12 +25,12 @@ export function fruitPose(time: number, phase: number): { height: number; turn: 
   };
 }
 
-/** How big a fruit shows after `hitsTaken` hits, as a share of its whole size. */
-export function fruitDamageScale(hitsTaken: number): number {
-  return 1 - FRUIT_POSE.shrinkPerHit * hitsTaken;
+/** How big a piece that breaks on its `hits`-th blow shows after `hitsTaken`, as a share of its whole size. */
+export function damageScale(hitsTaken: number, hits: number): number {
+  return 1 - (FRUIT_POSE.shrinkBeforeBreaking * hitsTaken) / Math.max(1, hits - 1);
 }
 
-/** The tilt, in radians, of a fruit `secondsSinceHit` after a hit: a quick shake that settles to 0. */
+/** The tilt, in radians, of a piece `secondsSinceHit` after a hit: a quick shake that settles to 0. */
 export function hitWobble(secondsSinceHit: number): number {
   const { wobbleRadians, wobbleSeconds, wobbleShakes } = FRUIT_POSE;
   if (!(secondsSinceHit < wobbleSeconds)) return 0;

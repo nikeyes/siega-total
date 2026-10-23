@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FRUIT_POSE, fruitDamageScale, fruitPose, hitWobble } from '../../src/render/fruitPose';
+import { damageScale, FRUIT_POSE, fruitPose, hitWobble } from '../../src/render/fruitPose';
 
 describe('fruitPose', () => {
   it('floats the fruit on top of the grass, bobbing a little above and below its rest height', () => {
@@ -23,13 +23,15 @@ describe('fruitPose', () => {
   });
 });
 
-describe('fruitDamageScale', () => {
-  it('shows each hit a fruit takes: whole before the first, a little smaller after every one', () => {
-    const scales = [0, 1, 2].map((hitsTaken) => fruitDamageScale(hitsTaken));
+describe('damageScale', () => {
+  it('shows each hit a piece takes: whole before the first, a little smaller after every one', () => {
+    const scales = [0, 1, 2, 3].map((hitsTaken) => damageScale(hitsTaken, 4));
     expect(scales[0]).toBe(1);
-    expect(scales[1]).toBeLessThan(scales[0]!);
-    expect(scales[2]).toBeLessThan(scales[1]!);
-    expect(scales[2]).toBeGreaterThan(0.5);
+    for (let hit = 1; hit < scales.length; hit++) expect(scales[hit]).toBeLessThan(scales[hit - 1]!);
+  });
+
+  it.each([2, 4, 6])('keeps a piece that takes %i hits bigger than half its size until it breaks', (hits) => {
+    expect(damageScale(hits - 1, hits)).toBeGreaterThan(0.5);
   });
 });
 

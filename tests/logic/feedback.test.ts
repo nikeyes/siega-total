@@ -5,7 +5,7 @@ import { applyBooster } from '../../src/logic/boosters';
 import { createFeedbackTracker, type FeedbackEvent } from '../../src/logic/feedback';
 import { createGame, stepGame } from '../../src/logic/game';
 import type { Obstacle } from '../../src/logic/levels';
-import { levelFromRows } from './levelFixtures';
+import { levelFromRows, oneBlowFromBreaking } from './levelFixtures';
 
 const SIXTY_FPS_FRAME = 1 / 60;
 const EAST: Direction = { x: 1, z: 0 };
@@ -53,6 +53,7 @@ describe('cutting', () => {
   it.each(['strawberry', 'cactus'] as const)('gives obstacleCut with the obstacle when the blade cuts a %s', (type) => {
     const obstacleUnderTheBlade: Obstacle = { type, ...SAND_CENTER };
     const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [obstacleUnderTheBlade] }));
+    oneBlowFromBreaking(game);
     game.blade.size = config.obstacles[type].minSize;
     const tracker = createFeedbackTracker();
     tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
@@ -76,6 +77,7 @@ describe('cutting', () => {
       { type: 'strawberry', x: SAND_CENTER.x + 0.3, z: SAND_CENTER.z },
     ];
     const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles }));
+    oneBlowFromBreaking(game);
     game.blade.size = config.obstacles.cactus.minSize;
     const tracker = createFeedbackTracker();
     tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
@@ -100,6 +102,18 @@ describe('hitting fruit', () => {
       ...Array.from({ length: config.obstacles.watermelon.hits - 1 }, () => ({ kind: 'obstacleHit', obstacle: 'watermelon' })),
       { kind: 'obstacleCut', obstacle: 'watermelon' },
     ]);
+  });
+});
+
+describe('knocking into a rock', () => {
+  it('gives rockBounce when the blade bounces off a rock', () => {
+    const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [{ type: 'rock', x: SAND_CENTER.x + 2, z: SAND_CENTER.z }] }));
+    const tracker = createFeedbackTracker();
+    tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
+    const events: FeedbackEvent[] = [];
+    // Half a meter from the rock: the blade reaches it in a tenth of a second and is still bouncing a quarter later.
+    for (let step = 0; step < 15; step++) events.push(...tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME)));
+    expect(events.filter((event) => event.kind === 'rockBounce')).toEqual([{ kind: 'rockBounce' }]);
   });
 });
 
@@ -143,6 +157,7 @@ describe('winning', () => {
     const strawberry: Obstacle = { type: 'strawberry', ...SAND_CENTER };
     const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [strawberry], targets: ['strawberry'] }));
     game.blade.size = config.obstacles.strawberry.minSize;
+    oneBlowFromBreaking(game);
     return game;
   }
 
@@ -180,6 +195,7 @@ describe('winning', () => {
     const target: Obstacle = { type: 'strawberry', ...SAND_CENTER };
     const cactus: Obstacle = { type: 'cactus', x: 0.5, z: 0.5 };
     const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [target, cactus], targets: ['strawberry'] }));
+    oneBlowFromBreaking(game);
     game.blade.size = config.obstacles.strawberry.minSize;
     const tracker = createFeedbackTracker();
     tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME));

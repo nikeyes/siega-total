@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { synthesizeBreak, synthesizeHit } from '../../src/audio/breakSounds';
+import { synthesizeBreak, synthesizeHit, synthesizeRockBump } from '../../src/audio/breakSounds';
 import { createRandom } from '../../src/logic/random';
 import { bandShare, envelopePeakSeconds, SAMPLE_RATE, seconds } from './soundAnalysis';
 
@@ -64,5 +64,25 @@ describe('fruit hit', () => {
   it('is dull: most of it below 1 kHz, unlike the bright crunch of a break', () => {
     expect(bandShare(sound, 40, 1000)).toBeGreaterThan(0.5);
     expect(bandShare(sound, 40, 1000)).toBeGreaterThan(bandShare(synthesizeBreak('watermelon', SAMPLE_RATE, createRandom(1)), 40, 1000));
+  });
+});
+
+describe('rock bump', () => {
+  const sound = synthesizeRockBump(SAMPLE_RATE, createRandom(1));
+  const fruitHit = synthesizeHit(SAMPLE_RATE, createRandom(1));
+
+  it('is a short knock of 0.3 s that peaks at once', () => {
+    expect(seconds(sound)).toBeCloseTo(0.3, 2);
+    expect(envelopePeakSeconds(sound)).toBeLessThanOrEqual(0.03);
+  });
+
+  it('rings with a hard clink between 0.9 and 2.5 kHz that a fruit hit does not have', () => {
+    expect(bandShare(sound, 900, 2500)).toBeGreaterThan(0.3);
+    expect(bandShare(sound, 900, 2500)).toBeGreaterThan(2 * bandShare(fruitHit, 900, 2500));
+  });
+
+  it('sounds a little different for each seed', () => {
+    const variants = [1, 2, 3, 4].map((seed) => synthesizeRockBump(SAMPLE_RATE, createRandom(seed)).join(','));
+    expect(new Set(variants).size).toBe(4);
   });
 });

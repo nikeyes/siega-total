@@ -1,6 +1,6 @@
 import { config } from '../config';
 import { createRandom } from '../logic/random';
-import { synthesizeBreak, synthesizeHit } from './breakSounds';
+import { synthesizeBreak, synthesizeHit, synthesizeRockBump } from './breakSounds';
 import { synthesizeConfetti, synthesizeLevelComplete, synthesizeLowTime, synthesizeStar } from './chimes';
 
 type Synthesizer = (sampleRate: number, random: () => number) => Float32Array;
@@ -11,6 +11,7 @@ export const SYNTHESIZED_SOUNDS = {
   strawberryBreak: (sampleRate, random) => synthesizeBreak('strawberry', sampleRate, random),
   cactusBreak: (sampleRate, random) => synthesizeBreak('cactus', sampleRate, random),
   fruitHit: (sampleRate, random) => synthesizeHit(sampleRate, random),
+  rockBump: (sampleRate, random) => synthesizeRockBump(sampleRate, random),
   lowTime: (sampleRate) => synthesizeLowTime(sampleRate),
   levelComplete: (sampleRate) => synthesizeLevelComplete(sampleRate),
   star1: (sampleRate) => synthesizeStar(1, sampleRate),
@@ -23,8 +24,8 @@ export type SynthesizedSoundName = keyof typeof SYNTHESIZED_SOUNDS;
 
 export const SYNTHESIZED_SOUND_NAMES = Object.keys(SYNTHESIZED_SOUNDS) as SynthesizedSoundName[];
 
-/** The breaks and the hits vary, so twenty in a row do not tire; the other sounds have one version. */
-const VARIED_SOUNDS = new Set<SynthesizedSoundName>(['watermelonBreak', 'strawberryBreak', 'cactusBreak', 'fruitHit']);
+/** The breaks, the hits and the rock bump vary, so twenty in a row do not tire; the other sounds have one version. */
+const VARIED_SOUNDS = new Set<SynthesizedSoundName>(['watermelonBreak', 'strawberryBreak', 'cactusBreak', 'fruitHit', 'rockBump']);
 /** Every session synthesizes the same variants. */
 const VARIANT_SEED = 1000;
 

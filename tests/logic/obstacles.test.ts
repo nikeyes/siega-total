@@ -164,10 +164,8 @@ describe('hitObstaclesInCircle', () => {
   /** A blade of radius 1 resting on the obstacle at (5, 5). */
   const restOn = (field: ReturnType<typeof createObstacleField>, bladeSize: number, dt = FRAME) => hitObstaclesInCircle(field, 5, 5, 1, bladeSize, dt);
 
-  it('breaks a one-hit fruit, the strawberry, the moment the blade touches it', () => {
-    const field = fieldWithOne('strawberry');
-    expect(obstacleHits('strawberry')).toBe(1);
-    expect(restOn(field, config.obstacles.strawberry.minSize)).toEqual({ hit: [], cut: [0] });
+  it('takes 2 hits to break a strawberry, 4 a watermelon and 6 a cactus', () => {
+    expect([obstacleHits('strawberry'), obstacleHits('watermelon'), obstacleHits('cactus')]).toEqual([2, 4, 6]);
   });
 
   it('lands a hit on a watermelon at once, then one every hitIntervalSeconds of contact, and breaks it on the last', () => {
@@ -181,7 +179,10 @@ describe('hitObstaclesInCircle', () => {
     expect(hitFrames).toHaveLength(hits - 1);
     expect(hitFrames[0]).toBe(0);
     expect(cutFrames).toHaveLength(1);
-    expect((cutFrames[0]! - hitFrames[0]!) * FRAME).toBeCloseTo((hits - 1) * hitIntervalSeconds, 1);
+    // Each wait ends on the first frame past hitIntervalSeconds, so it may run one frame over.
+    const secondsToBreak = (cutFrames[0]! - hitFrames[0]!) * FRAME;
+    expect(secondsToBreak).toBeGreaterThanOrEqual((hits - 1) * hitIntervalSeconds - 1e-9);
+    expect(secondsToBreak).toBeLessThanOrEqual((hits - 1) * (hitIntervalSeconds + FRAME) + 1e-9);
     expect(field.cut[0]).toBe(1);
   });
 

@@ -5,7 +5,7 @@ import type { Direction } from '../../src/logic/blade';
 import { GRASS_TYPE_ORDER } from '../../src/logic/field';
 import { noBonuses } from '../../src/logic/upgrades';
 import { createGame, cutAllTargets, resetGame, stepGame, type Game, type GameStatus, type StepResult } from '../../src/logic/game';
-import { levelFromRows } from './levelFixtures';
+import { levelFromRows, oneBlowFromBreaking } from './levelFixtures';
 
 const SIXTY_FPS_FRAME = 1 / 60;
 const FRAMES_IN_ONE_SECOND = 1 / SIXTY_FPS_FRAME;
@@ -127,6 +127,7 @@ describe('coins of a won level', () => {
   it('never gives a negative bonus when the last target falls in the step that runs out of time', () => {
     const obstacles = [{ type: 'strawberry' as const, x: 2, z: 1 }];
     const game = createGame(levelFromRows(['....', '....'], { obstacles, targets: ['strawberry'], timeSeconds: SIXTY_FPS_FRAME / 2 }));
+    oneBlowFromBreaking(game);
     game.blade.size = config.obstacles.strawberry.minSize;
     stepGame(game, EAST, SIXTY_FPS_FRAME);
     expect(game.status).toBe('winWave');
