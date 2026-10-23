@@ -46,7 +46,8 @@ export const config = {
   obstacles: {
     rock: { radius: 1.0 },
     cactus: { radius: 1.4, minSize: 4, growthCuts: 20, coins: 500 },
-    watermelon: { radius: 0.45, minSize: 2, growthCuts: 5, coins: 300 },
+    /** `hits`: blows it takes before it breaks; 1 when missing. */
+    watermelon: { radius: 0.45, minSize: 3, hits: 3, growthCuts: 5, coins: 300 },
     strawberry: { radius: 0.25, minSize: 2, growthCuts: 5, coins: 100 },
   },
   economy: {
@@ -117,6 +118,8 @@ export const config = {
     /** Passes over the walls each step, so corners between two walls resolve. */
     iterations: 3,
     blockedMessageSeconds: 1,
+    /** A blade resting on a fruit that takes several hits lands one at once, then one every this many seconds. */
+    hitIntervalSeconds: 0.3,
   },
   input: {
     joystickDeadZonePx: 10,
@@ -195,6 +198,7 @@ export const config = {
       watermelonBreak: 0.8,
       strawberryBreak: 0.8,
       cactusBreak: 0.8,
+      fruitHit: 0.6,
       lowTime: 0.6,
       levelComplete: 0.7,
       star1: 0.6,

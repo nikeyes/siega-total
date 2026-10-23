@@ -105,7 +105,7 @@ Cualquier hierba puede ser la hierba objetivo.
 | --- | --- |
 | Roca | Nunca se corta. Bloquea el paso. No crece hierba debajo, y rocas y cactus quedan a 2 m del borde para poder rodearlos. |
 | Cactus | Se corta con tamaño ≥ 4. Antes, bloquea. |
-| Fruta (sandía, fresa) | Se corta con tamaño ≥ 2. Da monedas extra y una explosión de color. Se ve más grande que su radio de corte y flota sobre la hierba, subiendo y bajando y girando despacio, para que destaque. |
+| Fruta (sandía, fresa) | La fresa se corta con tamaño ≥ 2 al primer toque. La sandía pide tamaño ≥ 3 y aguanta 3 golpes: uno al tocarla y otro cada 0,3 s de contacto; con cada golpe encoge un poco, tiembla, suelta trozos y suena un golpe sordo. Da monedas extra y una explosión de color al romperse. Se ve más grande que su radio de corte y flota sobre la hierba, subiendo y bajando y girando despacio, para que destaque. |
 
 ### Bioma e isla
 
@@ -254,7 +254,7 @@ El objetivo es 60 fps en un móvil de gama media de \~2020, con calidad automát
 | Sonido de corte | Siseo agudo y suave que va y viene a 7 Hz, con chasquidos de hierba cortada, mezclado bajo (−45 dBFS, 12–15 dB por debajo de los efectos). Entra al cortar y se desvanece al parar. |
 | Subida de tamaño | Destello, sonido ascendente, texto "Tamaño N". La cuchilla cambia de forma: 2, 3 y 4 brazos curvos; 5 brazos más anchos con agujero en el buje; 6 y 8 brazos con dientes de sierra; 10 brazos con dientes y agujero en el buje desde el tamaño 7. Siempre tiene aspas, y ninguna forma pasa del radio de corte. |
 | Brillo | Halo suave bajo la cuchilla, de 1,5 veces su radio, teñido según el bioma. |
-| Rotura | Cada obstáculo que se rompe suena con su propio sonido (sandía, fresa o cactus), en 4 variantes y con el tono ±6 %. Como mucho uno por tipo en cada paso. |
+| Rotura | Cada obstáculo que se rompe suena con su propio sonido (sandía, fresa o cactus), en 4 variantes y con el tono ±6 %. Como mucho uno por tipo en cada paso. Los golpes que una sandía aguanta antes de romperse suenan con un golpe sordo, más suave. |
 | Poco tiempo | Por debajo de 10 s, el anillo del reloj pasa a ámbar y late, y suena una vez un aviso blando de dos notas. Si el reloj vuelve a subir, el aviso se rearma. |
 | Obstáculo duro | Rebote, sonido sordo, vibración corta, texto "Necesitas tamaño N". Contra una roca, sin texto. |
 | Victoria | Onda que corta el campo restante desde la cuchilla, con un arpegio de «barra completa». En el resultado entran tres estrellas, una cada 0,35 s y cada una con su nota más aguda, y después caen el confeti y la lluvia de monedas. Los botones se pueden pulsar desde el principio; salir del resultado cancela lo que falte. |

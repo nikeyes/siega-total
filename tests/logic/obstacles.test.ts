@@ -5,8 +5,10 @@ import {
   canCutObstacle,
   createObstacleField,
   cutObstaclesInCircle,
+  hitObstaclesInCircle,
   obstacleCutSize,
   obstacleGrowthCuts,
+  obstacleHits,
   obstacleRadius,
   resetObstacleField,
   standingCount,
@@ -153,5 +155,59 @@ describe('obstacle settings', () => {
 
   it('a NaN blade size cuts nothing', () => {
     expect(canCutObstacle('strawberry', Number.NaN)).toBe(false);
+  });
+});
+
+describe('hitObstaclesInCircle', () => {
+  const { hitIntervalSeconds } = config.collision;
+  const FRAME = 1 / 60;
+  /** A blade of radius 1 resting on the obstacle at (5, 5). */
+  const restOn = (field: ReturnType<typeof createObstacleField>, bladeSize: number, dt = FRAME) => hitObstaclesInCircle(field, 5, 5, 1, bladeSize, dt);
+
+  it('breaks a one-hit fruit, the strawberry, the moment the blade touches it', () => {
+    const field = fieldWithOne('strawberry');
+    expect(obstacleHits('strawberry')).toBe(1);
+    expect(restOn(field, config.obstacles.strawberry.minSize)).toEqual({ hit: [], cut: [0] });
+  });
+
+  it('lands a hit on a watermelon at once, then one every hitIntervalSeconds of contact, and breaks it on the last', () => {
+    const field = fieldWithOne('watermelon');
+    const hits = obstacleHits('watermelon');
+    expect(hits).toBeGreaterThan(1);
+    const results = [];
+    for (let time = 0; time <= hitIntervalSeconds * hits; time += FRAME) results.push(restOn(field, watermelon.minSize));
+    const hitFrames = results.flatMap((result, frame) => (result.hit.length > 0 ? [frame] : []));
+    const cutFrames = results.flatMap((result, frame) => (result.cut.length > 0 ? [frame] : []));
+    expect(hitFrames).toHaveLength(hits - 1);
+    expect(hitFrames[0]).toBe(0);
+    expect(cutFrames).toHaveLength(1);
+    expect((cutFrames[0]! - hitFrames[0]!) * FRAME).toBeCloseTo((hits - 1) * hitIntervalSeconds, 1);
+    expect(field.cut[0]).toBe(1);
+  });
+
+  it('lands a single hit on a brush shorter than hitIntervalSeconds', () => {
+    const field = fieldWithOne('watermelon');
+    restOn(field, watermelon.minSize, hitIntervalSeconds / 2);
+    expect(restOn(field, watermelon.minSize, hitIntervalSeconds / 4)).toEqual({ hit: [], cut: [] });
+    expect(field.cut[0]).toBe(0);
+  });
+
+  it('keeps the hits a watermelon took when the blade leaves it and comes back', () => {
+    const field = fieldWithOne('watermelon');
+    for (let hit = 0; hit < obstacleHits('watermelon') - 1; hit++) restOn(field, watermelon.minSize, hitIntervalSeconds);
+    hitObstaclesInCircle(field, 20, 20, 1, watermelon.minSize, hitIntervalSeconds);
+    expect(restOn(field, watermelon.minSize).cut).toEqual([0]);
+  });
+
+  it('does not hit a fruit too big for the blade', () => {
+    const field = fieldWithOne('watermelon');
+    expect(restOn(field, watermelon.minSize - 1)).toEqual({ hit: [], cut: [] });
+  });
+
+  it('starts again from no hits after a reset', () => {
+    const field = fieldWithOne('watermelon');
+    restOn(field, watermelon.minSize);
+    resetObstacleField(field);
+    expect(restOn(field, watermelon.minSize, hitIntervalSeconds)).toEqual({ hit: [0], cut: [] });
   });
 });

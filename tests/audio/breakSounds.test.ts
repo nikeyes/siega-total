@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { synthesizeBreak } from '../../src/audio/breakSounds';
+import { synthesizeBreak, synthesizeHit } from '../../src/audio/breakSounds';
 import { createRandom } from '../../src/logic/random';
 import { bandShare, envelopePeakSeconds, SAMPLE_RATE, seconds } from './soundAnalysis';
 
@@ -51,5 +51,18 @@ describe.each(['watermelon', 'strawberry', 'cactus'] as const)('%s break variant
     expect(synthesizeBreak(obstacle, SAMPLE_RATE, createRandom(7))).toEqual(synthesizeBreak(obstacle, SAMPLE_RATE, createRandom(7)));
     const variants = [1, 2, 3, 4].map((seed) => synthesizeBreak(obstacle, SAMPLE_RATE, createRandom(seed)).join(','));
     expect(new Set(variants).size).toBe(4);
+  });
+});
+
+describe('fruit hit', () => {
+  const sound = synthesizeHit(SAMPLE_RATE, createRandom(1));
+
+  it('is a short thud of 0.2 s', () => {
+    expect(seconds(sound)).toBeCloseTo(0.2, 2);
+  });
+
+  it('is dull: most of it below 1 kHz, unlike the bright crunch of a break', () => {
+    expect(bandShare(sound, 40, 1000)).toBeGreaterThan(0.5);
+    expect(bandShare(sound, 40, 1000)).toBeGreaterThan(bandShare(synthesizeBreak('watermelon', SAMPLE_RATE, createRandom(1)), 40, 1000));
   });
 });

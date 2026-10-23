@@ -42,7 +42,7 @@ Cada recurso nuevo añade aquí su autor, su paquete y su licencia.
 ### Sonido y música propios, generados en código
 
 - **Sonido de corte** (`src/audio/cutLoop.ts` y `src/audio/breeze.ts`): un bucle sintetizado de siseo agudo que va y viene a 7 Hz, con pequeños chasquidos de hierba cortada encima; suena mientras la cuchilla corta.
-- **Rotura de obstáculos** (`src/audio/breakSounds.ts` y `src/audio/synthesis.ts`): la sandía, la fresa y el cactus suenan con su propio golpe sintetizado, en cuatro variantes y con el tono algo distinto cada vez.
+- **Rotura de obstáculos** (`src/audio/breakSounds.ts` y `src/audio/synthesis.ts`): la sandía, la fresa y el cactus suenan con su propio golpe sintetizado, en cuatro variantes y con el tono algo distinto cada vez; los golpes que aguanta una sandía antes de romperse suenan con un golpe sordo.
 - **Aviso de poco tiempo y victoria** (`src/audio/chimes.ts`): campanas sintetizadas para el aviso blando de poco tiempo, el arpegio de «barra completa», las tres estrellas del resultado y el destello del confeti.
 - **Música lo-fi** (`src/audio/lofi.ts` y `src/audio/music.ts`): se compone mientras suena, con piano eléctrico, bajo, bombo y escobillas sintetizados, en un estilo para la partida y otro más tranquilo para los menús. No usa ningún archivo.
 - Todos forman parte del código del juego, con su misma licencia MIT.

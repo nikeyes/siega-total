@@ -7,6 +7,7 @@ import { isObstacleType, sampleLevel, type LevelDefinition, type TargetKind } fr
 import {
   createObstacleField,
   cutObstaclesInCircle,
+  hitObstaclesInCircle,
   obstacleGrowthCuts,
   resetObstacleField,
   standingCount,
@@ -51,6 +52,8 @@ export interface StepResult {
   cutIndices: number[];
   /** Obstacles cut during this step. */
   cutObstacles: number[];
+  /** Obstacles that took a hit during this step and still stand. */
+  hitObstacles: number[];
   sizesGained: number;
   /** Coins of the blades and obstacles cut during this step. */
   coins: number;
@@ -61,7 +64,7 @@ export interface StepResult {
 }
 
 function nothingHappened(): StepResult {
-  return { cutIndices: [], cutObstacles: [], sizesGained: 0, coins: 0, blocked: false, neededSize: null };
+  return { cutIndices: [], cutObstacles: [], hitObstacles: [], sizesGained: 0, coins: 0, blocked: false, neededSize: null };
 }
 
 /** The field of `level`, with the blade at its center, waiting for the first move. */
@@ -137,7 +140,7 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   blade.z = z;
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
-  const cutObstacles = cutObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size);
+  const { cut: cutObstacles, hit: hitObstacles } = hitObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size, dt);
   const growthCuts = cutIndices.length * game.bladeWeight + growthCutsOf(game.obstacles, cutObstacles);
   const sizesGained = addCuts(blade, growthCuts * game.bonuses.growthMultiplier);
   const coins = coinsForCuts(game, cutIndices, cutObstacles);
@@ -151,7 +154,7 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
     game.status = 'lost';
     game.compassLeft = 0;
   }
-  return { cutIndices, cutObstacles, sizesGained, coins, blocked, neededSize };
+  return { cutIndices, cutObstacles, hitObstacles, sizesGained, coins, blocked, neededSize };
 }
 
 function maxSpeedOf(game: Game): number {
@@ -172,7 +175,7 @@ function stepWinWave(game: Game, wave: WinWave, dt: number): StepResult {
   const coins = coinsForCuts(game, cutIndices, cutObstacles);
   game.levelCoins += coins;
   if (wave.radius >= distanceToFarthestCorner(field, wave.x, wave.z)) game.status = 'won';
-  return { cutIndices, cutObstacles, sizesGained: 0, coins, blocked: false, neededSize: null };
+  return { cutIndices, cutObstacles, hitObstacles: [], sizesGained: 0, coins, blocked: false, neededSize: null };
 }
 
 function distanceToFarthestCorner(field: Field, x: number, z: number): number {

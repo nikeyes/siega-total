@@ -292,6 +292,17 @@ describe('estimateSeconds', () => {
     expect(many - few).toBeGreaterThanOrEqual(4 * config.generator.secondsPerTargetPiece);
   });
 
+  it('gives a target piece that takes several hits the time to land them', () => {
+    const pieceAt = (type: 'strawberry' | 'watermelon'): Obstacle[] => [{ type, x: CENTER + 2, z: CENTER }];
+    // Lavender targets ask for size 3 either way, so the blade grows alike and only the hits tell the levels apart.
+    const level = (type: 'strawberry' | 'watermelon') => greenCenterThen(4, 'lavender', { obstacles: pieceAt(type), targets: ['lavender', type] });
+    const extraHits = config.obstacles.watermelon.hits - 1;
+    expect(estimateSeconds(level('watermelon')) - travelSeconds(level('watermelon'))).toBeCloseTo(
+      estimateSeconds(level('strawberry')) - travelSeconds(level('strawberry')) + extraHits * config.collision.hitIntervalSeconds,
+      9,
+    );
+  });
+
   it('takes longer when the targets need a bigger blade first', () => {
     const ice = estimateSeconds(greenCenterThen(3, 'ice'));
     const bramble = estimateSeconds(greenCenterThen(3, 'bramble', { targets: ['bramble'] }));

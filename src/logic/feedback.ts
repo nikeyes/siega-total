@@ -5,6 +5,7 @@ import type { ObstacleType } from './levels';
 export type FeedbackEvent =
   | { kind: 'started' } // ready → playing: the first move
   | { kind: 'cut' } // blades cut by the blade in this step
+  | { kind: 'obstacleHit'; obstacle: BreakingObstacle } // one per kind of fruit hit by the blade in this step without breaking
   | { kind: 'obstacleCut'; obstacle: BreakingObstacle } // one per kind of fruit or cactus cut by the blade in this step
   | { kind: 'sizeUp'; size: number } // the blade grew, by cutting or by the booster
   | { kind: 'lowTime' } // the clock went below config.level.lowTimeSeconds while playing
@@ -53,7 +54,7 @@ export function createFeedbackTracker(): FeedbackTracker {
   };
 }
 
-/** Always in the same order: started, cut, obstacleCut, sizeUp, lowTime, winWave, won, lost. */
+/** Always in the same order: started, cut, obstacleHit, obstacleCut, sizeUp, lowTime, winWave, won, lost. */
 function eventsOfStep(game: Game, result: StepResult, previous: Previous): FeedbackEvent[] {
   const events: FeedbackEvent[] = [];
   // Only the blade's own cuts count; the win wave's cuts are covered by its jingle.
@@ -64,7 +65,10 @@ function eventsOfStep(game: Game, result: StepResult, previous: Previous): Feedb
   if (previous.status === 'ready' && game.status !== 'ready') events.push({ kind: 'started' });
   if (played && result.cutIndices.length > 0) events.push({ kind: 'cut' });
   if (played) {
-    const cutTypes = new Set(result.cutObstacles.map((index) => game.obstacles.obstacles[index]!.type));
+    const typesOf = (indices: number[]) => new Set(indices.map((index) => game.obstacles.obstacles[index]!.type));
+    const hitTypes = typesOf(result.hitObstacles);
+    const cutTypes = typesOf(result.cutObstacles);
+    for (const obstacle of BREAKING_OBSTACLES) if (hitTypes.has(obstacle)) events.push({ kind: 'obstacleHit', obstacle });
     for (const obstacle of BREAKING_OBSTACLES) if (cutTypes.has(obstacle)) events.push({ kind: 'obstacleCut', obstacle });
   }
   // Compared between frames, so the upgrade booster used outside stepGame counts too.
