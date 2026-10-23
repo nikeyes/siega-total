@@ -1,4 +1,4 @@
-.PHONY: install dev check test build size preview e2e e2e-headed e2e-ui e2e-debug simulate
+.PHONY: install dev check test build size preview e2e e2e-headed e2e-ui e2e-debug simulate icon
 
 install:
 	npm ci
@@ -40,3 +40,6 @@ e2e-debug: build
 # Plays the campaign with a bot and prints coins, time left and blade size level by level.
 simulate:
 	node scripts/simulate.mjs
+
+icon:
+	node scripts/render-icon.mjs
