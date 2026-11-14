@@ -12,6 +12,8 @@ export type Outcome = 'won' | 'lost';
 export interface ResultSummary {
   levelCoins: number;
   bonusCoins: number;
+  /** False after a game without time, whose bonus is for finishing. */
+  timed: boolean;
 }
 
 export interface ResultOverlay {
@@ -22,17 +24,18 @@ export interface ResultOverlay {
 
 const TITLES: Record<Outcome, string> = { won: texts.result.wonTitle, lost: texts.result.lostTitle };
 
-/** A win shows the coins cut, the time bonus and their total; a defeat, only the coins cut. */
 /** When each star pops in after a win, in seconds, in step with its note; none after a defeat. */
 export function resultStarDelays(outcome: Outcome): number[] {
   if (outcome === 'lost') return [];
   return victorySteps().flatMap(({ at, step }) => (step.kind === 'star' ? [at] : []));
 }
 
-export function resultLines(outcome: Outcome, { levelCoins, bonusCoins }: ResultSummary): string[] {
+/** A win shows the coins cut, the bonus (for the time left, or for finishing without time) and their total; a defeat, only the coins cut. */
+export function resultLines(outcome: Outcome, { levelCoins, bonusCoins, timed }: ResultSummary): string[] {
   const coins = `${texts.result.coins} ${formatCount(levelCoins)}`;
   if (outcome === 'lost') return [coins];
-  return [coins, `${texts.result.timeBonus} ${formatCount(bonusCoins)}`, `${texts.result.total} ${formatCount(levelCoins + bonusCoins)}`];
+  const bonusLabel = timed ? texts.result.timeBonus : texts.result.finishBonus;
+  return [coins, `${bonusLabel} ${formatCount(bonusCoins)}`, `${texts.result.total} ${formatCount(levelCoins + bonusCoins)}`];
 }
 
 export interface ContinueButton {

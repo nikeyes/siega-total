@@ -52,6 +52,8 @@ export const config = {
   },
   economy: {
     coinsPerSecondLeft: 50,
+    /** What a win without time pays instead of the bonus for the time left. */
+    untimedFinishBonus: 1000,
     /** The floating «+N» shows the coins of this interval added together. */
     floatIntervalSeconds: 0.2,
   },

@@ -4,6 +4,8 @@ export const texts = {
     level: 'Nivel',
     needSize: 'Necesitas tamaño {size}',
     sizeUp: '¡Tamaño {size}!',
+    /** The clock of a game without time. */
+    noTime: '∞',
   },
   result: {
     wonTitle: '¡Nivel completado!',
@@ -12,6 +14,8 @@ export const texts = {
     lostButton: 'Reintentar',
     coins: 'Monedas',
     timeBonus: 'Bonus de tiempo',
+    /** The bonus of a win without time, which pays the same whenever it ends. */
+    finishBonus: 'Bonus por acabar',
     total: 'Total',
     shop: 'Tienda',
     home: 'Inicio',
@@ -26,6 +30,9 @@ export const texts = {
   home: {
     title: 'Siega Total',
     play: 'Jugar',
+    /** The mode switch under «Jugar», named for the mode the next level starts in. */
+    timed: '⏱ Con tiempo',
+    untimed: '∞ Sin tiempo',
     shop: 'Tienda',
     settings: 'Ajustes',
   },

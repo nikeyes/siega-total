@@ -18,7 +18,7 @@ export interface Settings {
 }
 
 export interface SaveData {
-  version: 5;
+  version: 6;
   /** Next level to play, ≥ 1. */
   level: number;
   coins: number;
@@ -29,9 +29,11 @@ export interface SaveData {
   settings: Settings;
   /** True once the player has made the first move with the hand hint on screen. */
   tutorialDone: boolean;
+  /** False while the home screen is set to play without time; the next level starts in that mode. */
+  timed: boolean;
 }
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 /** The effects start a little down, so they sit well with the music at full. */
 const DEFAULT_SOUND_VOLUME = 0.65;
 
@@ -44,6 +46,7 @@ export function defaultSave(): SaveData {
     boosters: Object.fromEntries(BOOSTER_KINDS.map((kind) => [kind, config.boosters[kind].startUses])) as SaveData['boosters'],
     settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: DEFAULT_SOUND_VOLUME, musicVolume: 1 },
     tutorialDone: false,
+    timed: true,
   };
 }
 
@@ -68,6 +71,8 @@ function migrate(data: { version: number } & Record<string, unknown>): unknown {
   if (data.version === 3) data = { ...data, version: 4 };
   // Version 4 had no volumes; sanitize gives them the defaults.
   if (data.version === 4) data = { ...data, version: 5 };
+  // Version 5 had no play mode; sanitize gives it the default, with time.
+  if (data.version === 5) data = { ...data, version: 6 };
   return data;
 }
 
@@ -94,6 +99,7 @@ function sanitize(data: Partial<SaveData>): SaveData {
     boosters: sanitizeCounts(data.boosters, defaults.boosters),
     settings: sanitizeSettings(data.settings, defaults.settings),
     tutorialDone: booleanOr(data.tutorialDone, defaults.tutorialDone),
+    timed: booleanOr(data.timed, defaults.timed),
   };
 }
 

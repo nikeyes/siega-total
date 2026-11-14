@@ -7,6 +7,7 @@ import { defaultSave } from '../../src/logic/save';
 import { cutInCircle, GRASS_TYPE_ORDER } from '../../src/logic/field';
 import { createGame, cutAllTargets, resetGame, stepGame, type Game, type GameStatus } from '../../src/logic/game';
 import { levelFromRows } from './levelFixtures';
+import { noBonuses } from '../../src/logic/upgrades';
 
 const SIXTY_FPS_FRAME = 1 / 60;
 const EAST: Direction = { x: 1, z: 0 };
@@ -103,6 +104,13 @@ describe('clock booster', () => {
     expect(game.timeLeft).toBe(1 + config.boosters.clock.seconds);
   });
 
+  it('cannot be used in a game without time, where the other boosters still can', () => {
+    const game = createGame(levelFromRows(OPEN_SAND), noBonuses(), config.field.referenceBladeCount, false);
+    stepGame(game, EAST, SIXTY_FPS_FRAME);
+    expect(canUseBooster(game, 'clock')).toBe(false);
+    expect(canUseBooster(game, 'upgrade')).toBe(true);
+    expect(canUseBooster(game, 'compass')).toBe(true);
+  });
 });
 
 describe('compass booster', () => {
