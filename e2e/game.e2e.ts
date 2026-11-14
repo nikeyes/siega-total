@@ -61,6 +61,22 @@ test('playing cuts grass and runs the clock down', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('playing without time keeps the clock still, shows ∞ and is remembered after a reload', async ({ page }) => {
+  const errors = await openGame(page);
+  await page.getByRole('button', { name: 'Con tiempo' }).click();
+  await expect(page.getByRole('button', { name: 'Sin tiempo' })).toBeVisible();
+  await startPlaying(page);
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(() => page.evaluate(() => window.__siega.field.cutCount)).toBeGreaterThan(0);
+  await page.keyboard.up('ArrowRight');
+  expect(await page.evaluate(() => window.__siega.timeLeft === window.__siega.timeTotal)).toBe(true);
+  await expect(page.locator('.hud-timer-text')).toHaveText('∞');
+
+  await openGame(page);
+  await expect(page.getByRole('button', { name: 'Sin tiempo' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('the clock turns amber and warns once below lowTimeSeconds', async ({ page }) => {
   const errors = await openGame(page);
   await startPlaying(page);

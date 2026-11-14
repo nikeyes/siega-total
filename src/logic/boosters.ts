@@ -13,8 +13,8 @@ export function canUseBooster(game: Game, kind: BoosterKind): boolean {
     case 'compass':
       return inPlay(game) && game.compassLeft <= 0;
     case 'clock':
-      // From a defeat, the clock lets the player go on with the field as it was.
-      return inPlay(game) || game.status === 'lost';
+      // From a defeat, the clock lets the player go on with the field as it was; without time it has nothing to add.
+      return game.timed && (inPlay(game) || game.status === 'lost');
   }
 }
 

@@ -178,6 +178,12 @@ const homeScreen = createHomeScreen(container, {
     else loadLevel(save.level);
     showScreen('playing');
   },
+  onToggleTimed: () => {
+    // The level is built again on «Jugar», so the new mode applies from there.
+    save.timed = !save.timed;
+    writeSave(save);
+    renderSave();
+  },
   onShop: () => openShop('home'),
   onSettings: () => openSettings('home'),
 });
@@ -338,7 +344,7 @@ function playLevel(level: LevelDefinition): void {
   grass?.dispose();
   obstacleView?.dispose();
   applyQuality(qualityForAttempt(save.settings.quality, qualityMonitor));
-  game = createGame(level, bonusesFor(save.upgrades), config.quality.levels[quality!].bladeCount);
+  game = createGame(level, bonusesFor(save.upgrades), config.quality.levels[quality!].bladeCount, save.timed);
   sizeUpAge = Infinity;
   // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
   feedback.track(game);
@@ -577,7 +583,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   grass!.setHighlight(shouldHighlightTargets(game) ? targetGrassTypes(game) : []);
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
     saveLevelEnd();
-    resultOverlay.show(game.status, { levelCoins: Math.floor(game.levelCoins), bonusCoins: game.bonusCoins }, save);
+    resultOverlay.show(game.status, { levelCoins: Math.floor(game.levelCoins), bonusCoins: game.bonusCoins, timed: game.timed }, save);
     showScreen('result');
   }
 
@@ -604,6 +610,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const bladeOnScreen = cameraRig.toScreen(blade.x, 0, blade.z, container.clientWidth, container.clientHeight);
   hud.update({
     playing: game.status === 'playing',
+    timed: game.timed,
     timeLeft: game.timeLeft,
     timeTotal: game.timeTotal,
     remainingByTarget: remainingByTarget(game),

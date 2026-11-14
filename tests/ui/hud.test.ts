@@ -4,6 +4,7 @@ import { boosterButtons, hudDisplay, levelLabel, type HudState } from '../../src
 
 const STATE: HudState = {
   playing: true,
+  timed: true,
   timeLeft: 45.3,
   timeTotal: 90,
   remainingByTarget: [1284, 3],
@@ -31,6 +32,11 @@ describe('hudDisplay', () => {
     const display = hudDisplay(STATE);
     expect(display.clock).toBe('0:46');
     expect(display.timePercent).toBe(50);
+  });
+
+  it('without time, shows the infinity sign on a full ring that never warns', () => {
+    const display = hudDisplay({ ...STATE, timed: false, timeLeft: 5 });
+    expect([display.clock, display.timePercent, display.lowTime]).toEqual([texts.hud.noTime, 100, false]);
   });
 
   it('turns the clock amber at lowTimeSeconds and below, only while playing', () => {

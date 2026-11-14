@@ -24,6 +24,8 @@ const ICON_SPIKES = 5;
 export interface HudState {
   /** The game is in play: the clock only warns then. */
   playing: boolean;
+  /** False in a game without time: the clock shows ∞ on a full ring. */
+  timed: boolean;
   timeLeft: number;
   timeTotal: number;
   /** Units left of each target, in the order of the level's targets. */
@@ -66,9 +68,9 @@ export interface HudDisplay {
 
 export function hudDisplay(state: HudState): HudDisplay {
   return {
-    clock: formatClock(state.timeLeft),
-    timePercent: toPercent(state.timeLeft / state.timeTotal),
-    lowTime: state.playing && state.timeLeft <= config.level.lowTimeSeconds,
+    clock: state.timed ? formatClock(state.timeLeft) : texts.hud.noTime,
+    timePercent: state.timed ? toPercent(state.timeLeft / state.timeTotal) : 100,
+    lowTime: state.timed && state.playing && state.timeLeft <= config.level.lowTimeSeconds,
     targetCounts: state.remainingByTarget.map(formatCount),
     sizeLabel: `${texts.hud.size} ${state.size}`,
     growthPercent: toPercent(state.growthFraction),

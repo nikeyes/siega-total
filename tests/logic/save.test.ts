@@ -5,14 +5,26 @@ import { defaultSave, loadSave, SAVE_VERSION, serializeSave, type SaveData } fro
 /** A save far from the defaults in every field. */
 function progressedSave(): SaveData {
   return {
-    version: 5,
+    version: 6,
     level: 12,
     coins: 34_500,
     upgrades: { startSize: 2, speed: 3, extraTime: 1, growth: 4 },
     boosters: { upgrade: 0, compass: 5, clock: 1 },
     settings: { sound: false, music: false, vibration: true, quality: 'low', soundVolume: 0.4, musicVolume: 0.7 },
     tutorialDone: true,
+    timed: false,
   };
+}
+
+/** `progressedSave()` without the play mode, which saves before version 6 did not have. */
+function withoutPlayMode(): Omit<SaveData, 'timed'> {
+  const { timed, ...rest } = progressedSave();
+  return rest;
+}
+
+/** `progressedSave()` as version 5 stored it, without the play mode. */
+function versionFiveSave(): string {
+  return JSON.stringify({ ...withoutPlayMode(), version: 5 });
 }
 
 /** The volumes a save starts with. */
@@ -37,31 +49,31 @@ function withInfinite(field: 'level' | 'coins'): string {
 /** `progressedSave()` as version 4 stored it, without the volumes. */
 function versionFourSave(): string {
   const { soundVolume, musicVolume, ...settings } = progressedSave().settings;
-  return JSON.stringify({ ...progressedSave(), version: 4, settings });
+  return JSON.stringify({ ...withoutPlayMode(), version: 4, settings });
 }
 
 /** `progressedSave()` as version 3 stored it, without the music setting or the volumes. */
 function versionThreeSave(): string {
   const { music, soundVolume, musicVolume, ...settings } = progressedSave().settings;
-  return JSON.stringify({ ...progressedSave(), version: 3, settings });
+  return JSON.stringify({ ...withoutPlayMode(), version: 3, settings });
 }
 
 /** `progressedSave()` as version 2 stored it, without the quality and music settings or the volumes. */
 function versionTwoSave(): string {
   const { quality, music, soundVolume, musicVolume, ...settings } = progressedSave().settings;
-  return JSON.stringify({ ...progressedSave(), version: 2, settings });
+  return JSON.stringify({ ...withoutPlayMode(), version: 2, settings });
 }
 
 /** `progressedSave()` as version 1 stored it, without settings or the tutorial flag. */
 function versionOneSave(): string {
-  const { settings, tutorialDone, ...versionOne } = { ...progressedSave(), version: 1 };
+  const { settings, tutorialDone, ...versionOne } = { ...withoutPlayMode(), version: 1 };
   return JSON.stringify(versionOne);
 }
 
 describe('default save', () => {
-  it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on with the effects a little down, and the tutorial pending', () => {
+  it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on with the effects a little down, the tutorial pending and the clock running', () => {
     expect(defaultSave()).toEqual({
-      version: 5,
+      version: 6,
       level: 1,
       coins: 0,
       upgrades: { startSize: 0, speed: 0, extraTime: 0, growth: 0 },
@@ -72,6 +84,7 @@ describe('default save', () => {
       },
       settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: 0.65, musicVolume: 1 },
       tutorialDone: false,
+      timed: true,
     });
   });
 
@@ -104,6 +117,7 @@ describe('loading a save', () => {
     expect(loadSave(versionOneSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
+      timed: true,
       settings: defaultSave().settings,
       tutorialDone: true,
     });
@@ -113,6 +127,7 @@ describe('loading a save', () => {
     expect(loadSave(versionTwoSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
+      timed: true,
       settings: { ...progressedSave().settings, quality: 'auto', music: true, ...defaultVolumes() },
     });
   });
@@ -121,6 +136,7 @@ describe('loading a save', () => {
     expect(loadSave(versionThreeSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
+      timed: true,
       settings: { ...progressedSave().settings, music: true, ...defaultVolumes() },
     });
   });
@@ -129,8 +145,13 @@ describe('loading a save', () => {
     expect(loadSave(versionFourSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
+      timed: true,
       settings: { ...progressedSave().settings, ...defaultVolumes() },
     });
+  });
+
+  it('brings a version 5 save up to the current version, with the clock running and the rest kept', () => {
+    expect(loadSave(versionFiveSave())).toEqual({ ...progressedSave(), version: SAVE_VERSION, timed: true });
   });
 
   it('keeps a migrated version 1 save the same when it is saved and loaded again', () => {
@@ -178,6 +199,8 @@ describe('sanitizing a loaded save', () => {
     ['a tutorial flag that is a number', { tutorialDone: 1 }, { tutorialDone: defaultSave().tutorialDone }],
     ['a tutorial flag that is null', { tutorialDone: null }, { tutorialDone: defaultSave().tutorialDone }],
     ['a missing tutorial flag', { tutorialDone: undefined }, { tutorialDone: defaultSave().tutorialDone }],
+    ['a play mode that is a string', { timed: 'no' }, { timed: defaultSave().timed }],
+    ['a play mode that is null', { timed: null }, { timed: defaultSave().timed }],
   ])('replaces %s with the default and keeps the rest', (_, damaged, repaired) => {
     expect(loadWith(damaged)).toEqual({ ...progressedSave(), ...repaired });
   });
@@ -249,7 +272,7 @@ describe('quality setting in a save', () => {
   });
 
   it('brings a version 1 save up with the quality on auto', () => {
-    const { settings, tutorialDone, ...versionOne } = { ...progressedSave(), version: 1 };
+    const { settings, tutorialDone, ...versionOne } = { ...withoutPlayMode(), version: 1 };
     expect(loadSave(JSON.stringify(versionOne)).settings.quality).toBe('auto');
   });
 });

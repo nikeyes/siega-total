@@ -825,6 +825,51 @@ describe('win wave', () => {
   });
 });
 
+describe('playing without time', () => {
+  function untimedGame(level: LevelDefinition): Game {
+    return createGame(level, noBonuses(), config.field.referenceBladeCount, false);
+  }
+
+  it('plays with time by default', () => {
+    expect(createGame(stripesLevel()).timed).toBe(true);
+  });
+
+  it('never loses, however long the targets stand', () => {
+    const game = untimedGame(levelFromRows(ICE_ON_THE_EAST_EDGE, { timeSeconds: SHORT_TIME_SECONDS }));
+    driveForSeconds(game, WEST, ONE_MINUTE);
+    expect(game.status).toBe('playing');
+    expect(remainingTargets(game)).toBeGreaterThan(0);
+  });
+
+  it('keeps the whole time left, so the ring stays full', () => {
+    const game = untimedGame(levelFromRows(ICE_ON_THE_EAST_EDGE, { timeSeconds: 7 }));
+    driveForSeconds(game, WEST, 1);
+    expect(game.timeLeft).toBe(7);
+    expect(game.timeTotal).toBe(7);
+  });
+
+  it('never loses even on a level whose time is zero', () => {
+    const game = untimedGame(levelFromRows(ICE_ON_THE_EAST_EDGE, { timeSeconds: 0 }));
+    driveForSeconds(game, WEST, 1);
+    expect(game.status).toBe('playing');
+  });
+
+  it('stays without time when the level is restarted', () => {
+    const game = untimedGame(levelFromRows(ICE_ON_THE_EAST_EDGE, { timeSeconds: SHORT_TIME_SECONDS }));
+    driveForSeconds(game, WEST, 1);
+    resetGame(game);
+    driveForSeconds(game, WEST, 1);
+    expect(game.status).toBe('playing');
+  });
+
+  it('pays the fixed finish bonus on a win, whatever the level time', () => {
+    const game = untimedGame(levelFromRows(HALVES, { timeSeconds: 1_000 }));
+    mowInZigzag(game);
+    expect(game.status).toBe('winWave');
+    expect(game.bonusCoins).toBe(config.economy.untimedFinishBonus);
+  });
+});
+
 describe('losing', () => {
   it('ends the level with exactly no time left when the time runs out with targets standing', () => {
     const game = lostGame();

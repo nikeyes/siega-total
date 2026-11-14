@@ -40,6 +40,8 @@ export interface Game {
   readonly bonuses: GameBonuses;
   /** How much each blade cut counts for growth and coins, so every quality plays the same. */
   readonly bladeWeight: number;
+  /** False in a game without time: the clock stands still and the level cannot be lost. */
+  readonly timed: boolean;
   status: GameStatus;
   timeLeft: number;
   /** The full time of this game, for the timer ring: the level's time plus the bonus seconds. */
@@ -84,6 +86,7 @@ export function createGame(
   level: LevelDefinition = sampleLevel(),
   bonuses: GameBonuses = noBonuses(),
   bladeCount: number = config.field.referenceBladeCount,
+  timed: boolean = true,
 ): Game {
   const field = createField(levelFieldOptions(level, bladeCount));
   return {
@@ -93,6 +96,7 @@ export function createGame(
     blade: bladeAtCenter(field, bonuses),
     bonuses,
     bladeWeight: field.bladeCount === 0 ? 0 : config.field.referenceBladeCount / field.bladeCount,
+    timed,
     status: 'ready',
     timeLeft: startingTime(level, bonuses),
     timeTotal: startingTime(level, bonuses),
@@ -142,7 +146,7 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
     moveBlade(blade, null, dt, field.width, field.depth, maxSpeedOf(game));
     return nothingHappened();
   }
-  game.timeLeft = Math.max(0, game.timeLeft - dt);
+  if (game.timed) game.timeLeft = Math.max(0, game.timeLeft - dt);
   game.compassLeft = Math.max(0, game.compassLeft - dt);
   const steering = game.rockBounce ? null : direction;
   moveBlade(blade, steering, dt, field.width, field.depth, maxSpeedOf(game));
@@ -165,10 +169,10 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   game.levelCoins += coins;
   if (remainingTargets(game) === 0) {
     game.status = 'winWave';
-    game.bonusCoins = timeBonus(game.timeLeft);
+    game.bonusCoins = game.timed ? timeBonus(game.timeLeft) : config.economy.untimedFinishBonus;
     game.winWave = { x: blade.x, z: blade.z, radius: 0 };
     game.compassLeft = 0;
-  } else if (game.timeLeft === 0) {
+  } else if (game.timed && game.timeLeft === 0) {
     game.status = 'lost';
     game.compassLeft = 0;
   }
