@@ -38,6 +38,14 @@ const baseConfig = {
     /** The glow under the blade spans scale times its radius. */
     glow: { scale: 1.5, opacity: 0.55 },
   },
+  /** Grass a blade is short of cutting: a wall, unless it is at most sizesEarly sizes short, then it is cut slowly. */
+  toughGrass: {
+    sizesEarly: 0,
+    /** The share of full speed while cutting grass 1, 2… sizes short of its minSize. */
+    speedWhenShort: [] as number[],
+    /** Blades stand apart, so not every step cuts one; the blade stays held back this long after the last. */
+    holdSeconds: 0.25,
+  },
   grassTypes: {
     green: { minSize: 1, coins: 1 },
     ice: { minSize: 1, coins: 1 },
@@ -253,6 +261,8 @@ const nuevaChanges: Changes<typeof baseConfig> = {
   // Starts slower and speeds up as it grows, crossing the screen equally fast at every size.
   blade: { maxSpeed: 1.9, fullSpeedSize: 1, speedFollowsCameraWhenBigger: true },
   input: { analogJoystick: true },
+  // Grass one size too tough is no longer a wall: it gives way, and holds the blade back while it cuts it.
+  toughGrass: { sizesEarly: 1, speedWhenShort: [0.45] },
   // A slower small blade takes longer between targets than the estimate, which travels at the final size's speed.
   generator: { extraSeconds: 45 },
   // A narrower lens, closer: the blade looks bigger without changing the levels, the field is flatter and easier to read,

@@ -1,6 +1,7 @@
 import { config } from '../config';
 import { bladeRadius, cutsToNextSize, maxSpeedAt } from './blade';
 import { isHardCell, resolveCollisions, type CollisionWorld } from './collision';
+import { grassCutSize } from './grass';
 import { isObstacleType, type LevelDefinition, type TargetKind } from './levels';
 import { canCutObstacle, createObstacleField, obstacleCutSize, obstacleGrowthCuts, obstacleHits, obstacleRadius } from './obstacles';
 
@@ -394,7 +395,7 @@ function isCellSwept(board: Board, cell: number, reached: Uint8Array, size: numb
 
 function isCuttableCell(board: Board, cell: number, size: number): boolean {
   const type = board.level.cells[cell];
-  return type !== null && type !== undefined && config.grassTypes[type].minSize <= size;
+  return type !== null && type !== undefined && grassCutSize(type) <= size;
 }
 
 /** The cuttable cells whose center a blade of `size` reaches, and the obstacles it can reach and cut. */
@@ -457,6 +458,7 @@ function cellsToSweep(board: Board): number {
   return targetCells + growthCells;
 }
 
+/** The full minimum size: the estimate grows the blade until it cuts every target at full speed. */
 function minSizeOf(target: TargetKind): number {
   return isObstacleType(target) ? obstacleCutSize(target) : config.grassTypes[target].minSize;
 }

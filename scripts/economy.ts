@@ -1,10 +1,10 @@
 // Plays the campaign with a bot and prints, level by level, what a player earns, how much time is left and how big the blade gets.
 // Run with `make simulate`; scripts/simulate.mjs loads this file through Vite, so it uses the game logic as it is.
 import { campaignSeeds } from '../src/campaign';
-import { config } from '../src/config';
 import { bladeRadius, type Direction } from '../src/logic/blade';
 import { bankCoins } from '../src/logic/economy';
 import { GRASS_TYPE_ORDER } from '../src/logic/field';
+import { grassCutSize } from '../src/logic/grass';
 import { createGame, remainingTargets, stepGame, type Game } from '../src/logic/game';
 import { canCutObstacle } from '../src/logic/obstacles';
 import { levelFor } from '../src/logic/progression';
@@ -59,7 +59,7 @@ function nextGoal(game: Game, avoided: readonly Avoided[]): { x: number; z: numb
   for (let index = 0; index < field.bladeCount; index++) {
     if (field.cut[index] === 1) continue;
     const type = GRASS_TYPE_ORDER[field.types[index]!]!;
-    if (config.grassTypes[type].minSize > size) continue;
+    if (grassCutSize(type) > size) continue;
     consider(field.positionsX[index]!, field.positionsZ[index]!, targetTypes.has(type));
   }
   obstacles.obstacles.forEach(({ type, x, z }, index) => {
@@ -98,6 +98,8 @@ export function playAttempt(game: Game, random: () => number): void {
       if (distance > bladeRadius(game.blade.size) * 0.3) direction = { x: dx / distance, z: dz / distance };
       else secondsToRetarget = 0;
     }
+    // A level only starts with a move, so the bot never waits still for it.
+    if (game.status === 'ready' && !direction) direction = { x: 1, z: 0 };
     const result = stepGame(game, direction, FRAME_SECONDS);
     if (result.blocked && direction) {
       if (goal) avoided.push({ ...goal, secondsLeft: AVOID_SECONDS });
