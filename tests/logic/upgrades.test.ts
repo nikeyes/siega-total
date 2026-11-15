@@ -78,7 +78,7 @@ describe('buying an upgrade', () => {
 describe('game bonuses', () => {
   it('without upgrades, are the base blade and level', () => {
     expect(bonusesFor(defaultSave().upgrades)).toEqual(noBonuses());
-    expect(noBonuses()).toEqual({ startSize: config.blade.startSize, speedMultiplier: 1, extraSeconds: 0, growthMultiplier: 1 });
+    expect(noBonuses()).toEqual({ startSize: config.blade.startSize, speedMultiplier: 1, extraSeconds: 0, growthMultiplier: 1, turbo: false });
   });
 
   it('add the effect of each level bought', () => {
@@ -88,6 +88,18 @@ describe('game bonuses', () => {
       speedMultiplier: 1 + 3 * speed.perLevel,
       extraSeconds: 4 * extraTime.perLevel,
       growthMultiplier: 1 + 5 * growth.perLevel,
+      turbo: false,
     });
   });
 });
+
+describe('turbo', () => {
+  it('never comes on while no win streak is set for it', () => {
+    expect(config.turbo.afterWins).toBeNull();
+    expect(bonusesFor(noBonusUpgrades(), 50)).toEqual(bonusesFor(noBonusUpgrades(), 0));
+  });
+});
+
+function noBonusUpgrades() {
+  return { startSize: 0, speed: 0, extraTime: 0, growth: 0 };
+}

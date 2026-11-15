@@ -1,5 +1,6 @@
 import { config } from '../config';
 import type { SaveData, UpgradeKind } from './save';
+import { isTurboOn } from './turbo';
 
 /** How the bought upgrades change one game; the level itself stays the same for every player. */
 export interface GameBonuses {
@@ -9,20 +10,24 @@ export interface GameBonuses {
   extraSeconds: number;
   /** Each cut counts this many times toward the next size. */
   growthMultiplier: number;
+  /** True after enough wins in a row: the blade goes faster, as speedMultiplier already says. */
+  turbo: boolean;
 }
 
 export function noBonuses(): GameBonuses {
-  return { startSize: config.blade.startSize, speedMultiplier: 1, extraSeconds: 0, growthMultiplier: 1 };
+  return { startSize: config.blade.startSize, speedMultiplier: 1, extraSeconds: 0, growthMultiplier: 1, turbo: false };
 }
 
 /** Read on every call, so values tuned from the debug panel apply to the next game. */
-export function bonusesFor(upgrades: SaveData['upgrades']): GameBonuses {
+export function bonusesFor(upgrades: SaveData['upgrades'], winStreak = 0): GameBonuses {
   const { startSize, speed, extraTime, growth } = config.upgrades;
+  const turbo = isTurboOn(winStreak);
   return {
     startSize: config.blade.startSize + upgrades.startSize * startSize.perLevel,
-    speedMultiplier: 1 + upgrades.speed * speed.perLevel,
+    speedMultiplier: (1 + upgrades.speed * speed.perLevel) * (turbo ? config.turbo.speedMultiplier : 1),
     extraSeconds: upgrades.extraTime * extraTime.perLevel,
     growthMultiplier: 1 + upgrades.growth * growth.perLevel,
+    turbo,
   };
 }
 

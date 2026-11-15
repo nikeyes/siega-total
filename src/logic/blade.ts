@@ -34,6 +34,12 @@ export function cutsToNextSize(size: number): number {
   return config.blade.cutsPerSizeFactor * size;
 }
 
+/** How fast the blade spins on screen: a bigger one may spin slower. */
+export function spinRadiansPerSecond(size: number): number {
+  const { spinRadiansPerSecond: atSizeOne, spinKeptPerSize } = config.blade;
+  return atSizeOne * spinKeptPerSize ** (size - 1);
+}
+
 /** How far the blade is toward its next size, from 0 to 1. */
 export function growthFraction(blade: Blade): number {
   return blade.growthProgress / cutsToNextSize(blade.size);

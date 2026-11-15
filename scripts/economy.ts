@@ -9,6 +9,7 @@ import { createGame, remainingTargets, stepGame, type Game } from '../src/logic/
 import { canCutObstacle } from '../src/logic/obstacles';
 import { levelFor } from '../src/logic/progression';
 import { createRandom } from '../src/logic/random';
+import { nextWinStreak } from '../src/logic/turbo';
 import { defaultSave, type SaveData, type UpgradeKind } from '../src/logic/save';
 import { bonusesFor, buyUpgrade, upgradePrice } from '../src/logic/upgrades';
 
@@ -136,9 +137,10 @@ export function simulateCampaign(lastLevel: number, buysUpgrades: boolean): Leve
     let game: Game;
     do {
       attempts++;
-      game = createGame(level, bonusesFor(save.upgrades));
+      game = createGame(level, bonusesFor(save.upgrades, save.winStreak));
       playAttempt(game, random);
       save.coins += bankCoins(game);
+      save.winStreak = nextWinStreak(save.winStreak, game.status === 'won' ? 'won' : 'lost');
     } while (game.status === 'lost' && attempts < MAX_ATTEMPTS);
     const won = game.status === 'won';
     reports.push({

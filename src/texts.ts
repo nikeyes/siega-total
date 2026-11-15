@@ -6,6 +6,8 @@ export const texts = {
     sizeUp: '¡Tamaño {size}!',
     /** The clock of a game without time. */
     noTime: '∞',
+    /** After the size in the pill while a streak of wins makes the blade faster. */
+    turbo: '🔥 Turbo',
   },
   result: {
     wonTitle: '¡Nivel completado!',

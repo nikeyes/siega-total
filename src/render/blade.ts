@@ -11,7 +11,7 @@ import {
   Vector2,
   type Scene,
 } from 'three';
-import { bladeRadius, type Blade } from '../logic/blade';
+import { bladeRadius, spinRadiansPerSecond, type Blade } from '../logic/blade';
 import { armOutline, bladeShapeFor, HUB_HOLE_RADIUS, HUB_RADIUS, type BladeShape, type Vec2 } from './bladeShapes';
 
 const HUB_COLOR = 0x1fb6f2;
@@ -20,7 +20,6 @@ const HUB_HOLE_COLOR = 0x0b3a4d;
 const HUB_HEIGHT = 0.14;
 /** The blade spins low, inside the hole it cuts, with the tall grass around it. */
 const HOVER_HEIGHT = 0.4;
-const SPIN_RADIANS_PER_SECOND = 14;
 const SHADOW_OPACITY = 0.2;
 /** Keeps the shadow just above the ground to avoid z-fighting. */
 const SHADOW_HEIGHT = 0.01;
@@ -74,7 +73,7 @@ export function createBladeView(scene: Scene): BladeView {
     spinner.position.x = blade.x;
     spinner.position.z = blade.z;
     spinner.scale.setScalar(radius);
-    spinner.rotation.y -= SPIN_RADIANS_PER_SECOND * dt;
+    spinner.rotation.y -= spinRadiansPerSecond(blade.size) * dt;
     shadow.position.x = blade.x;
     shadow.position.z = blade.z;
     shadow.scale.setScalar(radius);

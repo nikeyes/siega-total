@@ -1204,7 +1204,7 @@ describe('playing with upgrade bonuses', () => {
   it('leaves the level as it was, so every player gets the same level', () => {
     const level = levelFromRows(HALVES, { obstacles: [{ type: 'strawberry', x: 1, z: 1 }], targets: ['ice', 'strawberry'] });
     const before = structuredClone(level);
-    createGame(level, { startSize: 4, speedMultiplier: 1.6, extraSeconds: 50, growthMultiplier: 2 });
+    createGame(level, { startSize: 4, speedMultiplier: 1.6, extraSeconds: 50, growthMultiplier: 2, turbo: false });
     expect(level).toEqual(before);
   });
 });
