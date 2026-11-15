@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
+import { targetDistance } from '../../src/logic/camera';
 import { createRandom } from '../../src/logic/random';
 import {
   addCuts,
@@ -7,12 +8,16 @@ import {
   createBlade,
   cutsToNextSize,
   growthFraction,
+  maxSpeedAt,
   moveBlade,
+  turnSmoothingSecondsAt,
   type Blade,
   type Direction,
 } from '../../src/logic/blade';
 
-const { startSize, maxSpeed, brakeSeconds, turnSmoothingSeconds, cutsPerSizeFactor } = config.blade;
+const { startSize, fullSpeedSize, brakeSeconds, cutsPerSizeFactor } = config.blade;
+const maxSpeed = maxSpeedAt(startSize);
+const turnSmoothingSeconds = turnSmoothingSecondsAt(startSize);
 const { width, depth } = config.field;
 
 const EAST: Direction = { x: 1, z: 0 };
@@ -43,8 +48,14 @@ function bladeAtFieldCenter() {
   return createBlade(width / 2, depth / 2);
 }
 
-function bladeMovingEastAtFullSpeed() {
+function bladeOfSize(size: number) {
   const blade = bladeAtFieldCenter();
+  for (let current = startSize; current < size; current++) addCuts(blade, cutsToNextSize(current));
+  return blade;
+}
+
+function bladeMovingEastAtFullSpeed(size = startSize) {
+  const blade = bladeOfSize(size);
   move(blade, EAST, 0.1);
   return blade;
 }
@@ -129,6 +140,39 @@ describe('bladeRadius', () => {
   });
 });
 
+describe('maxSpeedAt', () => {
+  it('is the configured maxSpeed from fullSpeedSize up', () => {
+    for (let size = fullSpeedSize; size < fullSpeedSize + 4; size++) {
+      expect(maxSpeedAt(size)).toBe(config.blade.maxSpeed);
+    }
+  });
+
+  it('crosses the screen as fast below fullSpeedSize as at it, as the camera comes closer', () => {
+    const screenSpeedAtFullSpeedSize = maxSpeedAt(fullSpeedSize) / targetDistance(fullSpeedSize);
+    for (let size = 1; size < fullSpeedSize; size++) {
+      expect(maxSpeedAt(size) / targetDistance(size)).toBeCloseTo(screenSpeedAtFullSpeedSize, 10);
+    }
+  });
+});
+
+describe('turnSmoothingSecondsAt', () => {
+  it('is smallBladeTurnSmoothingSeconds at size 1', () => {
+    expect(turnSmoothingSecondsAt(1)).toBe(config.blade.smallBladeTurnSmoothingSeconds);
+  });
+
+  it('is the configured turnSmoothingSeconds from fullSpeedSize up', () => {
+    for (let size = fullSpeedSize; size < fullSpeedSize + 4; size++) {
+      expect(turnSmoothingSecondsAt(size)).toBe(config.blade.turnSmoothingSeconds);
+    }
+  });
+
+  it('gets shorter with each size until fullSpeedSize', () => {
+    for (let size = 1; size < fullSpeedSize; size++) {
+      expect(turnSmoothingSecondsAt(size + 1)).toBeLessThan(turnSmoothingSecondsAt(size));
+    }
+  });
+});
+
 describe('moveBlade: speed', () => {
   it('moves maxSpeed * dt east in the first step from a stop', () => {
     const blade = bladeAtFieldCenter();
@@ -138,18 +182,21 @@ describe('moveBlade: speed', () => {
     expect(blade.z).toBeCloseTo(depth / 2);
   });
 
-  it('moves at the same speed at size 5 as at size 1', () => {
-    const smallBlade = bladeAtFieldCenter();
-    const bigBlade = bladeAtFieldCenter();
-    const bigSize = 5;
-    for (let size = startSize; size < bigSize; size++) {
-      addCuts(bigBlade, cutsToNextSize(size));
-    }
-    expect(bigBlade.size).toBe(bigSize);
-    move(smallBlade, EAST, 0.1);
+  it('moves at the same speed at size 5 as at fullSpeedSize', () => {
+    const fullSpeedBlade = bladeOfSize(fullSpeedSize);
+    const bigBlade = bladeOfSize(5);
+    move(fullSpeedBlade, EAST, 0.1);
     move(bigBlade, EAST, 0.1);
-    expect(bigBlade.speed).toBe(smallBlade.speed);
-    expect(bigBlade.x).toBe(smallBlade.x);
+    expect(bigBlade.speed).toBe(fullSpeedBlade.speed);
+    expect(bigBlade.x).toBe(fullSpeedBlade.x);
+  });
+
+  it('moves slower at size 1 than at fullSpeedSize', () => {
+    const smallBlade = bladeOfSize(1);
+    const fullSpeedBlade = bladeOfSize(fullSpeedSize);
+    move(smallBlade, EAST, 0.1);
+    move(fullSpeedBlade, EAST, 0.1);
+    expect(smallBlade.x).toBeLessThan(fullSpeedBlade.x);
   });
 
   it('does not move, turn or brake with dt = 0', () => {
@@ -250,6 +297,14 @@ describe('moveBlade: turning', () => {
     move(oneStepBlade, NORTH, 0.1);
     for (let step = 0; step < 10; step++) move(tenStepsBlade, NORTH, 0.01);
     expect(tenStepsBlade.heading).toBeCloseTo(oneStepBlade.heading, 10);
+  });
+
+  it('turns less in the same time at size 1 than at fullSpeedSize', () => {
+    const smallBlade = bladeMovingEastAtFullSpeed(1);
+    const fullSpeedBlade = bladeMovingEastAtFullSpeed(fullSpeedSize);
+    move(smallBlade, NORTH, 0.1);
+    move(fullSpeedBlade, NORTH, 0.1);
+    expect(Math.abs(smallBlade.heading)).toBeLessThan(Math.abs(fullSpeedBlade.heading));
   });
 
   describe('takes the shortest arc across the +-PI seam', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
-import { addCuts, bladeRadius, createBlade, cutsToNextSize, type Direction } from '../../src/logic/blade';
+import { addCuts, bladeRadius, createBlade, cutsToNextSize, maxSpeedAt, type Direction } from '../../src/logic/blade';
 import { cutInCircle, GRASS_TYPE_ORDER, type Field, type GrassType } from '../../src/logic/field';
 import {
   createGame,
@@ -800,9 +800,10 @@ describe('win wave', () => {
     cutAllTargets(game);
     stepGame(game, WEST, SIXTY_FPS_FRAME);
     expect(game.status).toBe('winWave');
-    expect(game.blade.speed).toBe(config.blade.maxSpeed);
+    const fullSpeed = maxSpeedAt(game.blade.size);
+    expect(game.blade.speed).toBe(fullSpeed);
     stepGame(game, WEST, SIXTY_FPS_FRAME);
-    expect(game.blade.speed).toBeLessThan(config.blade.maxSpeed);
+    expect(game.blade.speed).toBeLessThan(fullSpeed);
   });
 
   it('does not grow the blade', () => {

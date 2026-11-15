@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
-import { bladeRadius, cutsToNextSize } from '../../src/logic/blade';
+import { bladeRadius, cutsToNextSize, maxSpeedAt } from '../../src/logic/blade';
 import type { GrassType } from '../../src/logic/field';
 import { clearCellsUnderSolidObstacles, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
 import { analyzeLevel, estimateSeconds, travelSeconds, validateLevel } from '../../src/logic/validation';
@@ -271,7 +271,7 @@ describe('analyzeLevel', () => {
 describe('estimateSeconds', () => {
   it('sweeps each cell at full speed with the blade as wide as it has grown, and adds the travel between the targets', () => {
     // 2 cells at size 1 and 4 at size 2 grow the blade to size 3, then the 6 lavender cells are swept at size 3.
-    const secondsPerCell = (size: number) => 1 / (2 * bladeRadius(size) * config.blade.maxSpeed);
+    const secondsPerCell = (size: number) => 1 / (2 * bladeRadius(size) * maxSpeedAt(size));
     const sweep = 2 * secondsPerCell(1) + 4 * secondsPerCell(2) + LAVENDER_IN_THE_CORNER * secondsPerCell(3);
     const level = lavenderCornerLevel(['lavender']);
     expect(estimateSeconds(level)).toBeCloseTo(sweep + travelSeconds(level), 9);

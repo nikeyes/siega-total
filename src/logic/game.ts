@@ -1,5 +1,5 @@
 import { config } from '../config';
-import { addCuts, bladeRadius, createBlade, moveBlade, type Blade, type Direction } from './blade';
+import { addCuts, bladeRadius, createBlade, maxSpeedAt, moveBlade, type Blade, type Direction } from './blade';
 import { overlappedRock, resolveCollisions, sizeToPass } from './collision';
 import { coinsForCuts, timeBonus } from './economy';
 import { createField, cutBlade, cutInCircle, GRASS_TYPE_ORDER, levelFieldOptions, type Field } from './field';
@@ -199,7 +199,7 @@ function flyBack(game: Game, bounce: RockBounce, dt: number): void {
 }
 
 function maxSpeedOf(game: Game): number {
-  return config.blade.maxSpeed * game.bonuses.speedMultiplier;
+  return maxSpeedAt(game.blade.size) * game.bonuses.speedMultiplier;
 }
 
 function growthCutsOf(obstacles: ObstacleField, indices: number[]): number {

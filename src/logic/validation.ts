@@ -1,5 +1,5 @@
 import { config } from '../config';
-import { bladeRadius, cutsToNextSize } from './blade';
+import { bladeRadius, cutsToNextSize, maxSpeedAt } from './blade';
 import { isHardCell, resolveCollisions, type CollisionWorld } from './collision';
 import { isObstacleType, type LevelDefinition, type TargetKind } from './levels';
 import { canCutObstacle, createObstacleField, obstacleCutSize, obstacleGrowthCuts, obstacleHits, obstacleRadius } from './obstacles';
@@ -86,7 +86,7 @@ export function estimateSeconds(level: LevelDefinition): number {
   let growth = 0;
   let seconds = 0;
   for (let cell = 0; cell < sweptCells; cell++) {
-    seconds += cellArea / (2 * bladeRadius(size) * config.blade.maxSpeed);
+    seconds += cellArea / (2 * bladeRadius(size) * maxSpeedAt(size));
     growth += board.bladesPerGrassCell;
     while (growth >= cutsToNextSize(size)) {
       growth -= cutsToNextSize(size);
@@ -130,7 +130,7 @@ export function travelSeconds(level: LevelDefinition): number {
     steps += stepsToStop;
     current = point;
   }
-  return (steps * STEP_METERS) / config.blade.maxSpeed;
+  return (steps * STEP_METERS) / maxSpeedAt(finalSize);
 }
 
 /** Each place the player must go: a patch of touching target-grass cells, or a target piece, as the spots to reach and how near. */

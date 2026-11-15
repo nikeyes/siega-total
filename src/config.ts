@@ -75,8 +75,12 @@ export const config = {
     baseRadius: 0.5,
     radiusPerSize: 0.2,
     cutsPerSizeFactor: 200,
+    /** Meters per second from fullSpeedSize up; smaller blades go slower, so they cross the screen as fast as one of fullSpeedSize. */
     maxSpeed: 5,
+    fullSpeedSize: 4,
+    /** From fullSpeedSize up; a smaller blade turns more gently, down to smallBladeTurnSmoothingSeconds at size 1. */
     turnSmoothingSeconds: 0.1,
+    smallBladeTurnSmoothingSeconds: 0.2,
     brakeSeconds: 0.15,
   },
   level: {
