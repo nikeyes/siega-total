@@ -15,6 +15,22 @@ export function targetDistance(size: number): number {
   return config.camera.baseDistance * (1 + config.camera.zoomPerSize) ** (size - 1);
 }
 
+/** The vertical field of view on a screen of `aspect`: narrower than portraitReferenceAspect, it opens up to show the width that one shows. */
+export function verticalFovDegrees(aspect: number): number {
+  const { fovDegrees, portraitReferenceAspect } = config.camera;
+  if (portraitReferenceAspect === null || aspect >= portraitReferenceAspect) return fovDegrees;
+  const halfTangent = (Math.tan(degreesToRadians(fovDegrees) / 2) * portraitReferenceAspect) / aspect;
+  return radiansToDegrees(2 * Math.atan(halfTangent));
+}
+
+function degreesToRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
+function radiansToDegrees(radians: number): number {
+  return (radians * 180) / Math.PI;
+}
+
 /** Exponential smoothing toward the blade, independent of the frame rate. */
 export function followBlade(focus: CameraFocus, bladeX: number, bladeZ: number, bladeSize: number, dt: number): void {
   const followFactor = 1 - Math.exp(-dt / config.camera.followLagSeconds);

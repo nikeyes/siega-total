@@ -199,6 +199,19 @@ describe('moveBlade: speed', () => {
     expect(smallBlade.x).toBeLessThan(fullSpeedBlade.x);
   });
 
+  it('moves at half speed with a direction half as long, as an analog joystick pushed halfway', () => {
+    const blade = bladeAtFieldCenter();
+    move(blade, { x: 0.5, z: 0 }, 0.1);
+    expect(blade.speed).toBeCloseTo(maxSpeed / 2);
+    expect(blade.x).toBeCloseTo(width / 2 + (maxSpeed / 2) * 0.1);
+  });
+
+  it('never goes past full speed with a direction longer than 1', () => {
+    const blade = bladeAtFieldCenter();
+    move(blade, { x: 3, z: 0 }, 0.1);
+    expect(blade.speed).toBe(maxSpeed);
+  });
+
   it('does not move, turn or brake with dt = 0', () => {
     const blade = bladeMovingEastAtFullSpeed();
     const before = { ...blade };

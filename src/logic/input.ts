@@ -1,13 +1,18 @@
 import { config } from '../config';
 import type { Direction } from './blade';
 
-/** Screen drag to field direction: `dx` maps to `x` (east), `dy` (down) maps to `z` (south). */
+/**
+ * Screen drag to field direction: `dx` maps to `x` (east), `dy` (down) maps to `z` (south).
+ * An analog joystick gives a shorter direction for a shorter drag, full length at joystickRadiusPx.
+ */
 export function joystickDirection(originX: number, originY: number, currentX: number, currentY: number): Direction | null {
+  const { joystickDeadZonePx, joystickRadiusPx, analogJoystick } = config.input;
   const dx = currentX - originX;
   const dy = currentY - originY;
   const distance = Math.hypot(dx, dy);
-  if (distance <= config.input.joystickDeadZonePx) return null;
-  return { x: dx / distance, z: dy / distance };
+  if (distance <= joystickDeadZonePx) return null;
+  const strength = analogJoystick ? Math.min(1, distance / joystickRadiusPx) : 1;
+  return { x: (dx / distance) * strength, z: (dy / distance) * strength };
 }
 
 /** `KeyboardEvent.code` values and the field direction each one pushes toward. */

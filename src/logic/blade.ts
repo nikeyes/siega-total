@@ -50,10 +50,10 @@ export function addCuts(blade: Blade, count: number): number {
   return sizesGained;
 }
 
-/** The camera comes closer to a smaller blade, so it goes slower to cross the screen as fast as one of fullSpeedSize. */
+/** The camera comes closer to a smaller blade, so it goes slower to cross the screen as fast as one of fullSpeedSize, and with speedFollowsCameraWhenBigger a bigger one goes faster. */
 export function maxSpeedAt(size: number): number {
-  const { maxSpeed, fullSpeedSize } = config.blade;
-  if (size >= fullSpeedSize) return maxSpeed;
+  const { maxSpeed, fullSpeedSize, speedFollowsCameraWhenBigger } = config.blade;
+  if (size >= fullSpeedSize && !speedFollowsCameraWhenBigger) return maxSpeed;
   return (maxSpeed * targetDistance(size)) / targetDistance(fullSpeedSize);
 }
 
@@ -65,7 +65,7 @@ export function turnSmoothingSecondsAt(size: number): number {
   return smallBladeTurnSmoothingSeconds + (turnSmoothingSeconds - smallBladeTurnSmoothingSeconds) * towardFullSpeedSize;
 }
 
-/** Braking always takes `brakeSeconds`, so a faster blade brakes harder. */
+/** Braking always takes `brakeSeconds`, so a faster blade brakes harder. A direction shorter than 1 is a joystick pushed part of the way, and the blade goes that share of full speed. */
 export function moveBlade(
   blade: Blade,
   direction: Direction | null,
@@ -77,7 +77,7 @@ export function moveBlade(
   if (direction) {
     const targetHeading = Math.atan2(direction.z, direction.x);
     blade.heading = blade.speed === 0 ? targetHeading : turnToward(blade.heading, targetHeading, dt, turnSmoothingSecondsAt(blade.size));
-    blade.speed = maxSpeed;
+    blade.speed = maxSpeed * Math.min(1, Math.hypot(direction.x, direction.z));
   } else {
     const deceleration = maxSpeed / config.blade.brakeSeconds;
     const brakedSpeed = blade.speed - deceleration * dt;

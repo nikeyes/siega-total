@@ -1,6 +1,6 @@
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 import { config } from '../config';
-import type { CameraFocus } from '../logic/camera';
+import { verticalFovDegrees, type CameraFocus } from '../logic/camera';
 
 const NEAR_PLANE = 0.1;
 const FAR_PLANE = 200;
@@ -21,6 +21,7 @@ export function createCameraRig(): CameraRig {
 
   function setAspect(aspect: number): void {
     camera.aspect = aspect;
+    camera.fov = verticalFovDegrees(aspect);
     camera.updateProjectionMatrix();
   }
 
@@ -46,6 +47,6 @@ export function createCameraRig(): CameraRig {
 
 /** Approximate half size of the ground area the camera sees around its focus. */
 export function halfVisible(distance: number, aspect: number): { halfVisibleX: number; halfVisibleZ: number } {
-  const halfVisibleZ = distance * Math.tan(MathUtils.degToRad(config.camera.fovDegrees) / 2);
+  const halfVisibleZ = distance * Math.tan(MathUtils.degToRad(verticalFovDegrees(aspect)) / 2);
   return { halfVisibleX: halfVisibleZ * aspect, halfVisibleZ };
 }

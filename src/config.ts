@@ -80,6 +80,8 @@ const baseConfig = {
     /** Meters per second from fullSpeedSize up; smaller blades go slower, so they cross the screen as fast as one of fullSpeedSize. */
     maxSpeed: 5,
     fullSpeedSize: 4,
+    /** Bigger blades speed up too, as the camera moves away, so the blade crosses the screen equally fast at every size. */
+    speedFollowsCameraWhenBigger: false,
     /** From fullSpeedSize up; a smaller blade turns more gently, down to smallBladeTurnSmoothingSeconds at size 1. */
     turnSmoothingSeconds: 0.1,
     smallBladeTurnSmoothingSeconds: 0.2,
@@ -133,9 +135,16 @@ const baseConfig = {
   },
   input: {
     joystickDeadZonePx: 10,
+    /** How far the knob travels from where the finger touched. */
+    joystickRadiusPx: 50,
+    /** The blade goes faster the further the finger drags, up to full speed at joystickRadiusPx; otherwise any drag is full speed. */
+    analogJoystick: false,
   },
   camera: {
+    /** Vertical, on screens at least as wide as portraitReferenceAspect. */
     fovDegrees: 45,
+    /** On narrower screens the view opens up to show the width this aspect shows; null keeps fovDegrees on every screen. */
+    portraitReferenceAspect: null as number | null,
     tiltDegrees: 55,
     baseDistance: 8,
     followLagSeconds: 0.15,
@@ -240,6 +249,15 @@ const baseConfig = {
 };
 
 /** What the «nueva» variant changes on top of the game everyone plays. */
-const nuevaChanges: Changes<typeof baseConfig> = {};
+const nuevaChanges: Changes<typeof baseConfig> = {
+  // Starts slower and speeds up as it grows, crossing the screen equally fast at every size.
+  blade: { maxSpeed: 1.9, fullSpeedSize: 1, speedFollowsCameraWhenBigger: true },
+  input: { analogJoystick: true },
+  // A slower small blade takes longer between targets than the estimate, which travels at the final size's speed.
+  generator: { extraSeconds: 45 },
+  // A narrower lens, closer: the blade looks bigger without changing the levels, the field is flatter and easier to read,
+  // and it shows as much width on a long phone as on a 9:16 one; it moves away faster as the blade grows, so the blade does not fill the screen.
+  camera: { fovDegrees: 28, tiltDegrees: 50, baseDistance: 9, zoomPerSize: 0.2, portraitReferenceAspect: 9 / 16 },
+};
 
 export const config = variant === 'nueva' ? withChanges(baseConfig, nuevaChanges) : baseConfig;
