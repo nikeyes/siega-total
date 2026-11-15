@@ -11,7 +11,8 @@
     "dev": "vite",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.logic.json",
     "test": "vitest run",
-    "build": "vite build",
+    "build": "vite build && SIEGA_VARIANT=nueva vite build",
+    "dev:nueva": "SIEGA_VARIANT=nueva vite",
     "preview": "vite preview"
   },
   "dependencies": {

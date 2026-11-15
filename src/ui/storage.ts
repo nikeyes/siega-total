@@ -1,6 +1,7 @@
 import { defaultSave, loadSave, serializeSave, type SaveData } from '../logic/save';
+import { saveKeyFor, variant } from '../variant';
 
-const SAVE_KEY = 'siega-total';
+const SAVE_KEY = saveKeyFor(variant);
 
 /** The stored save, or the defaults when there is none or the browser blocks storage. */
 export function readSave(): SaveData {

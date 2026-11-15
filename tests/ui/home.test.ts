@@ -9,6 +9,7 @@ describe('homeDisplay', () => {
       coinsLabel: '12.840',
       playLabel: `${texts.home.play} · ${texts.hud.level} 7`,
       modeLabel: texts.home.timed,
+      variantLabel: null,
     });
   });
 
