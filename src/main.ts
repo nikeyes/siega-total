@@ -182,9 +182,9 @@ const homeScreen = createHomeScreen(container, {
     else loadLevel(save.level);
     showScreen('playing');
   },
-  onToggleTimed: () => {
-    // The level is built again on «Jugar», so the new mode applies from there.
-    save.timed = !save.timed;
+  onChooseTimed: (timed) => {
+    // The level is built again on «Jugar», so the chosen mode applies from there.
+    save.timed = timed;
     writeSave(save);
     renderSave();
   },

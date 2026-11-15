@@ -5,14 +5,22 @@ import { homeDisplay } from '../../src/ui/home';
 
 describe('homeDisplay', () => {
   it('offers to play the saved level and shows the balance the Spanish way', () => {
-    expect(homeDisplay({ ...defaultSave(), level: 7, coins: 12_840 })).toEqual({
-      coinsLabel: '12.840',
-      playLabel: `${texts.home.play} · ${texts.hud.level} 7`,
-      modeLabel: texts.home.timed,
-    });
+    const display = homeDisplay({ ...defaultSave(), level: 7, coins: 12_840 });
+    expect(display.coinsLabel).toBe('12.840');
+    expect(display.playLabel).toBe(`${texts.home.play} · ${texts.hud.level} 7`);
   });
 
-  it('names the mode switch for playing without time once it is chosen', () => {
-    expect(homeDisplay({ ...defaultSave(), timed: false }).modeLabel).toBe(texts.home.untimed);
+  it('offers both modes side by side, free play first, with free play chosen for a new player', () => {
+    expect(homeDisplay(defaultSave()).modes).toEqual([
+      { timed: false, label: texts.home.untimed, chosen: true },
+      { timed: true, label: texts.home.timed, chosen: false },
+    ]);
+  });
+
+  it('marks the clock as chosen once the player picks it, still showing both', () => {
+    expect(homeDisplay({ ...defaultSave(), timed: true }).modes).toEqual([
+      { timed: false, label: texts.home.untimed, chosen: false },
+      { timed: true, label: texts.home.timed, chosen: true },
+    ]);
   });
 });

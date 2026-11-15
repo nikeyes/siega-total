@@ -524,6 +524,37 @@ body,
   height: 36px;
 }
 
+/* Two halves of one pill: the chosen mode filled in, the other dimmed. */
+.home-mode {
+  display: flex;
+  min-width: 200px;
+  border: 4px solid var(--hud-ink);
+  border-radius: 20px;
+  box-shadow: 0 6px 0 var(--hud-ink);
+  overflow: hidden;
+}
+
+.home-mode-option {
+  flex: 1;
+  padding: 10px 16px;
+  border: 0;
+  background: #24405e;
+  color: rgba(255, 255, 255, 0.55);
+  font: 900 20px var(--hud-font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.home-mode-option + .home-mode-option {
+  border-left: 4px solid var(--hud-ink);
+}
+
+.home-mode-option[aria-pressed='true'] {
+  background: #2f8cff;
+  color: #fff;
+  text-shadow: var(--hud-outline);
+}
+
 .home-settings {
   position: absolute;
   top: max(16px, env(safe-area-inset-top));

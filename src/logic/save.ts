@@ -50,7 +50,7 @@ export function defaultSave(): SaveData {
     boosters: Object.fromEntries(BOOSTER_KINDS.map((kind) => [kind, config.boosters[kind].startUses])) as SaveData['boosters'],
     settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: DEFAULT_SOUND_VOLUME, musicVolume: 1 },
     tutorialDone: false,
-    timed: true,
+    timed: false,
     winStreak: 0,
   };
 }
@@ -76,7 +76,7 @@ function migrate(data: { version: number } & Record<string, unknown>): unknown {
   if (data.version === 3) data = { ...data, version: 4 };
   // Version 4 had no volumes; sanitize gives them the defaults.
   if (data.version === 4) data = { ...data, version: 5 };
-  // Version 5 had no play mode; sanitize gives it the default, with time.
+  // Version 5 had no play mode; sanitize gives it the default, free play.
   if (data.version === 5) data = { ...data, version: 6 };
   // Version 6 had no win streak; sanitize starts it at 0.
   if (data.version === 6) data = { ...data, version: 7 };
