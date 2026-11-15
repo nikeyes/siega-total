@@ -23,6 +23,7 @@ import {
   stepGame,
   targetGrassTypes,
   type Game,
+  type GameStatus,
 } from './logic/game';
 import type { LevelDefinition } from './logic/levels';
 import { levelFor } from './logic/progression';
@@ -239,6 +240,12 @@ const settingsScreen = createSettingsScreen(
       save.settings.vibration = !save.settings.vibration;
       saveSettings();
     },
+    onTogglePaintedGrass: () => {
+      // At once, even mid-level, so both grasses can be compared on the same field.
+      save.settings.paintedGrass = !save.settings.paintedGrass;
+      grass!.setPainted(save.settings.paintedGrass);
+      saveSettings();
+    },
     onCycleQuality: () => {
       // Applies from the next attempt, so the level in play never changes under the player.
       save.settings.quality = nextQualitySetting(save.settings.quality);
@@ -342,6 +349,15 @@ let obstacleView: ObstacleView | null = null;
 let obstacleModels: ObstacleModels = placeholderObstacleModels();
 const focus = createCameraFocus(0, 0, config.blade.startSize);
 
+/** Marks for the painted grass where this step cut: under the win wave while it spreads, otherwise under the blade once it moved. */
+function sweepGrass(statusBefore: GameStatus): void {
+  const { blade, winWave } = game;
+  if (statusBefore === 'winWave' && winWave) grass!.sweep(winWave.x, winWave.z, winWave.radius, Infinity);
+  else if (statusBefore === 'playing' || (statusBefore === 'ready' && game.status !== 'ready')) {
+    grass!.sweep(blade.x, blade.z, bladeRadius(blade.size), blade.size);
+  }
+}
+
 /** Swaps in a new level: frees the old views and builds new ones for its grass and obstacles. */
 function playLevel(level: LevelDefinition): void {
   grass?.dispose();
@@ -358,6 +374,7 @@ function playLevel(level: LevelDefinition): void {
   gameScene.setBiome(biome);
   bladeGlow.setBiome(biome);
   grass = createGrassView(gameScene.scene, game.field, level.seed);
+  grass.setPainted(save.settings.paintedGrass);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);
   focusOnBlade();
@@ -568,6 +585,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     vibration.pulse();
   }
   grass!.markCut(result.cutIndices, elapsedSeconds);
+  sweepGrass(statusBefore);
   obstacleView!.markCut(result.cutObstacles);
   obstacleView!.markHit(result.hitObstacles, elapsedSeconds);
   for (const index of result.cutObstacles) {
@@ -610,6 +628,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   compassView.update(blade, compassTarget(dt));
   cameraRig.update(focus);
   grass!.setTime(elapsedSeconds);
+  grass!.setBlade(blade.x, blade.z, bladeRadius(blade.size));
   sea.update(elapsedSeconds);
   obstacleView!.update(elapsedSeconds);
   gameScene.renderer.render(gameScene.scene, cameraRig.camera);

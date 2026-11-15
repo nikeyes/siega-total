@@ -2,18 +2,28 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
+  DataTexture,
   DoubleSide,
   DynamicDrawUsage,
   InstancedBufferAttribute,
   InstancedMesh,
+  LinearFilter,
   Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  PlaneGeometry,
   Quaternion,
+  RGFormat,
   ShaderMaterial,
+  Vector2,
   Vector3,
   type Scene,
 } from 'three';
 import { GRASS_TYPE_ORDER, type Field } from '../logic/field';
+import { grassCutSize } from '../logic/grass';
 import { createRandom } from '../logic/random';
+import { BEND_FLATTENING, BEND_FRACTION_GLSL, BEND_TIP_METERS } from './bendMath';
+import { createCutMask, type CutMask } from './cutMask';
 import { GRASS_COLORS } from './grassColors';
 import { changedInstanceRanges, layoutGrass, type GrassLayout } from './grassLayout';
 import { WIND_DIRECTION, WIND_LEAN_GLSL } from './windMath';
@@ -44,6 +54,10 @@ const HIGHLIGHT_HEIGHT_SCALE = 1.3;
 const HIGHLIGHT_PULSE_SPEED = 6;
 /** How far the highlight pulse brightens the color toward white at its peak. */
 const HIGHLIGHT_BRIGHTENING = 0.5;
+/** The painted grass darkens the ground where it was mown by this much, so the swept path shows. */
+const MOWN_GROUND_DARKENING = 0.16;
+/** Just above the ground, under the clippings lying on it. */
+const MOWN_GROUND_HEIGHT = 0.004;
 
 const vertexShader = /* glsl */ `
   attribute float relativeHeight;
@@ -52,10 +66,17 @@ const vertexShader = /* glsl */ `
   attribute float instanceShade;
   uniform float time;
   uniform float highlight;
+  uniform float painted;
+  uniform sampler2D cutMask;
+  uniform vec2 fieldSize;
+  uniform float cutSize;
+  uniform vec2 bladeCenter;
+  uniform float bladeRadius;
   varying float vRelativeHeight;
   varying float vShade;
   varying float vHighlight;
   ${WIND_LEAN_GLSL}
+  ${BEND_FRACTION_GLSL}
 
   void main() {
     float heightScale = 1.0;
@@ -75,6 +96,23 @@ const vertexShader = /* glsl */ `
     local.xz *= spreadScale;
     vec4 world = modelMatrix * instanceMatrix * vec4(local, 1.0);
     vec2 root = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
+    // The painted grass: each standing spike is trimmed where a blade that cuts it swept,
+    // except the highlighted last targets, which stay in sight until the blade cuts them.
+    if (painted > 0.5 && instanceCutTime < 0.0) {
+      if (vHighlight < 0.5) {
+        vec2 swept = texture2D(cutMask, world.xz / fieldSize).rg;
+        float trimmed = swept.g * step(cutSize - 0.5, swept.r * 255.0);
+        float trimScale = mix(1.0, ${CUT_HEIGHT_FRACTION.toFixed(3)}, trimmed);
+        world.y *= trimScale;
+        heightScale *= trimScale;
+      }
+      // Tufts near the blade bend away from it, tips first, as if pushed down.
+      vec2 away = root - bladeCenter;
+      float bladeDistance = length(away);
+      float bend = bendFraction(bladeDistance, bladeRadius);
+      world.xz += away / max(bladeDistance, 0.001) * ${BEND_TIP_METERS.toFixed(3)} * bend * relativeHeight * relativeHeight * heightScale;
+      world.y *= 1.0 - ${BEND_FLATTENING.toFixed(3)} * bend;
+    }
     vec2 windDirection = vec2(${WIND_DIRECTION.x.toFixed(6)}, ${WIND_DIRECTION.z.toFixed(6)});
     world.xz += windDirection * windLean(root, time) * relativeHeight * relativeHeight * heightScale;
     vRelativeHeight = relativeHeight;
@@ -106,6 +144,12 @@ export interface GrassView {
   markCut(indices: number[], time: number): void;
   /** Makes the standing blades of `types` (indices into GRASS_TYPE_ORDER) glow; empty turns it off. */
   setHighlight(types: readonly number[]): void;
+  /** Records that a blade of `size` swept the circle (x, z, radius), for the painted grass to trim it. */
+  sweep(x: number, z: number, radius: number, size: number): void;
+  /** Where the blade is, for the painted grass to bend away from it. */
+  setBlade(x: number, z: number, radius: number): void;
+  /** On, the painted grass, trimmed where swept and bending away from the blade; off, the classic grass. */
+  setPainted(painted: boolean): void;
   /** Takes the grass out of the scene and frees its geometry and materials. */
   dispose(): void;
 }
@@ -123,9 +167,14 @@ interface LayerView {
 export function createGrassView(scene: Scene, field: Field, seed: number): GrassView {
   const layout = layoutGrass(field);
   const geometry = createTuftGeometry();
-  const layers = layout.layers.map(({ type, blades }) => createLayerView(geometry, type, blades.length));
+  const cutMask = createCutMask(field.width, field.depth);
+  const cutMaskTexture = createCutMaskTexture(cutMask);
+  const shared = { cutMask: cutMaskTexture, fieldSize: new Vector2(field.width, field.depth), bladeCenter: new Vector2() };
+  const layers = layout.layers.map(({ type, blades }) => createLayerView(geometry, type, blades.length, shared));
   placeBlades(layers, layout, field, seed);
   for (const layer of layers) scene.add(layer.mesh);
+  const mownGround = createMownGround(cutMaskTexture, field.width, field.depth);
+  scene.add(mownGround);
 
   function setTime(time: number): void {
     for (const { material } of layers) material.uniforms.time!.value = time;
@@ -145,6 +194,20 @@ export function createGrassView(scene: Scene, field: Field, seed: number): Grass
     for (const layer of layers) layer.material.uniforms.highlight!.value = types.includes(layer.type) ? 1 : 0;
   }
 
+  function sweep(x: number, z: number, radius: number, size: number): void {
+    if (cutMask.sweep(x, z, radius, size)) cutMaskTexture.needsUpdate = true;
+  }
+
+  function setBlade(x: number, z: number, radius: number): void {
+    shared.bladeCenter.set(x, z);
+    for (const { material } of layers) material.uniforms.bladeRadius!.value = radius;
+  }
+
+  function setPainted(painted: boolean): void {
+    for (const { material } of layers) material.uniforms.painted!.value = painted ? 1 : 0;
+    mownGround.visible = painted;
+  }
+
   function dispose(): void {
     for (const { mesh, material } of layers) {
       scene.remove(mesh);
@@ -153,12 +216,50 @@ export function createGrassView(scene: Scene, field: Field, seed: number): Grass
       mesh.dispose();
     }
     geometry.dispose();
+    scene.remove(mownGround);
+    mownGround.geometry.dispose();
+    mownGround.material.dispose();
+    cutMaskTexture.dispose();
   }
 
-  return { setTime, markCut, setHighlight, dispose };
+  return { setTime, markCut, setHighlight, sweep, setBlade, setPainted, dispose };
 }
 
-function createLayerView(tuftGeometry: BufferGeometry, type: number, instanceCount: number): LayerView {
+/** The mask as a smooth two-channel texture, sent to the GPU again whenever a sweep changes it. */
+function createCutMaskTexture(cutMask: CutMask): DataTexture {
+  const texture = new DataTexture(cutMask.data, cutMask.columns, cutMask.rows, RGFormat);
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/** A dark film over the field, as opaque as the mask's coverage, which the alpha map reads from its G channel. */
+function createMownGround(cutMaskTexture: DataTexture, width: number, depth: number): Mesh<PlaneGeometry, MeshBasicMaterial> {
+  const geometry = new PlaneGeometry(width, depth);
+  // Turned this way, the plane's v runs with z, as the mask's rows do; seen from above it is its back.
+  geometry.rotateX(Math.PI / 2);
+  geometry.translate(width / 2, MOWN_GROUND_HEIGHT, depth / 2);
+  const material = new MeshBasicMaterial({
+    color: 0x000000,
+    alphaMap: cutMaskTexture,
+    opacity: MOWN_GROUND_DARKENING,
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+  });
+  const mesh = new Mesh(geometry, material);
+  mesh.visible = false;
+  return mesh;
+}
+
+interface SharedUniforms {
+  readonly cutMask: DataTexture;
+  readonly fieldSize: Vector2;
+  readonly bladeCenter: Vector2;
+}
+
+function createLayerView(tuftGeometry: BufferGeometry, type: number, instanceCount: number, shared: SharedUniforms): LayerView {
   const cutTimes = new Float32Array(instanceCount).fill(STANDING);
   const cutTimeAttribute = new InstancedBufferAttribute(cutTimes, 1);
   cutTimeAttribute.setUsage(DynamicDrawUsage);
@@ -170,7 +271,8 @@ function createLayerView(tuftGeometry: BufferGeometry, type: number, instanceCou
   const shadeAttribute = new InstancedBufferAttribute(new Float32Array(instanceCount), 1);
   geometry.setAttribute('instanceShade', shadeAttribute);
 
-  const colors = GRASS_COLORS[GRASS_TYPE_ORDER[type]!];
+  const grassType = GRASS_TYPE_ORDER[type]!;
+  const colors = GRASS_COLORS[grassType];
   const material = new ShaderMaterial({
     vertexShader,
     fragmentShader,
@@ -178,6 +280,12 @@ function createLayerView(tuftGeometry: BufferGeometry, type: number, instanceCou
     uniforms: {
       time: { value: 0 },
       highlight: { value: 0 },
+      painted: { value: 0 },
+      cutMask: { value: shared.cutMask },
+      fieldSize: { value: shared.fieldSize },
+      cutSize: { value: grassCutSize(grassType) },
+      bladeCenter: { value: shared.bladeCenter },
+      bladeRadius: { value: 0 },
       baseColor: { value: new Color(colors.base) },
       tipColor: { value: new Color(colors.tip) },
     },
