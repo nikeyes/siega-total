@@ -58,9 +58,13 @@ export function buyBooster(save: SaveData, kind: BoosterKind): boolean {
   return true;
 }
 
-/** Defeat's «+30 s»: uses a clock, or buys one first when there is none and the coins reach. */
+/** Defeat's «+30 s»: free while the attempt has a free continue left, otherwise uses a clock, or buys one first when there is none and the coins reach. */
 export function continueWithClock(save: SaveData, game: Game): boolean {
   if (!canUseBooster(game, 'clock')) return false;
+  if (game.freeContinuesLeft > 0) {
+    game.freeContinuesLeft--;
+    return applyBooster(game, 'clock');
+  }
   if (save.boosters.clock === 0 && !buyBooster(save, 'clock')) return false;
   return useBooster(save, game, 'clock');
 }

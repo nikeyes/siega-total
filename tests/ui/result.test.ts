@@ -52,25 +52,31 @@ describe('continueButton', () => {
   it('shows the clocks left when there are some', () => {
     const save = defaultSave();
     save.boosters.clock = 2;
-    expect(continueButton(save)).toEqual({ label: texts.result.continue, detail: `${texts.boosters.clock} 2`, showsPrice: false, disabled: false });
+    expect(continueButton(save, 0)).toEqual({ label: texts.result.continue, detail: `${texts.boosters.clock} 2`, showsPrice: false, disabled: false });
   });
 
   it('shows the price of a clock when none are left', () => {
     const save = { ...defaultSave(), coins: price };
     save.boosters.clock = 0;
-    expect(continueButton(save)).toEqual({ label: texts.result.continue, detail: formatCount(price), showsPrice: true, disabled: false });
+    expect(continueButton(save, 0)).toEqual({ label: texts.result.continue, detail: formatCount(price), showsPrice: true, disabled: false });
   });
 
   it('is on with a clock left even without coins', () => {
     const save = { ...defaultSave(), coins: 0 };
     save.boosters.clock = 1;
-    expect(continueButton(save).disabled).toBe(false);
+    expect(continueButton(save, 0).disabled).toBe(false);
+  });
+
+  it('is free, and on even without clocks or coins, while the attempt has a free continue left', () => {
+    const save = { ...defaultSave(), coins: 0 };
+    save.boosters.clock = 0;
+    expect(continueButton(save, 1)).toEqual({ label: texts.result.continue, detail: texts.result.free, showsPrice: false, disabled: false });
   });
 
   it('is off without clocks or coins for one', () => {
     const save = { ...defaultSave(), coins: price - 1 };
     save.boosters.clock = 0;
-    expect(continueButton(save).disabled).toBe(true);
+    expect(continueButton(save, 0).disabled).toBe(true);
   });
 });
 

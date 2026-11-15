@@ -73,9 +73,9 @@ function addSoundsFolder(gui: GUI, actions: DebugActions): void {
   folder.close();
 }
 
-/** A nested group of settings, like `config.generator`: numbers and switches; unset (null) ones are left out. */
+/** A nested group of settings, like `config.generator`: numbers and switches; unset (null) ones and lists are left out. */
 interface NumberTree {
-  [key: string]: number | boolean | null | NumberTree;
+  [key: string]: number | boolean | null | readonly number[] | NumberTree;
 }
 
 /** Room the HUD needs on the right: the pause button and coins above, the three boosters below. */
@@ -239,6 +239,10 @@ function addLevelFolder(gui: GUI, getGame: () => Game, actions: DebugActions): v
 }
 
 /** One numeric control per value of `settings`, in a folder called `name`, with a subfolder per nested group. */
+function isList(value: NumberTree[string]): value is readonly number[] {
+  return Array.isArray(value);
+}
+
 function addNumberFolder(
   parent: GUI,
   name: string,
@@ -250,7 +254,7 @@ function addNumberFolder(
   const folder = parent.addFolder(name);
   for (const [key, value] of Object.entries(settings)) {
     const keyPath = `${path}.${key}`;
-    if (NOT_TUNABLE.has(keyPath) || value === null) continue;
+    if (NOT_TUNABLE.has(keyPath) || value === null || isList(value)) continue;
     if (typeof value === 'object') {
       addNumberFolder(folder, key, value, onChange, note, keyPath);
       continue;

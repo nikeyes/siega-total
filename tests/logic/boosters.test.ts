@@ -242,6 +242,11 @@ describe('continuing a defeat with a clock', () => {
     expect([save.coins, save.boosters.clock]).toEqual([0, 0]);
   });
 
+  it('has no free continue while none is configured', () => {
+    expect(config.boosters.clock.freeContinuesPerAttempt).toBe(0);
+    expect(lostGame().freeContinuesLeft).toBe(0);
+  });
+
   it('without clocks or coins, changes nothing', () => {
     const save = { ...defaultSave(), coins: config.boosters.clock.price - 1 };
     save.boosters.clock = 0;

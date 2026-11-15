@@ -10,7 +10,7 @@ import type { DebugPanel, QualityStatus } from './debug/panel';
 import { dominantGrassType } from './logic/biome';
 import { bladeRadius, growthFraction } from './logic/blade';
 import { GRASS_TYPE_ORDER } from './logic/field';
-import { clampFocus, createCameraFocus, followBlade } from './logic/camera';
+import { cameraDistanceFor, clampFocus, createCameraFocus, followBlade } from './logic/camera';
 import { buyBooster, canUseBooster, continueWithClock, nearestTarget, useBooster } from './logic/boosters';
 import { bankCoins, unbankedCoins } from './logic/economy';
 import { createFeedbackTracker, type FeedbackEvent } from './logic/feedback';
@@ -389,6 +389,7 @@ function clearProgress(): void {
 function focusOnBlade(): void {
   const { blade } = game;
   Object.assign(focus, createCameraFocus(blade.x, blade.z, blade.size));
+  focus.distance = cameraDistanceFor(game.status, blade.size, game.field.width, game.field.depth, cameraRig.camera.aspect);
 }
 
 loadLevel(save.level);
@@ -583,11 +584,11 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   grass!.setHighlight(shouldHighlightTargets(game) ? targetGrassTypes(game) : []);
   if (game.status !== statusBefore && (game.status === 'won' || game.status === 'lost')) {
     saveLevelEnd();
-    resultOverlay.show(game.status, { levelCoins: Math.floor(game.levelCoins), bonusCoins: game.bonusCoins, timed: game.timed }, save);
+    resultOverlay.show(game.status, { levelCoins: Math.floor(game.levelCoins), bonusCoins: game.bonusCoins, timed: game.timed }, save, game.freeContinuesLeft);
     showScreen('result');
   }
 
-  followBlade(focus, blade.x, blade.z, blade.size, dt);
+  followBlade(focus, blade.x, blade.z, cameraDistanceFor(game.status, blade.size, field.width, field.depth, cameraRig.camera.aspect), dt);
   const { halfVisibleX, halfVisibleZ } = halfVisible(focus.distance, cameraRig.camera.aspect);
   // The blade can reach the shore, so the camera follows it there.
   const edgeMargin = bladeRadius(blade.size) + config.camera.edgeMarginMeters + config.field.shoreMeters;

@@ -1,4 +1,5 @@
 import { config } from '../config';
+import type { GameStatus } from './game';
 
 /** The field point the camera looks at, and how far away it is. */
 export interface CameraFocus {
@@ -31,14 +32,27 @@ function radiansToDegrees(radians: number): number {
   return (radians * 180) / Math.PI;
 }
 
-/** Exponential smoothing toward the blade, independent of the frame rate. */
-export function followBlade(focus: CameraFocus, bladeX: number, bladeZ: number, bladeSize: number, dt: number): void {
+/** How far the camera wants to be: over the whole field before the first move when overviewBeforeStart, otherwise at the blade's size. */
+export function cameraDistanceFor(status: GameStatus, bladeSize: number, fieldWidth: number, fieldDepth: number, aspect: number): number {
+  if (status === 'ready' && config.camera.overviewBeforeStart) return overviewDistance(fieldWidth, fieldDepth, aspect);
+  return targetDistance(bladeSize);
+}
+
+/** Far enough to show the whole field and a margin around it, on a screen of `aspect`. */
+function overviewDistance(fieldWidth: number, fieldDepth: number, aspect: number): number {
+  const margin = config.camera.edgeMarginMeters;
+  const halfVisibleNeeded = Math.max(fieldDepth / 2 + margin, (fieldWidth / 2 + margin) / aspect);
+  return halfVisibleNeeded / Math.tan(degreesToRadians(verticalFovDegrees(aspect)) / 2);
+}
+
+/** Exponential smoothing toward the blade and `distance`, independent of the frame rate. */
+export function followBlade(focus: CameraFocus, bladeX: number, bladeZ: number, distance: number, dt: number): void {
   const followFactor = 1 - Math.exp(-dt / config.camera.followLagSeconds);
   focus.x += (bladeX - focus.x) * followFactor;
   focus.z += (bladeZ - focus.z) * followFactor;
   // Five time constants per transition: 99% of the zoom is done after zoomTransitionSeconds.
   const zoomFactor = 1 - Math.exp((-5 * dt) / config.camera.zoomTransitionSeconds);
-  focus.distance += (targetDistance(bladeSize) - focus.distance) * zoomFactor;
+  focus.distance += (distance - focus.distance) * zoomFactor;
 }
 
 /**

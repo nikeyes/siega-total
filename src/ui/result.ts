@@ -18,8 +18,8 @@ export interface ResultSummary {
 
 export interface ResultOverlay {
   readonly layer: HTMLElement;
-  /** Fills the layer for `outcome`; showing it is up to the screen flow. `save` sets the «+30 s» button. */
-  show(outcome: Outcome, summary: ResultSummary, save: SaveData): void;
+  /** Fills the layer for `outcome`; showing it is up to the screen flow. `save` and the attempt's `freeContinues` set the «+30 s» button. */
+  show(outcome: Outcome, summary: ResultSummary, save: SaveData, freeContinues: number): void;
 }
 
 const TITLES: Record<Outcome, string> = { won: texts.result.wonTitle, lost: texts.result.lostTitle };
@@ -47,8 +47,9 @@ export interface ContinueButton {
   disabled: boolean;
 }
 
-/** Defeat's «+30 s»: spends a clock, or buys one when none are left; off without either. */
-export function continueButton(save: SaveData): ContinueButton {
+/** Defeat's «+30 s»: free while the attempt has `freeContinues` left, then spends a clock, or buys one when none are left; off without either. */
+export function continueButton(save: SaveData, freeContinues: number): ContinueButton {
+  if (freeContinues > 0) return { label: texts.result.continue, detail: texts.result.free, showsPrice: false, disabled: false };
   const clocks = save.boosters.clock;
   const { price } = config.boosters.clock;
   if (clocks > 0) return { label: texts.result.continue, detail: `${texts.boosters.clock} ${formatCount(clocks)}`, showsPrice: false, disabled: false };
@@ -94,8 +95,8 @@ export function createResultOverlay(container: HTMLElement, actions: ResultActio
   const continueElement = buttonsFor.lost[0]!;
   continueElement.classList.add('result-continue');
 
-  function show(outcome: Outcome, summary: ResultSummary, save: SaveData): void {
-    const { label, detail, showsPrice, disabled } = continueButton(save);
+  function show(outcome: Outcome, summary: ResultSummary, save: SaveData, freeContinues: number): void {
+    const { label, detail, showsPrice, disabled } = continueButton(save, freeContinues);
     continueElement.innerHTML = `${label} <span class="result-continue-detail">${showsPrice ? coinIconSvg('result-continue-icon') : ''}${detail}</span>`;
     continueElement.disabled = disabled;
     title.textContent = TITLES[outcome];

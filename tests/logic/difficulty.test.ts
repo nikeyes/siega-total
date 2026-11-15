@@ -101,3 +101,12 @@ describe('difficultyFor', () => {
     expect(difficultyFor(60).timeMargin).toBe(timeMargin.last);
   });
 });
+
+describe('time margin cycle', () => {
+  it('gives every level the time margin of the curve while the cycle is flat', () => {
+    expect(config.generator.timeMarginCycle).toEqual([1]);
+    for (const levelNumber of [1, 4, 9, 30]) {
+      expect(difficultyFor(levelNumber).timeMargin).toBe(curveValue(config.generator.timeMargin, levelNumber));
+    }
+  });
+});

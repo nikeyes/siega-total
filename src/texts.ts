@@ -20,6 +20,8 @@ export const texts = {
     shop: 'Tienda',
     home: 'Inicio',
     continue: '+30 s',
+    /** Under «+30 s» while it costs nothing. */
+    free: 'Gratis',
   },
   boosters: {
     upgrade: 'Mejora',
