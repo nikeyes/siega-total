@@ -95,18 +95,18 @@ describe('difficultyFor', () => {
     expect(difficultyFor(unlockLevel[kind])[`${kind}Count`]).toBeGreaterThan(0);
   });
 
-  it('shrinks the time margin from first to last', () => {
-    const { timeMargin } = config.generator;
+  it('shrinks the time margin from first to last, on the levels that start the cycle', () => {
+    const { timeMargin, timeMarginCycle } = config.generator;
     expect(difficultyFor(1).timeMargin).toBe(timeMargin.first);
-    expect(difficultyFor(60).timeMargin).toBe(timeMargin.last);
+    expect(difficultyFor(1 + 6 * timeMarginCycle.length).timeMargin).toBe(timeMargin.last);
   });
 });
 
 describe('time margin cycle', () => {
-  it('gives every level the time margin of the curve while the cycle is flat', () => {
-    expect(config.generator.timeMarginCycle).toEqual([1]);
-    for (const levelNumber of [1, 4, 9, 30]) {
-      expect(difficultyFor(levelNumber).timeMargin).toBe(curveValue(config.generator.timeMargin, levelNumber));
-    }
+  it('gives harder levels less time and easier ones more, in a cycle that averages out', () => {
+    const margins = Array.from({ length: 10 }, (_, index) => difficultyFor(30 + index).timeMargin / curveValue(config.generator.timeMargin, 30 + index));
+    expect(Math.min(...margins)).toBeLessThan(1);
+    expect(Math.max(...margins)).toBeGreaterThan(1);
+    expect(margins.reduce((sum, margin) => sum + margin, 0) / margins.length).toBeCloseTo(1, 1);
   });
 });

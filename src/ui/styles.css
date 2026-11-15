@@ -456,21 +456,6 @@ body,
   color: #ffd23f;
 }
 
-.home-variant {
-  margin-top: -6px;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: #ff7a3d;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 800;
-  box-shadow: 0 2px 0 var(--hud-ink);
-}
-
-.home-variant[hidden] {
-  display: none;
-}
-
 .result[data-outcome='won'] .layer-title {
   color: #ffd23f;
 }

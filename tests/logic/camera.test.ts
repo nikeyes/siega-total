@@ -126,17 +126,34 @@ describe('clampFocus', () => {
   });
 });
 
+const PHONE_ASPECT = 390 / 844;
+
+function halfVisibleHeight(distance: number, aspect: number) {
+  return distance * Math.tan(((verticalFovDegrees(aspect) * Math.PI) / 180) / 2);
+}
+
 describe('verticalFovDegrees', () => {
-  it('is the configured field of view on any screen while no portrait reference is set', () => {
-    expect(config.camera.portraitReferenceAspect).toBeNull();
-    for (const aspect of [0.4, 0.5625, 1, 2]) expect(verticalFovDegrees(aspect)).toBe(config.camera.fovDegrees);
+  it('keeps the configured field of view on screens at least as wide as the portrait reference', () => {
+    for (const aspect of [config.camera.portraitReferenceAspect, 1, 2]) expect(verticalFovDegrees(aspect)).toBe(config.camera.fovDegrees);
+  });
+
+  it('shows the same width of field on a long phone as on one of the portrait reference', () => {
+    const reference = config.camera.portraitReferenceAspect;
+    const visibleWidth = (aspect: number) => halfVisibleHeight(1, aspect) * aspect;
+    expect(visibleWidth(PHONE_ASPECT)).toBeCloseTo(visibleWidth(reference), 10);
   });
 });
 
 describe('cameraDistanceFor', () => {
-  it('follows the blade from the start while the overview before playing is off', () => {
-    expect(config.camera.overviewBeforeStart).toBe(false);
-    expect(cameraDistanceFor('ready', startSize, width, depth, 0.5)).toBe(targetDistance(startSize));
-    expect(cameraDistanceFor('playing', startSize + 2, width, depth, 0.5)).toBe(targetDistance(startSize + 2));
+  it('shows the whole field before the first move', () => {
+    for (const aspect of [PHONE_ASPECT, 1, 2]) {
+      const halfVisibleZ = halfVisibleHeight(cameraDistanceFor('ready', startSize, width, depth, aspect), aspect);
+      expect(halfVisibleZ).toBeGreaterThanOrEqual(depth / 2);
+      expect(halfVisibleZ * aspect).toBeGreaterThanOrEqual(width / 2);
+    }
+  });
+
+  it('follows the blade at its size once it moves', () => {
+    expect(cameraDistanceFor('playing', startSize + 2, width, depth, PHONE_ASPECT)).toBe(targetDistance(startSize + 2));
   });
 });

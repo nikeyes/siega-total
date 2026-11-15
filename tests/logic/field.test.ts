@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
+import { grassCutSize } from '../../src/logic/grass';
 import { createRandom } from '../../src/logic/random';
 import {
   createField,
@@ -292,19 +293,20 @@ describe('cutInCircle', () => {
       const field = createSmallField({ bladeCount: 1 });
       const x = field.positionsX[0]!;
       const z = field.positionsZ[0]!;
-      config.grassTypes.green.minSize = originalGreenMinSize + 1;
+      // Two sizes up: one size short of tough grass still cuts it.
+      config.grassTypes.green.minSize = originalGreenMinSize + 2;
       expect(cutInCircle(field, x, z, 0.5, originalGreenMinSize)).toEqual([]);
       expect(cutInCircle(field, x, z, 0.5, originalGreenMinSize + 1)).toEqual([0]);
     });
   });
 
-  it.each(Object.keys(config.grassTypes) as GrassType[])('cuts %s only when the blade size reaches its minimum size', (grassType) => {
-    const minSize = config.grassTypes[grassType].minSize;
+  it.each(Object.keys(config.grassTypes) as GrassType[])('cuts %s only when the blade size reaches the size that cuts it', (grassType) => {
+    const cutSize = grassCutSize(grassType);
     const field = createSmallField({ bladeCount: 1, cells: uniformCells(grassType) });
     const x = field.positionsX[0]!;
     const z = field.positionsZ[0]!;
-    expect(cutInCircle(field, x, z, 0.5, minSize - 1)).toEqual([]);
-    expect(cutInCircle(field, x, z, 0.5, minSize)).toEqual([0]);
+    expect(cutInCircle(field, x, z, 0.5, cutSize - 1)).toEqual([]);
+    expect(cutInCircle(field, x, z, 0.5, cutSize)).toEqual([0]);
   });
 
   it('does not return or count an already cut blade again', () => {

@@ -23,22 +23,13 @@ make install   # instala las dependencias
 make dev       # servidor de desarrollo en http://localhost:5173/siega-total/
 make check     # tipos
 make test      # pruebas (Vitest)
-make build     # compilación de producción en dist/ (y la versión nueva en dist/nueva/)
+make build     # compilación de producción en dist/
 make size      # comprueba que la carga inicial pesa menos de 2 MB comprimidos
 ```
 
 Con `?debug` en la URL se abre un panel para cambiar valores de `src/config.ts` en vivo, saltar de nivel, ganar al instante y simular fps. El panel no entra en la compilación de producción.
 
 Cada push a `main` compila, prueba y publica en GitHub Pages.
-
-### Versión nueva
-
-En `/siega-total/nueva/` se publica una segunda versión del juego para probar cambios al lado de la actual. Tiene su propia partida guardada y se instala como otra app.
-
-- Sus cambios están al final de `src/config.ts`, en `nuevaChanges`: cada mejora es un valor de la configuración, apagado en la versión actual y encendido en la nueva.
-- `npm run dev:nueva` la abre en el servidor de desarrollo.
-- Sus pruebas propias están en `tests/nueva/` y se ejecutan con la variante nueva.
-- Cuando una mejora convence, se pasa a la configuración base y se quita de `nuevaChanges`.
 
 ### Curar la campaña
 

@@ -20,9 +20,11 @@ function dragBy(dx: number, dy: number) {
 }
 
 describe('joystickDirection', () => {
-  it('steers at full strength however short the drag while the joystick is not analog', () => {
-    expect(config.input.analogJoystick).toBe(false);
-    expect(length(dragBy(joystickDeadZonePx + 1, 0))).toBeCloseTo(1);
+  it('steers faster the further the finger drags, up to full speed at the rim of the joystick', () => {
+    const rim = config.input.joystickRadiusPx;
+    expect(length(dragBy(rim / 2, 0))).toBeCloseTo(0.5);
+    expect(length(dragBy(0, rim))).toBeCloseTo(1);
+    expect(length(dragBy(rim * 3, rim * 3))).toBeCloseTo(1);
   });
 
   it('returns null without a drag', () => {
@@ -31,7 +33,7 @@ describe('joystickDirection', () => {
 
   it('ignores a drag of exactly the dead zone and steers with one pixel more', () => {
     expect(dragBy(joystickDeadZonePx, 0)).toBeNull();
-    expect(dragBy(joystickDeadZonePx + 1, 0)).toEqual(EAST);
+    expect(dragBy(joystickDeadZonePx + 1, 0)!.x).toBeGreaterThan(0);
   });
 
   it('ignores a diagonal drag exactly on the dead zone (3-4-5 triangle)', () => {
@@ -47,10 +49,16 @@ describe('joystickDirection', () => {
     expect(dragBy(dx, dy)).toEqual(expected);
   });
 
-  it.each([joystickDeadZonePx + 1, 40, 500])('returns a unit direction %s px from the origin', (distance) => {
+  it.each([config.input.joystickRadiusPx, 500])('returns a unit direction %s px from the origin, at or past the rim', (distance) => {
     const angle = 2.5;
     const direction = dragBy(Math.cos(angle) * distance, Math.sin(angle) * distance);
     expect(length(direction)).toBeCloseTo(1, 12);
+  });
+
+  it('points the way of the drag however short it is', () => {
+    const direction = dragBy(-(joystickDeadZonePx + 1), 0)!;
+    expect(direction.z).toBe(0);
+    expect(direction.x).toBeLessThan(0);
   });
 });
 

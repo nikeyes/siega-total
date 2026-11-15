@@ -19,7 +19,7 @@ export function targetDistance(size: number): number {
 /** The vertical field of view on a screen of `aspect`: narrower than portraitReferenceAspect, it opens up to show the width that one shows. */
 export function verticalFovDegrees(aspect: number): number {
   const { fovDegrees, portraitReferenceAspect } = config.camera;
-  if (portraitReferenceAspect === null || aspect >= portraitReferenceAspect) return fovDegrees;
+  if (aspect >= portraitReferenceAspect) return fovDegrees;
   const halfTangent = (Math.tan(degreesToRadians(fovDegrees) / 2) * portraitReferenceAspect) / aspect;
   return radiansToDegrees(2 * Math.atan(halfTangent));
 }
@@ -32,9 +32,9 @@ function radiansToDegrees(radians: number): number {
   return (radians * 180) / Math.PI;
 }
 
-/** How far the camera wants to be: over the whole field before the first move when overviewBeforeStart, otherwise at the blade's size. */
+/** How far the camera wants to be: over the whole field before the first move, then at the blade's size. */
 export function cameraDistanceFor(status: GameStatus, bladeSize: number, fieldWidth: number, fieldDepth: number, aspect: number): number {
-  if (status === 'ready' && config.camera.overviewBeforeStart) return overviewDistance(fieldWidth, fieldDepth, aspect);
+  if (status === 'ready') return overviewDistance(fieldWidth, fieldDepth, aspect);
   return targetDistance(bladeSize);
 }
 

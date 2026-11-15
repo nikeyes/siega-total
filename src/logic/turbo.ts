@@ -6,6 +6,5 @@ export function nextWinStreak(winStreak: number, outcome: 'won' | 'lost'): numbe
 }
 
 export function isTurboOn(winStreak: number): boolean {
-  const { afterWins } = config.turbo;
-  return afterWins !== null && winStreak >= afterWins;
+  return winStreak >= config.turbo.afterWins;
 }

@@ -39,8 +39,6 @@ export const texts = {
     untimed: '∞ Sin tiempo',
     shop: 'Tienda',
     settings: 'Ajustes',
-    /** Under the title of the variant published at /nueva/. */
-    nuevaVariant: 'Versión nueva',
   },
   pause: {
     title: 'Pausa',
