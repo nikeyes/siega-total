@@ -20,6 +20,11 @@ function dragBy(dx: number, dy: number) {
 }
 
 describe('joystickDirection', () => {
+  it('steers at full strength however short the drag while the joystick is not analog', () => {
+    expect(config.input.analogJoystick).toBe(false);
+    expect(length(dragBy(joystickDeadZonePx + 1, 0))).toBeCloseTo(1);
+  });
+
   it('returns null without a drag', () => {
     expect(dragBy(0, 0)).toBeNull();
   });

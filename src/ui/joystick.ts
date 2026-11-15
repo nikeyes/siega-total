@@ -1,8 +1,6 @@
+import { config } from '../config';
 import type { Direction } from '../logic/blade';
 import { joystickDirection } from '../logic/input';
-
-/** How far the knob can travel from the touch origin. */
-const KNOB_MAX_DISTANCE_PX = 50;
 
 export interface Joystick {
   getDirection(): Direction | null;
@@ -55,7 +53,8 @@ export function createJoystick(container: HTMLElement): Joystick {
     const dx = currentX - originX;
     const dy = currentY - originY;
     const distance = Math.hypot(dx, dy);
-    const limit = distance > KNOB_MAX_DISTANCE_PX ? KNOB_MAX_DISTANCE_PX / distance : 1;
+    const { joystickRadiusPx } = config.input;
+    const limit = distance > joystickRadiusPx ? joystickRadiusPx / distance : 1;
     knob.style.transform = `translate(${dx * limit}px, ${dy * limit}px)`;
   }
 

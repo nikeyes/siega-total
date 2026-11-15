@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
-import { clampFocus, createCameraFocus, followBlade, targetDistance } from '../../src/logic/camera';
+import { clampFocus, createCameraFocus, followBlade, targetDistance, verticalFovDegrees } from '../../src/logic/camera';
 
 const { baseDistance, zoomPerSize, followLagSeconds, zoomTransitionSeconds, edgeMarginMeters } = config.camera;
 const { startSize } = config.blade;
@@ -123,5 +123,12 @@ describe('clampFocus', () => {
     const focus = createCameraFocus(0, 0, startSize + 2);
     clampFocus(focus, width, depth, halfVisibleX, halfVisibleZ, edgeMarginMeters);
     expect(focus.distance).toBe(targetDistance(startSize + 2));
+  });
+});
+
+describe('verticalFovDegrees', () => {
+  it('is the configured field of view on any screen while no portrait reference is set', () => {
+    expect(config.camera.portraitReferenceAspect).toBeNull();
+    for (const aspect of [0.4, 0.5625, 1, 2]) expect(verticalFovDegrees(aspect)).toBe(config.camera.fovDegrees);
   });
 });

@@ -73,9 +73,9 @@ function addSoundsFolder(gui: GUI, actions: DebugActions): void {
   folder.close();
 }
 
-/** A nested group of numeric settings, like `config.generator`. */
+/** A nested group of settings, like `config.generator`: numbers and switches; unset (null) ones are left out. */
 interface NumberTree {
-  [key: string]: number | NumberTree;
+  [key: string]: number | boolean | null | NumberTree;
 }
 
 /** Room the HUD needs on the right: the pause button and coins above, the three boosters below. */
@@ -250,14 +250,16 @@ function addNumberFolder(
   const folder = parent.addFolder(name);
   for (const [key, value] of Object.entries(settings)) {
     const keyPath = `${path}.${key}`;
-    if (NOT_TUNABLE.has(keyPath)) continue;
+    if (NOT_TUNABLE.has(keyPath) || value === null) continue;
     if (typeof value === 'object') {
       addNumberFolder(folder, key, value, onChange, note, keyPath);
       continue;
     }
     const keyNote = READ_ON_RESTART.has(keyPath) || UPGRADE_SETTINGS_READ_ON_RESTART.test(keyPath) ? texts.debug.onRestart : note;
     const label = keyNote ? `${key} ${keyNote}` : key;
-    folder.add(settings, key).name(label).onChange((changed: number) => onChange(keyPath, changed));
+    folder.add(settings, key).name(label).onChange((changed: number | boolean) => {
+      if (typeof changed === 'number') onChange(keyPath, changed);
+    });
   }
   folder.close();
 }
