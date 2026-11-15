@@ -15,8 +15,6 @@ export interface Settings {
   /** Where each volume slider sits, from 0 (silent) to 1 (full). */
   soundVolume: number;
   musicVolume: number;
-  /** On, the grass is trimmed where the blade sweeps and bends away from it; off, the classic grass. Kept while both are compared. */
-  paintedGrass: boolean;
 }
 
 export interface SaveData {
@@ -48,7 +46,7 @@ export function defaultSave(): SaveData {
     coins: 0,
     upgrades: Object.fromEntries(UPGRADE_KINDS.map((kind) => [kind, 0])) as SaveData['upgrades'],
     boosters: Object.fromEntries(BOOSTER_KINDS.map((kind) => [kind, config.boosters[kind].startUses])) as SaveData['boosters'],
-    settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: DEFAULT_SOUND_VOLUME, musicVolume: 1, paintedGrass: false },
+    settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: DEFAULT_SOUND_VOLUME, musicVolume: 1 },
     tutorialDone: false,
     timed: true,
     winStreak: 0,
@@ -134,7 +132,6 @@ function sanitizeSettings(stored: unknown, defaults: Settings): Settings {
     quality: oneOf(QUALITY_SETTINGS, settings.quality, defaults.quality),
     soundVolume: fractionOr(settings.soundVolume, defaults.soundVolume),
     musicVolume: fractionOr(settings.musicVolume, defaults.musicVolume),
-    paintedGrass: booleanOr(settings.paintedGrass, defaults.paintedGrass),
   };
 }
 
