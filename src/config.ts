@@ -1,3 +1,5 @@
+import { variant, withChanges, type Changes } from './variant';
+
 interface QualityLevelSettings {
   bladeCount: number;
   maxPixelRatio: number;
@@ -15,7 +17,7 @@ const qualityLevels = {
   low: { bladeCount: 1_700, maxPixelRatio: 1, shadow: false, clippings: 'fade', bladesPerClipping: 9, maxClippingsPerFrame: 10 },
 } satisfies Record<string, QualityLevelSettings>;
 
-export const config = {
+const baseConfig = {
   field: {
     width: 16,
     depth: 16,
@@ -236,3 +238,8 @@ export const config = {
     starIntervalSeconds: 0.35,
   },
 };
+
+/** What the «nueva» variant changes on top of the game everyone plays. */
+const nuevaChanges: Changes<typeof baseConfig> = {};
+
+export const config = variant === 'nueva' ? withChanges(baseConfig, nuevaChanges) : baseConfig;
