@@ -225,9 +225,41 @@ describe('continuing a defeat with a clock', () => {
     return game;
   }
 
+  /** A defeat after the attempt has already taken its free continue. */
+  function lostGameWithoutFreeContinue(): Game {
+    const game = lostGame();
+    continueWithClock(brokeSave(), game);
+    driveEastUntil(game, 'lost');
+    return game;
+  }
+
+  function brokeSave() {
+    const save = { ...defaultSave(), coins: 0 };
+    save.boosters.clock = 0;
+    return save;
+  }
+
+  it('lets each attempt continue once for free, without clocks or coins', () => {
+    const save = brokeSave();
+    const game = lostGame();
+    expect(continueWithClock(save, game)).toBe(true);
+    expect(game.status).toBe('playing');
+    expect(save).toEqual(brokeSave());
+  });
+
+  it('asks for a clock on the second continue of the same attempt', () => {
+    expect(continueWithClock(brokeSave(), lostGameWithoutFreeContinue())).toBe(false);
+  });
+
+  it('gives the free continue back when the level starts over', () => {
+    const game = lostGameWithoutFreeContinue();
+    resetGame(game);
+    expect(game.freeContinuesLeft).toBe(config.boosters.clock.freeContinuesPerAttempt);
+  });
+
   it('uses a clock when there is one', () => {
     const save = defaultSave();
-    const game = lostGame();
+    const game = lostGameWithoutFreeContinue();
     expect(continueWithClock(save, game)).toBe(true);
     expect(game.status).toBe('playing');
     expect(save.boosters.clock).toBe(config.boosters.clock.startUses - 1);
@@ -236,22 +268,17 @@ describe('continuing a defeat with a clock', () => {
   it('without clocks, buys one with the coins and uses it, leaving none', () => {
     const save = { ...defaultSave(), coins: config.boosters.clock.price };
     save.boosters.clock = 0;
-    const game = lostGame();
+    const game = lostGameWithoutFreeContinue();
     expect(continueWithClock(save, game)).toBe(true);
     expect(game.status).toBe('playing');
     expect([save.coins, save.boosters.clock]).toEqual([0, 0]);
-  });
-
-  it('has no free continue while none is configured', () => {
-    expect(config.boosters.clock.freeContinuesPerAttempt).toBe(0);
-    expect(lostGame().freeContinuesLeft).toBe(0);
   });
 
   it('without clocks or coins, changes nothing', () => {
     const save = { ...defaultSave(), coins: config.boosters.clock.price - 1 };
     save.boosters.clock = 0;
     const before = structuredClone(save);
-    const game = lostGame();
+    const game = lostGameWithoutFreeContinue();
     expect(continueWithClock(save, game)).toBe(false);
     expect(game.status).toBe('lost');
     expect(save).toEqual(before);

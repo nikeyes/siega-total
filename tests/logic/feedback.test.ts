@@ -111,8 +111,8 @@ describe('knocking into a rock', () => {
     const tracker = createFeedbackTracker();
     tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
     const events: FeedbackEvent[] = [];
-    // Half a meter from the rock: the blade reaches it in a tenth of a second and is still bouncing a quarter later.
-    for (let step = 0; step < 15; step++) events.push(...tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME)));
+    // Half a meter from the rock: the blade reaches it in about a quarter of a second, and bounces once before it can steer back.
+    for (let step = 0; step < 25; step++) events.push(...tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME)));
     expect(events.filter((event) => event.kind === 'rockBounce')).toEqual([{ kind: 'rockBounce' }]);
   });
 });

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
 import { bladeRadius } from '../../src/logic/blade';
+import { grassCutSize } from '../../src/logic/grass';
 import { resolveCollisions, sizeToPass } from '../../src/logic/collision';
 import type { GrassType } from '../../src/logic/field';
 import type { LevelDefinition, Obstacle } from '../../src/logic/levels';
 import { createObstacleField, obstacleRadius } from '../../src/logic/obstacles';
 
-const GRASS_BY_LETTER: Record<string, GrassType | null> = { g: 'green', w: 'wheat', l: 'lavender', '.': null };
+const GRASS_BY_LETTER: Record<string, GrassType | null> = { g: 'green', l: 'lavender', b: 'bramble', '.': null };
 
-/** A level of 1 m cells drawn row by row, north to south: `g` green, `w` wheat, `l` lavender and `.` sand. */
+/** A level of 1 m cells drawn row by row, north to south: `g` green, `l` lavender, `b` bramble and `.` sand. */
 function levelFromRows(rows: string[], obstacles: Obstacle[] = []): LevelDefinition {
   return {
     number: 0,
@@ -29,11 +30,12 @@ function worldOf(level: LevelDefinition) {
 
 const { startSize } = config.blade;
 const radius = bladeRadius(startSize);
-const wheatSize = config.grassTypes.wheat.minSize;
+/** Lavender is a wall for a blade of the starting size, two sizes short of it. */
+const lavenderCutSize = grassCutSize('lavender');
 
-/** 8 × 3 m: green in the west, a wheat stripe from x = 4 to x = 6, green again in the east. */
-const WHEAT_STRIPE = ['ggggwwgg', 'ggggwwgg', 'ggggwwgg'];
-const WHEAT_WEST_EDGE = 4;
+/** 8 × 3 m: green in the west, a lavender stripe from x = 4 to x = 6, green again in the east. */
+const LAVENDER_STRIPE = ['ggggllgg', 'ggggllgg', 'ggggllgg'];
+const LAVENDER_WEST_EDGE = 4;
 
 /** 6 × 6 m of green with room for an obstacle in the middle. */
 const OPEN_FIELD = ['gggggg', 'gggggg', 'gggggg', 'gggggg', 'gggggg', 'gggggg'];
@@ -41,27 +43,27 @@ const rock: Obstacle = { type: 'rock', x: 3, z: 3 };
 const rockRadius = obstacleRadius('rock');
 
 describe('resolveCollisions against hard grass', () => {
-  it('stops a blade too small for wheat at its radius from the edge of the stripe', () => {
-    const result = resolveCollisions(worldOf(levelFromRows(WHEAT_STRIPE)), WHEAT_WEST_EDGE - radius + 0.1, 1.5, radius, startSize);
-    expect(result.x).toBeCloseTo(WHEAT_WEST_EDGE - radius, 9);
+  it('stops a blade too small for lavender at its radius from the edge of the stripe', () => {
+    const result = resolveCollisions(worldOf(levelFromRows(LAVENDER_STRIPE)), LAVENDER_WEST_EDGE - radius + 0.1, 1.5, radius, startSize);
+    expect(result.x).toBeCloseTo(LAVENDER_WEST_EDGE - radius, 9);
     expect(result.z).toBe(1.5);
     expect(result.blocked).toBe(true);
   });
 
-  it('lets a blade big enough for wheat into the stripe', () => {
-    const result = resolveCollisions(worldOf(levelFromRows(WHEAT_STRIPE)), WHEAT_WEST_EDGE + 0.5, 1.5, bladeRadius(wheatSize), wheatSize);
-    expect(result).toEqual({ x: WHEAT_WEST_EDGE + 0.5, z: 1.5, blocked: false });
+  it('lets a blade big enough for lavender into the stripe', () => {
+    const result = resolveCollisions(worldOf(levelFromRows(LAVENDER_STRIPE)), LAVENDER_WEST_EDGE + 0.5, 1.5, bladeRadius(lavenderCutSize), lavenderCutSize);
+    expect(result).toEqual({ x: LAVENDER_WEST_EDGE + 0.5, z: 1.5, blocked: false });
   });
 
-  it('lets a blade big enough for lavender into it', () => {
-    const size = config.grassTypes.lavender.minSize;
-    const result = resolveCollisions(worldOf(levelFromRows(['ggll'])), 2.2, 0.5, bladeRadius(size), size);
+  it('lets a blade big enough for bramble into it', () => {
+    const size = grassCutSize('bramble');
+    const result = resolveCollisions(worldOf(levelFromRows(['ggbb'])), 2.2, 0.5, bladeRadius(size), size);
     expect(result).toEqual({ x: 2.2, z: 0.5, blocked: false });
   });
 
-  it('blocks a blade too small for lavender even if it already cuts wheat', () => {
-    const result = resolveCollisions(worldOf(levelFromRows(['ggll'])), 2 - 0.1, 0.5, bladeRadius(wheatSize), wheatSize);
-    expect(result.x).toBeCloseTo(2 - bladeRadius(wheatSize), 9);
+  it('blocks a blade too small for bramble even if it already cuts lavender', () => {
+    const result = resolveCollisions(worldOf(levelFromRows(['ggbb'])), 2 - 0.1, 0.5, bladeRadius(lavenderCutSize), lavenderCutSize);
+    expect(result.x).toBeCloseTo(2 - bladeRadius(lavenderCutSize), 9);
     expect(result.blocked).toBe(true);
   });
 
@@ -71,67 +73,67 @@ describe('resolveCollisions against hard grass', () => {
   });
 
   it('does not block a blade standing exactly against a wall', () => {
-    const result = resolveCollisions(worldOf(levelFromRows(WHEAT_STRIPE)), WHEAT_WEST_EDGE - radius, 1.5, radius, startSize);
+    const result = resolveCollisions(worldOf(levelFromRows(LAVENDER_STRIPE)), LAVENDER_WEST_EDGE - radius, 1.5, radius, startSize);
     expect(result.blocked).toBe(false);
   });
 
   it('works with cells smaller than 1 m', () => {
-    const level: LevelDefinition = { ...levelFromRows(['ggggwwgg']), cellSize: 0.5, width: 4, depth: 0.5 };
+    const level: LevelDefinition = { ...levelFromRows(['ggggllgg']), cellSize: 0.5, width: 4, depth: 0.5 };
     const result = resolveCollisions(worldOf(level), 2 - radius + 0.1, 0.25, radius, startSize);
     expect(result.x).toBeCloseTo(2 - radius, 9);
     expect(result.blocked).toBe(true);
   });
 
   it('blocks with hard grass in a last column that the field width only partly covers', () => {
-    const level: LevelDefinition = { ...levelFromRows(['ggw']), width: 2.5 };
+    const level: LevelDefinition = { ...levelFromRows(['ggl']), width: 2.5 };
     const result = resolveCollisions(worldOf(level), 2 - radius + 0.1, 0.5, radius, startSize);
     expect(result).toEqual({ x: 2 - radius, z: 0.5, blocked: true });
   });
 
   it('blocks with hard grass in a last row that the field depth only partly covers', () => {
-    const level: LevelDefinition = { ...levelFromRows(['ggg', 'www']), depth: 1.5 };
+    const level: LevelDefinition = { ...levelFromRows(['ggg', 'lll']), depth: 1.5 };
     const result = resolveCollisions(worldOf(level), 1.5, 1 - radius + 0.1, radius, startSize);
     expect(result).toEqual({ x: 1.5, z: 1 - radius, blocked: true });
   });
 
   it('does not block a blade at the west edge with hard grass at the east end of the row above', () => {
-    const result = resolveCollisions(worldOf(levelFromRows(['ggw', 'ggg'])), 0.1, 1.5, radius, startSize);
+    const result = resolveCollisions(worldOf(levelFromRows(['ggl', 'ggg'])), 0.1, 1.5, radius, startSize);
     expect(result).toEqual({ x: 0.1, z: 1.5, blocked: false });
   });
 
   it('does not block a blade at the east edge with hard grass at the west end of the row below', () => {
-    const result = resolveCollisions(worldOf(levelFromRows(['ggg', 'wgg'])), 2.9, 0.5, radius, startSize);
+    const result = resolveCollisions(worldOf(levelFromRows(['ggg', 'lgg'])), 2.9, 0.5, radius, startSize);
     expect(result).toEqual({ x: 2.9, z: 0.5, blocked: false });
   });
 
   it('does not let the blade through the corner between two hard cells', () => {
-    // Wheat to the east and to the south of the green cell at the northwest.
-    const result = resolveCollisions(worldOf(levelFromRows(['gww', 'www', 'www'])), 1.1, 1.1, radius, startSize);
+    // Lavender to the east and to the south of the green cell at the northwest.
+    const result = resolveCollisions(worldOf(levelFromRows(['gll', 'lll', 'lll'])), 1.1, 1.1, radius, startSize);
     expect(result.x).toBeLessThanOrEqual(1 - radius + 1e-9);
     expect(result.z).toBeLessThanOrEqual(1 - radius + 1e-9);
     expect(result.blocked).toBe(true);
   });
 
   describe('a blade whose center ends up inside a lone hard cell', () => {
-    const LONE_WHEAT = ['ggg', 'gwg', 'ggg'];
+    const LONE_LAVENDER = ['ggg', 'glg', 'ggg'];
 
     it('leaves by the west side when it is nearest', () => {
-      const result = resolveCollisions(worldOf(levelFromRows(LONE_WHEAT)), 1.2, 1.5, radius, startSize);
+      const result = resolveCollisions(worldOf(levelFromRows(LONE_LAVENDER)), 1.2, 1.5, radius, startSize);
       expect(result).toEqual({ x: 1 - radius, z: 1.5, blocked: true });
     });
 
     it('leaves by the east side when it is nearest', () => {
-      const result = resolveCollisions(worldOf(levelFromRows(LONE_WHEAT)), 1.8, 1.5, radius, startSize);
+      const result = resolveCollisions(worldOf(levelFromRows(LONE_LAVENDER)), 1.8, 1.5, radius, startSize);
       expect(result).toEqual({ x: 2 + radius, z: 1.5, blocked: true });
     });
 
     it('leaves by the south side when it is nearest', () => {
-      const result = resolveCollisions(worldOf(levelFromRows(LONE_WHEAT)), 1.5, 1.8, radius, startSize);
+      const result = resolveCollisions(worldOf(levelFromRows(LONE_LAVENDER)), 1.5, 1.8, radius, startSize);
       expect(result).toEqual({ x: 1.5, z: 2 + radius, blocked: true });
     });
 
     it('leaves westward when it sits exactly at the center of the cell', () => {
-      const result = resolveCollisions(worldOf(levelFromRows(LONE_WHEAT)), 1.5, 1.5, radius, startSize);
+      const result = resolveCollisions(worldOf(levelFromRows(LONE_LAVENDER)), 1.5, 1.5, radius, startSize);
       expect(result).toEqual({ x: 1 - radius, z: 1.5, blocked: true });
     });
   });
@@ -141,18 +143,18 @@ describe('resolveCollisions sliding along walls', () => {
   const step = 0.05;
 
   it('lets the blade slide along a vertical wall when it moves diagonally into it', () => {
-    const world = worldOf(levelFromRows(WHEAT_STRIPE));
-    let x = WHEAT_WEST_EDGE - radius;
+    const world = worldOf(levelFromRows(LAVENDER_STRIPE));
+    let x = LAVENDER_WEST_EDGE - radius;
     let z = 0.8;
     for (let frame = 0; frame < 20; frame++) {
       ({ x, z } = resolveCollisions(world, x + step * Math.SQRT1_2, z + step * Math.SQRT1_2, radius, startSize));
     }
-    expect(x).toBeCloseTo(WHEAT_WEST_EDGE - radius, 9);
+    expect(x).toBeCloseTo(LAVENDER_WEST_EDGE - radius, 9);
     expect(z).toBeCloseTo(0.8 + 20 * step * Math.SQRT1_2, 9);
   });
 
   it('lets the blade slide along a horizontal wall across cell seams', () => {
-    const world = worldOf(levelFromRows(['wwwwwwww', 'gggggggg', 'gggggggg']));
+    const world = worldOf(levelFromRows(['llllllll', 'gggggggg', 'gggggggg']));
     let x = 0.8;
     let z = 1 + radius;
     for (let frame = 0; frame < 80; frame++) {
@@ -257,9 +259,9 @@ function depthIntoCell(x: number, z: number, radius: number, column: number, row
 }
 
 describe('resolveCollisions between a rock and a wall', () => {
-  it('keeps the blade out of a wheat wall when a rock squeezes it against the wall', () => {
-    // The rock's east edge is 0.5 m from the wheat at x = 4: too narrow for the blade.
-    const level = levelFromRows(['ggggww', 'ggggww', 'ggggww', 'ggggww', 'ggggww', 'ggggww'], [{ type: 'rock', x: 2.5, z: 3 }]);
+  it('keeps the blade out of a lavender wall when a rock squeezes it against the wall', () => {
+    // The rock's east edge is 0.5 m from the lavender at x = 4: too narrow for the blade.
+    const level = levelFromRows(['ggggll', 'ggggll', 'ggggll', 'ggggll', 'ggggll', 'ggggll'], [{ type: 'rock', x: 2.5, z: 3 }]);
     const world = worldOf(level);
     let x = 4 - radius;
     let z = 0.5;
@@ -271,14 +273,14 @@ describe('resolveCollisions between a rock and a wall', () => {
 });
 
 describe('sizeToPass', () => {
-  const lavenderSize = config.grassTypes.lavender.minSize;
+  const brambleCutSize = grassCutSize('bramble');
 
   it('is the size of the hard grass the blade runs into', () => {
-    expect(sizeToPass(worldOf(levelFromRows(WHEAT_STRIPE)), WHEAT_WEST_EDGE - radius + 0.1, 1.5, radius, startSize)).toBe(wheatSize);
+    expect(sizeToPass(worldOf(levelFromRows(LAVENDER_STRIPE)), LAVENDER_WEST_EDGE - radius + 0.1, 1.5, radius, startSize)).toBe(lavenderCutSize);
   });
 
   it('is the bigger size when the blade runs into two hard grasses at once', () => {
-    expect(sizeToPass(worldOf(levelFromRows(['gwlg'])), 2, 0.5, radius, startSize)).toBe(lavenderSize);
+    expect(sizeToPass(worldOf(levelFromRows(['glbg'])), 2, 0.5, radius, startSize)).toBe(brambleCutSize);
   });
 
   it('is the size of a fruit too big for the blade', () => {
@@ -291,7 +293,7 @@ describe('sizeToPass', () => {
   });
 
   it('is null when nothing stands in the way', () => {
-    expect(sizeToPass(worldOf(levelFromRows(WHEAT_STRIPE)), 1.5, 1.5, radius, startSize)).toBeNull();
-    expect(sizeToPass(worldOf(levelFromRows(WHEAT_STRIPE)), WHEAT_WEST_EDGE + 0.5, 1.5, bladeRadius(wheatSize), wheatSize)).toBeNull();
+    expect(sizeToPass(worldOf(levelFromRows(LAVENDER_STRIPE)), 1.5, 1.5, radius, startSize)).toBeNull();
+    expect(sizeToPass(worldOf(levelFromRows(LAVENDER_STRIPE)), LAVENDER_WEST_EDGE + 0.5, 1.5, bladeRadius(lavenderCutSize), lavenderCutSize)).toBeNull();
   });
 });

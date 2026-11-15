@@ -3,7 +3,7 @@ import { addCuts, bladeRadius, createBlade, maxSpeedAt, moveBlade, type Blade, t
 import { overlappedRock, resolveCollisions, sizeToPass } from './collision';
 import { coinsForCuts, timeBonus } from './economy';
 import { createField, cutBlade, cutInCircle, GRASS_TYPE_ORDER, levelFieldOptions, type Field } from './field';
-import { cuttingSpeedFactor } from './grass';
+import { isCutSlowly } from './grass';
 import { isObstacleType, sampleLevel, type LevelDefinition, type TargetKind } from './levels';
 import {
   createObstacleField,
@@ -52,8 +52,8 @@ export interface Game {
   compassLeft: number;
   /** While set, the blade flies back from a rock and the player does not steer it. */
   rockBounce: RockBounce | null;
-  /** The share of full speed the toughest grass cut lately leaves the blade, and for how many more seconds. */
-  toughGrassHold: { speedFactor: number; secondsLeft: number };
+  /** Seconds the tough grass cut lately still holds the blade back for; 0 when it goes at full speed. */
+  toughGrassHoldLeft: number;
   /** Coins cut in this attempt, the win wave's included; fractional, as each blade pays its weight. */
   levelCoins: number;
   /** «+30 s» after a defeat this attempt can still take without spending a clock. */
@@ -108,7 +108,7 @@ export function createGame(
     winWave: null,
     compassLeft: 0,
     rockBounce: null,
-    toughGrassHold: { speedFactor: 1, secondsLeft: 0 },
+    toughGrassHoldLeft: 0,
     freeContinuesLeft: config.boosters.clock.freeContinuesPerAttempt,
     levelCoins: 0,
     bonusCoins: 0,
@@ -137,6 +137,8 @@ export function resetGame(game: Game): void {
   game.winWave = null;
   game.compassLeft = 0;
   game.rockBounce = null;
+  game.toughGrassHoldLeft = 0;
+  game.freeContinuesLeft = config.boosters.clock.freeContinuesPerAttempt;
   game.levelCoins = 0;
   game.bonusCoins = 0;
   game.bankedCoins = 0;
@@ -169,7 +171,7 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   if (rock) bounceOff(game, rock);
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
-  holdBackOnToughGrass(game, slowestCuttingSpeed(field, cutIndices, blade.size), dt);
+  holdBackOnToughGrass(game, cutsToughGrass(field, cutIndices, blade.size), dt);
   const { cut: cutObstacles, hit: hitObstacles } = hitObstaclesInCircle(game.obstacles, blade.x, blade.z, radius, blade.size, dt);
   const growthCuts = cutIndices.length * game.bladeWeight + growthCutsOf(game.obstacles, cutObstacles);
   const sizesGained = addCuts(blade, growthCuts * game.bonuses.growthMultiplier);
@@ -207,26 +209,17 @@ function flyBack(game: Game, bounce: RockBounce, dt: number): void {
 }
 
 function maxSpeedOf(game: Game): number {
-  const { speedFactor, secondsLeft } = game.toughGrassHold;
-  return maxSpeedAt(game.blade.size) * game.bonuses.speedMultiplier * (secondsLeft > 0 ? speedFactor : 1);
+  const toughGrassFactor = game.toughGrassHoldLeft > 0 ? config.toughGrass.speedFactor : 1;
+  return maxSpeedAt(game.blade.size) * game.bonuses.speedMultiplier * toughGrassFactor;
 }
 
 /** Tough grass just cut holds the blade back for holdSeconds; the hold runs out unless more is cut. */
-function holdBackOnToughGrass(game: Game, speedFactor: number, dt: number): void {
-  const hold = game.toughGrassHold;
-  if (speedFactor < 1) {
-    hold.speedFactor = hold.secondsLeft > 0 ? Math.min(hold.speedFactor, speedFactor) : speedFactor;
-    hold.secondsLeft = config.toughGrass.holdSeconds;
-  } else {
-    hold.secondsLeft = Math.max(0, hold.secondsLeft - dt);
-  }
+function holdBackOnToughGrass(game: Game, cutToughGrass: boolean, dt: number): void {
+  game.toughGrassHoldLeft = cutToughGrass ? config.toughGrass.holdSeconds : Math.max(0, game.toughGrassHoldLeft - dt);
 }
 
-/** The toughest grass among the blades just cut holds the blade back the most. */
-function slowestCuttingSpeed(field: Field, cutIndices: readonly number[], size: number): number {
-  let slowest = 1;
-  for (const index of cutIndices) slowest = Math.min(slowest, cuttingSpeedFactor(GRASS_TYPE_ORDER[field.types[index]!]!, size));
-  return slowest;
+function cutsToughGrass(field: Field, cutIndices: readonly number[], size: number): boolean {
+  return cutIndices.some((index) => isCutSlowly(GRASS_TYPE_ORDER[field.types[index]!]!, size));
 }
 
 function growthCutsOf(obstacles: ObstacleField, indices: number[]): number {

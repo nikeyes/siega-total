@@ -14,6 +14,7 @@ import {
   type Game,
   type StepResult,
 } from '../../src/logic/game';
+import { grassCutSize } from '../../src/logic/grass';
 import { obstacleRadius } from '../../src/logic/obstacles';
 import { sampleLevel, stripesLevel, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
 import { levelFromRows, oneBlowFromBreaking } from './levelFixtures';
@@ -442,59 +443,60 @@ describe('playing at any blade density', () => {
 });
 
 describe('collisions in play', () => {
-  /** 8 × 3 m of sand with a wheat stripe from x = 5 to x = 7; the blade starts at (4, 1.5) and has nothing to grow on. */
-  const WHEAT_AHEAD = ['.....ww.', '.....ww.', '.....ww.'];
-  const WHEAT_WEST_EDGE = 5;
+  /** 8 × 3 m of sand with a lavender stripe from x = 5 to x = 7, a wall at the starting size; the blade starts at (4, 1.5) and has nothing to grow on. */
+  const LAVENDER_AHEAD = ['.....ll.', '.....ll.', '.....ll.'];
+  const LAVENDER_WEST_EDGE = 5;
+  const lavenderCutSize = grassCutSize('lavender');
   const WIDE_SAND = ['........', '........', '........'];
   /** A target in the northwest corner, off the blade's path, so the level stays in play. */
   const OFF_PATH_TARGET: Obstacle = { type: 'strawberry', x: 0.3, z: 0.3 };
 
-  it('stops a blade too small for wheat at the edge of the stripe and reports it blocked', () => {
-    const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+  it('stops a blade too small for lavender at the edge of the stripe and reports it blocked', () => {
+    const game = createGame(levelFromRows(LAVENDER_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     let blocked = false;
     driveForSeconds(game, EAST, 1, (result) => (blocked ||= result.blocked));
     expect(game.blade.size).toBe(startSize);
-    expect(game.blade.x).toBeCloseTo(WHEAT_WEST_EDGE - bladeRadius(startSize), 9);
+    expect(game.blade.x).toBeCloseTo(LAVENDER_WEST_EDGE - bladeRadius(startSize), 9);
     expect(blocked).toBe(true);
     expect(stepGame(game, EAST, SIXTY_FPS_FRAME).blocked).toBe(true);
   });
 
   it('reports the size the blade needs to get through what blocks it', () => {
-    const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    const game = createGame(levelFromRows(LAVENDER_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     driveForSeconds(game, EAST, 1);
     const result = stepGame(game, EAST, SIXTY_FPS_FRAME);
     expect(result.blocked).toBe(true);
-    expect(result.neededSize).toBe(config.grassTypes.wheat.minSize);
+    expect(result.neededSize).toBe(lavenderCutSize);
   });
 
   it('needs no size when nothing blocks the blade', () => {
-    const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    const game = createGame(levelFromRows(LAVENDER_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     expect(stepGame(game, EAST, SIXTY_FPS_FRAME).neededSize).toBeNull();
   });
 
   it('does not report a resting blade blocked when growing makes it overlap grass it cannot cut', () => {
-    const lavenderAhead = WHEAT_AHEAD.map((row) => row.replaceAll('w', 'l'));
-    const game = createGame(levelFromRows(lavenderAhead, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    const brambleAhead = LAVENDER_AHEAD.map((row) => row.replaceAll('l', 'b'));
+    const game = createGame(levelFromRows(brambleAhead, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     driveForSeconds(game, EAST, 1);
     stopBlade(game);
-    game.blade.size = config.grassTypes.wheat.minSize;
+    game.blade.size = lavenderCutSize;
     let blocked = false;
     driveForSeconds(game, null, 2, (result) => (blocked ||= result.blocked));
     expect(blocked).toBe(false);
   });
 
   it('does not report a blade steered away blocked when growing makes it overlap grass it cannot cut', () => {
-    const lavenderAhead = WHEAT_AHEAD.map((row) => row.replaceAll('w', 'l'));
-    const game = createGame(levelFromRows(lavenderAhead, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    const brambleAhead = LAVENDER_AHEAD.map((row) => row.replaceAll('l', 'b'));
+    const game = createGame(levelFromRows(brambleAhead, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     driveForSeconds(game, EAST, 1);
     stopBlade(game);
-    game.blade.size = config.grassTypes.wheat.minSize;
+    game.blade.size = lavenderCutSize;
     expect(stepGame(game, WEST, SIXTY_FPS_FRAME).blocked).toBe(false);
   });
 
-  it('lets a blade big enough for wheat drive through the stripe', () => {
-    const game = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
-    game.blade.size = config.grassTypes.wheat.minSize;
+  it('lets a blade big enough for lavender drive through the stripe', () => {
+    const game = createGame(levelFromRows(LAVENDER_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    game.blade.size = lavenderCutSize;
     driveUntil(game, EAST, () => game.blade.x === game.field.width + SHORE);
     expect(game.blade.x).toBe(game.field.width + SHORE);
   });
@@ -571,9 +573,9 @@ describe('collisions in play', () => {
   });
 
   it('does not bounce off grass or a fruit the blade is too small for, only stops', () => {
-    const wheat = createGame(levelFromRows(WHEAT_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
+    const lavender = createGame(levelFromRows(LAVENDER_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     let bounced = false;
-    driveForSeconds(wheat, EAST, 1, (result) => (bounced ||= result.bouncedOffRock));
+    driveForSeconds(lavender, EAST, 1, (result) => (bounced ||= result.bouncedOffRock));
     expect(bounced).toBe(false);
 
     const melon = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, { type: 'watermelon', x: 6, z: 1.5 }], targets: ['strawberry'] }));

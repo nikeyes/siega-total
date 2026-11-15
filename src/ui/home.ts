@@ -1,6 +1,5 @@
 import type { SaveData } from '../logic/save';
 import { texts } from '../texts';
-import { variant } from '../variant';
 import { formatCount } from './formatCount';
 import { levelLabel } from './hud';
 import { coinIconSvg } from './icons';
@@ -12,8 +11,6 @@ export interface HomeDisplay {
   playLabel: string;
   /** The mode the next level starts in; the label alone tells it, so the switch has no pressed state. */
   modeLabel: string;
-  /** Names the new variant under the title; null in the game everyone plays. */
-  variantLabel: string | null;
 }
 
 export function homeDisplay(save: SaveData): HomeDisplay {
@@ -21,7 +18,6 @@ export function homeDisplay(save: SaveData): HomeDisplay {
     coinsLabel: formatCount(save.coins),
     playLabel: `${texts.home.play} · ${levelLabel(save.level)}`,
     modeLabel: save.timed ? texts.home.timed : texts.home.untimed,
-    variantLabel: variant === 'nueva' ? texts.home.nuevaVariant : null,
   };
 }
 
@@ -52,17 +48,13 @@ export function createHomeScreen(container: HTMLElement, actions: HomeActions): 
   coins.append(coinsText);
   const play = layerButton('', 'primary', actions.onPlay);
   const mode = layerButton('', 'secondary', actions.onToggleTimed);
-  const variantBadge = document.createElement('div');
-  variantBadge.className = 'home-variant';
-  layer.append(settings, layerTitle(texts.home.title), variantBadge, coins, play, mode, layerButton(texts.home.shop, 'secondary', actions.onShop));
+  layer.append(settings, layerTitle(texts.home.title), coins, play, mode, layerButton(texts.home.shop, 'secondary', actions.onShop));
 
   function render(save: SaveData): void {
     const display = homeDisplay(save);
     coinsText.textContent = display.coinsLabel;
     play.textContent = display.playLabel;
     mode.textContent = display.modeLabel;
-    variantBadge.textContent = display.variantLabel ?? '';
-    variantBadge.hidden = display.variantLabel === null;
   }
 
   return { layer, render };

@@ -11,14 +11,12 @@ import {
   maxSpeedAt,
   moveBlade,
   spinRadiansPerSecond,
-  turnSmoothingSecondsAt,
   type Blade,
   type Direction,
 } from '../../src/logic/blade';
 
-const { startSize, fullSpeedSize, brakeSeconds, cutsPerSizeFactor } = config.blade;
+const { startSize, brakeSeconds, cutsPerSizeFactor, turnSmoothingSeconds } = config.blade;
 const maxSpeed = maxSpeedAt(startSize);
-const turnSmoothingSeconds = turnSmoothingSecondsAt(startSize);
 const { width, depth } = config.field;
 
 const EAST: Direction = { x: 1, z: 0 };
@@ -142,35 +140,13 @@ describe('bladeRadius', () => {
 });
 
 describe('maxSpeedAt', () => {
-  it('is the configured maxSpeed from fullSpeedSize up', () => {
-    for (let size = fullSpeedSize; size < fullSpeedSize + 4; size++) {
-      expect(maxSpeedAt(size)).toBe(config.blade.maxSpeed);
-    }
+  it('is the configured maxSpeed at size 1', () => {
+    expect(maxSpeedAt(1)).toBeCloseTo(config.blade.maxSpeed, 12);
   });
 
-  it('crosses the screen as fast below fullSpeedSize as at it, as the camera comes closer', () => {
-    const screenSpeedAtFullSpeedSize = maxSpeedAt(fullSpeedSize) / targetDistance(fullSpeedSize);
-    for (let size = 1; size < fullSpeedSize; size++) {
-      expect(maxSpeedAt(size) / targetDistance(size)).toBeCloseTo(screenSpeedAtFullSpeedSize, 10);
-    }
-  });
-});
-
-describe('turnSmoothingSecondsAt', () => {
-  it('is smallBladeTurnSmoothingSeconds at size 1', () => {
-    expect(turnSmoothingSecondsAt(1)).toBe(config.blade.smallBladeTurnSmoothingSeconds);
-  });
-
-  it('is the configured turnSmoothingSeconds from fullSpeedSize up', () => {
-    for (let size = fullSpeedSize; size < fullSpeedSize + 4; size++) {
-      expect(turnSmoothingSecondsAt(size)).toBe(config.blade.turnSmoothingSeconds);
-    }
-  });
-
-  it('gets shorter with each size until fullSpeedSize', () => {
-    for (let size = 1; size < fullSpeedSize; size++) {
-      expect(turnSmoothingSecondsAt(size + 1)).toBeLessThan(turnSmoothingSecondsAt(size));
-    }
+  it('crosses the screen equally fast at every size, as the camera moves away while it grows', () => {
+    const screenSpeedAtSize1 = maxSpeedAt(1) / targetDistance(1);
+    for (let size = 1; size <= 10; size++) expect(maxSpeedAt(size) / targetDistance(size)).toBeCloseTo(screenSpeedAtSize1, 10);
   });
 });
 
@@ -183,21 +159,12 @@ describe('moveBlade: speed', () => {
     expect(blade.z).toBeCloseTo(depth / 2);
   });
 
-  it('moves at the same speed at size 5 as at fullSpeedSize', () => {
-    const fullSpeedBlade = bladeOfSize(fullSpeedSize);
-    const bigBlade = bladeOfSize(5);
-    move(fullSpeedBlade, EAST, 0.1);
-    move(bigBlade, EAST, 0.1);
-    expect(bigBlade.speed).toBe(fullSpeedBlade.speed);
-    expect(bigBlade.x).toBe(fullSpeedBlade.x);
-  });
-
-  it('moves slower at size 1 than at fullSpeedSize', () => {
+  it('moves faster at size 5 than at size 1', () => {
     const smallBlade = bladeOfSize(1);
-    const fullSpeedBlade = bladeOfSize(fullSpeedSize);
+    const bigBlade = bladeOfSize(5);
     move(smallBlade, EAST, 0.1);
-    move(fullSpeedBlade, EAST, 0.1);
-    expect(smallBlade.x).toBeLessThan(fullSpeedBlade.x);
+    move(bigBlade, EAST, 0.1);
+    expect(smallBlade.x).toBeLessThan(bigBlade.x);
   });
 
   it('moves at half speed with a direction half as long, as an analog joystick pushed halfway', () => {
@@ -313,14 +280,6 @@ describe('moveBlade: turning', () => {
     expect(tenStepsBlade.heading).toBeCloseTo(oneStepBlade.heading, 10);
   });
 
-  it('turns less in the same time at size 1 than at fullSpeedSize', () => {
-    const smallBlade = bladeMovingEastAtFullSpeed(1);
-    const fullSpeedBlade = bladeMovingEastAtFullSpeed(fullSpeedSize);
-    move(smallBlade, NORTH, 0.1);
-    move(fullSpeedBlade, NORTH, 0.1);
-    expect(Math.abs(smallBlade.heading)).toBeLessThan(Math.abs(fullSpeedBlade.heading));
-  });
-
   describe('takes the shortest arc across the +-PI seam', () => {
     const almostWestFromNorthSide = directionAt(Math.PI - 0.1);
     const almostWestFromSouthSide = directionAt(-Math.PI + 0.1);
@@ -425,8 +384,13 @@ describe('moveBlade: island edges, shoreMeters past the field', () => {
 });
 
 describe('spinRadiansPerSecond', () => {
-  it('spins as fast at every size while it keeps all its spin per size', () => {
-    expect(config.blade.spinKeptPerSize).toBe(1);
-    for (let size = 1; size <= 10; size++) expect(spinRadiansPerSecond(size)).toBe(config.blade.spinRadiansPerSecond);
+  it('spins about half as fast at size 10 as at size 1', () => {
+    const ratio = spinRadiansPerSecond(10) / spinRadiansPerSecond(1);
+    expect(ratio).toBeGreaterThan(0.4);
+    expect(ratio).toBeLessThan(0.6);
+  });
+
+  it('spins slower with each size', () => {
+    for (let size = 1; size < 10; size++) expect(spinRadiansPerSecond(size + 1)).toBeLessThan(spinRadiansPerSecond(size));
   });
 });

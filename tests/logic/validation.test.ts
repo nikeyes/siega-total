@@ -3,6 +3,7 @@ import { config } from '../../src/config';
 import { bladeRadius, cutsToNextSize, maxSpeedAt } from '../../src/logic/blade';
 import type { GrassType } from '../../src/logic/field';
 import { clearCellsUnderSolidObstacles, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
+import { grassCutSize } from '../../src/logic/grass';
 import { analyzeLevel, estimateSeconds, travelSeconds, validateLevel } from '../../src/logic/validation';
 
 /** The fixtures are as big as a real field, so their grass has the reference density. */
@@ -91,26 +92,30 @@ describe('validateLevel', () => {
     expect(validateLevel({ ...level, cells })).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
-  it('rejects a lavender target when the green around the start cannot grow the blade to size 3', () => {
-    expect(validateLevel(greenCenterThen(2, 'lavender', { targets: ['lavender'] }))).toEqual({ valid: false, reason: 'unreachableTargets' });
+  it('rejects a bramble target when the green around the start cannot grow the blade to size 3', () => {
+    expect(validateLevel(greenCenterThen(2, 'bramble', { targets: ['bramble'] }))).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
-  it('accepts a lavender target when enough green is in reach', () => {
-    expect(validateLevel(greenCenterThen(4, 'lavender', { targets: ['lavender'] }))).toEqual({ valid: true });
+  it('accepts a bramble target when enough green is in reach', () => {
+    expect(validateLevel(greenCenterThen(4, 'bramble', { targets: ['bramble'] }))).toEqual({ valid: true });
   });
 
-  it('accepts ice behind wheat only when the green in reach grows the blade to size 2', () => {
-    const wheatThenIce = (greenRings: number) =>
-      ringLevel((ring) => (ring < greenRings ? 'green' : ring < greenRings + 2 ? 'wheat' : 'ice'));
-    expect(validateLevel(wheatThenIce(3))).toEqual({ valid: true });
-    expect(validateLevel(wheatThenIce(1))).toEqual({ valid: false, reason: 'unreachableTargets' });
+  it('accepts wheat at the starting size, as tough grass gives way one size early', () => {
+    expect(validateLevel(greenCenterThen(1, 'wheat', { targets: ['wheat'] }))).toEqual({ valid: true });
   });
 
-  it('accepts a strawberry target inside wheat only when the blade can grow to size 2', () => {
+  it('accepts ice behind lavender only when the green in reach grows the blade to size 2', () => {
+    const lavenderThenIce = (greenRings: number) =>
+      ringLevel((ring) => (ring < greenRings ? 'green' : ring < greenRings + 2 ? 'lavender' : 'ice'));
+    expect(validateLevel(lavenderThenIce(3))).toEqual({ valid: true });
+    expect(validateLevel(lavenderThenIce(1))).toEqual({ valid: false, reason: 'unreachableTargets' });
+  });
+
+  it('accepts a strawberry target inside lavender only when the blade can grow to size 2', () => {
     const strawberry: Obstacle[] = [{ type: 'strawberry', x: 5.5, z: 5.5 }];
     const overrides = { obstacles: strawberry, targets: ['strawberry'] as const };
-    expect(validateLevel(greenCenterThen(3, 'wheat', overrides))).toEqual({ valid: true });
-    expect(validateLevel(greenCenterThen(1, 'wheat', overrides))).toEqual({ valid: false, reason: 'unreachableTargets' });
+    expect(validateLevel(greenCenterThen(3, 'lavender', overrides))).toEqual({ valid: true });
+    expect(validateLevel(greenCenterThen(1, 'lavender', overrides))).toEqual({ valid: false, reason: 'unreachableTargets' });
   });
 
   it('rejects a strawberry target walled in by rocks', () => {
@@ -152,11 +157,11 @@ describe('validateLevel', () => {
     const greenRow = CENTER - 4;
     const typeOfCell = (column: number, row: number) => {
       const ring = ringOf(row * SIDE + column);
-      return ring < 3 || (ring === 3 && row === greenRow) ? 'green' : 'lavender';
+      return ring < 3 || (ring === 3 && row === greenRow) ? 'green' : 'bramble';
     };
     const strawberriesAt = (row: number): Obstacle[] =>
       Array.from({ length: 6 }, (_, index) => ({ type: 'strawberry', x: CENTER - 2.5 + index, z: row + 0.5 }));
-    const overrides = { targets: ['lavender'] as const };
+    const overrides = { targets: ['bramble'] as const };
     // In the green south of the start, where they block no way into the strip.
     const inReachRow = CENTER + 2;
     expect(validateLevel(cellLevel(typeOfCell, { ...overrides, obstacles: strawberriesAt(inReachRow) }))).toEqual({ valid: true });
@@ -330,10 +335,13 @@ describe('travelSeconds', () => {
 
   it('follows the way the blade can go, round walls, not a straight line', () => {
     // The same ice to the east of the start: open in one level, behind a bramble wall with a gap at the far north in the other.
+    // The wall is thick, so the ice's share of the blades does not grow the blade big enough to cut through it.
     const ice = (column: number, row: number) => column >= SIDE - 2 && row >= CENTER - 1 && row <= CENTER;
+    const isWall = (column: number, row: number) => column >= CENTER + 2 && column <= CENTER + 4 && row > 1;
     const open = cellLevel((column, row) => (ice(column, row) ? 'ice' : null));
-    const walled = cellLevel((column, row) => (ice(column, row) ? 'ice' : column === CENTER + 3 && row > 1 ? 'bramble' : null));
+    const walled = cellLevel((column, row) => (ice(column, row) ? 'ice' : isWall(column, row) ? 'bramble' : null));
     expect(validateLevel(walled)).toEqual({ valid: true });
+    expect(analyzeLevel(walled).finalSize).toBeLessThan(grassCutSize('bramble'));
     expect(travelSeconds(walled)).toBeGreaterThan(travelSeconds(open) + 1);
   });
 });

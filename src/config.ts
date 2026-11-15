@@ -1,5 +1,3 @@
-import { variant, withChanges, type Changes } from './variant';
-
 interface QualityLevelSettings {
   bladeCount: number;
   maxPixelRatio: number;
@@ -17,7 +15,7 @@ const qualityLevels = {
   low: { bladeCount: 1_700, maxPixelRatio: 1, shadow: false, clippings: 'fade', bladesPerClipping: 9, maxClippingsPerFrame: 10 },
 } satisfies Record<string, QualityLevelSettings>;
 
-const baseConfig = {
+export const config = {
   field: {
     width: 16,
     depth: 16,
@@ -38,16 +36,14 @@ const baseConfig = {
     /** The glow under the blade spans scale times its radius. */
     glow: { scale: 1.5, opacity: 0.55 },
   },
-  /** After afterWins levels won in a row the blade goes speedMultiplier times faster, until a defeat; null: no turbo. */
+  /** After afterWins levels won in a row the blade goes speedMultiplier times faster, until a defeat. */
   turbo: {
-    afterWins: null as number | null,
+    afterWins: 3,
     speedMultiplier: 1.15,
   },
-  /** Grass a blade is short of cutting: a wall, unless it is at most sizesEarly sizes short, then it is cut slowly. */
+  /** Grass one size short of a blade's minSize gives way, and holds the blade back to speedFactor of full speed while it cuts it; two sizes short is a wall. */
   toughGrass: {
-    sizesEarly: 0,
-    /** The share of full speed while cutting grass 1, 2… sizes short of its minSize. */
-    speedWhenShort: [] as number[],
+    speedFactor: 0.45,
     /** Blades stand apart, so not every step cuts one; the blade stays held back this long after the last. */
     holdSeconds: 0.25,
   },
@@ -84,24 +80,19 @@ const baseConfig = {
     upgrade: { price: 3000, startUses: 2, sizes: 1 },
     compass: { price: 2000, startUses: 2, seconds: 15, retargetSeconds: 0.2 },
     /** freeContinuesPerAttempt: «+30 s» after a defeat this many times per attempt without spending a clock. */
-    clock: { price: 3000, startUses: 2, seconds: 30, freeContinuesPerAttempt: 0 },
+    clock: { price: 3000, startUses: 2, seconds: 30, freeContinuesPerAttempt: 1 },
   },
   blade: {
     startSize: 1,
     baseRadius: 0.5,
     radiusPerSize: 0.2,
     cutsPerSizeFactor: 200,
-    /** Meters per second from fullSpeedSize up; smaller blades go slower, so they cross the screen as fast as one of fullSpeedSize. */
-    maxSpeed: 5,
-    fullSpeedSize: 4,
-    /** Bigger blades speed up too, as the camera moves away, so the blade crosses the screen equally fast at every size. */
-    speedFollowsCameraWhenBigger: false,
-    /** From fullSpeedSize up; a smaller blade turns more gently, down to smallBladeTurnSmoothingSeconds at size 1. */
+    /** Meters per second at size 1; bigger blades go faster as the camera moves away, so the blade crosses the screen equally fast at every size. */
+    maxSpeed: 1.9,
     turnSmoothingSeconds: 0.1,
-    smallBladeTurnSmoothingSeconds: 0.2,
-    /** How fast the blade spins on screen at size 1; each size up keeps spinKeptPerSize of the spin of the size before. */
+    /** How fast the blade spins on screen at size 1; each size up keeps spinKeptPerSize of the spin of the size before, about half by size 10. */
     spinRadiansPerSecond: 14,
-    spinKeptPerSize: 1,
+    spinKeptPerSize: 0.93,
     brakeSeconds: 0.15,
   },
   level: {
@@ -117,7 +108,7 @@ const baseConfig = {
     maxTimeSeconds: 180,
     roundTimeToSeconds: 5,
     /** Every generated level gets this on top of its estimate: turning, braking and hunting down the last blades. */
-    extraSeconds: 30,
+    extraSeconds: 45,
     startClearingMeters: 3,
     /** Patterns always split the field at least this much; regions with no grass type left are sand, so even one-grass levels show their shape. */
     minPatternRegions: 2,
@@ -131,7 +122,7 @@ const baseConfig = {
     cactusCount: { first: 1, last: 2 },
     timeMargin: { first: 2.0, last: 1.6 },
     /** The time margin of each level is multiplied by the next value, round and round: below 1 a hard level, above 1 a breather. */
-    timeMarginCycle: [1] as number[],
+    timeMarginCycle: [1, 1.2, 1, 0.8, 1.2, 1, 1.2, 1, 0.8, 1.2],
     /** Seconds to walk to and cut each target piece, on top of the swept area. */
     secondsPerTargetPiece: 1.5,
     /** Free space kept between obstacles, so the blade can pass between them. */
@@ -154,24 +145,21 @@ const baseConfig = {
   },
   input: {
     joystickDeadZonePx: 10,
-    /** How far the knob travels from where the finger touched. */
+    /** How far the knob travels from where the finger touched; the blade goes faster the further the finger drags, up to full speed here. */
     joystickRadiusPx: 50,
-    /** The blade goes faster the further the finger drags, up to full speed at joystickRadiusPx; otherwise any drag is full speed. */
-    analogJoystick: false,
   },
   camera: {
-    /** Vertical, on screens at least as wide as portraitReferenceAspect. */
-    fovDegrees: 45,
-    /** On narrower screens the view opens up to show the width this aspect shows; null keeps fovDegrees on every screen. */
-    portraitReferenceAspect: null as number | null,
-    tiltDegrees: 55,
-    baseDistance: 8,
+    /** Vertical, on screens at least as wide as portraitReferenceAspect: a narrow lens, close, so the blade looks big and the field flat. */
+    fovDegrees: 28,
+    /** On narrower screens the view opens up to show the width this aspect shows, so a long phone sees as much as a 9:16 one. */
+    portraitReferenceAspect: 9 / 16,
+    tiltDegrees: 50,
+    baseDistance: 9,
     followLagSeconds: 0.15,
-    zoomPerSize: 0.12,
+    /** The camera moves away this much more with each size, so a big blade does not fill the screen. */
+    zoomPerSize: 0.2,
     zoomTransitionSeconds: 0.5,
     edgeMarginMeters: 1.5,
-    /** Until the first move the camera shows the whole field, then comes down to the blade. */
-    overviewBeforeStart: false,
   },
   quality: {
     /** Played seconds skipped at the start of each attempt, while shaders compile and the camera settles. */
@@ -254,8 +242,12 @@ const baseConfig = {
   },
   vibration: {
     milliseconds: 10,
-    /** While the blade keeps cutting, a buzz every everySeconds from afterSeconds of cutting on; empty: cutting does not buzz. */
-    cutRhythm: [] as { afterSeconds: number; everySeconds: number }[],
+    /** While the blade keeps cutting, a buzz every everySeconds from afterSeconds of cutting on: less and less often, so it never wears on the hand. */
+    cutRhythm: [
+      { afterSeconds: 0, everySeconds: 0.175 },
+      { afterSeconds: 5, everySeconds: 0.35 },
+      { afterSeconds: 20, everySeconds: 0.7 },
+    ],
     /** A pause this long in the cutting starts the rhythm over. */
     cutRhythmPauseSeconds: 0.3,
   },
@@ -272,31 +264,3 @@ const baseConfig = {
     starIntervalSeconds: 0.35,
   },
 };
-
-/** What the «nueva» variant changes on top of the game everyone plays. */
-const nuevaChanges: Changes<typeof baseConfig> = {
-  // Starts slower and speeds up as it grows, crossing the screen equally fast at every size; a bigger blade spins slower, about half as fast by size 10.
-  blade: { maxSpeed: 1.9, fullSpeedSize: 1, speedFollowsCameraWhenBigger: true, spinKeptPerSize: 0.93 },
-  // Cutting buzzes, less often the longer it goes on, so it never wears on the hand.
-  vibration: {
-    cutRhythm: [
-      { afterSeconds: 0, everySeconds: 0.175 },
-      { afterSeconds: 5, everySeconds: 0.35 },
-      { afterSeconds: 20, everySeconds: 0.7 },
-    ],
-  },
-  // Three wins in a row make the blade faster until the next defeat.
-  turbo: { afterWins: 3 },
-  input: { analogJoystick: true },
-  // Grass one size too tough is no longer a wall: it gives way, and holds the blade back while it cuts it.
-  toughGrass: { sizesEarly: 1, speedWhenShort: [0.45] },
-  // Each attempt can go on once after a defeat for free, as watching an ad would in a game that sells them.
-  boosters: { clock: { freeContinuesPerAttempt: 1 } },
-  // A hard level now and then, always followed by breathers, instead of an ever steeper slope.
-  generator: { extraSeconds: 45, timeMarginCycle: [1, 1.2, 1, 0.8, 1.2, 1, 1.2, 1, 0.8, 1.2] },
-  // A narrower lens, closer: the blade looks bigger without changing the levels, the field is flatter and easier to read,
-  // and it shows as much width on a long phone as on a 9:16 one; it moves away faster as the blade grows, so the blade does not fill the screen.
-  camera: { fovDegrees: 28, tiltDegrees: 50, baseDistance: 9, zoomPerSize: 0.2, portraitReferenceAspect: 9 / 16, overviewBeforeStart: true },
-};
-
-export const config = variant === 'nueva' ? withChanges(baseConfig, nuevaChanges) : baseConfig;

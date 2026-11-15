@@ -94,9 +94,13 @@ describe('game bonuses', () => {
 });
 
 describe('turbo', () => {
-  it('never comes on while no win streak is set for it', () => {
-    expect(config.turbo.afterWins).toBeNull();
-    expect(bonusesFor(noBonusUpgrades(), 50)).toEqual(bonusesFor(noBonusUpgrades(), 0));
+  it('comes on after the set number of wins in a row, and speeds the blade up', () => {
+    const wins = config.turbo.afterWins;
+    const plain = bonusesFor(noBonusUpgrades(), wins - 1);
+    const turbo = bonusesFor(noBonusUpgrades(), wins);
+    expect(plain.turbo).toBe(false);
+    expect(turbo.turbo).toBe(true);
+    expect(turbo.speedMultiplier).toBeCloseTo(plain.speedMultiplier * config.turbo.speedMultiplier);
   });
 });
 

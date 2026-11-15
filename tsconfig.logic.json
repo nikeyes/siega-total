@@ -4,5 +4,5 @@
     "lib": ["ES2022"],
     "types": []
   },
-  "include": ["src/logic", "src/config.ts", "src/variant.ts"]
+  "include": ["src/logic", "src/config.ts"]
 }

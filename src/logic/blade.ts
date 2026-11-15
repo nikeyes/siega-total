@@ -56,19 +56,9 @@ export function addCuts(blade: Blade, count: number): number {
   return sizesGained;
 }
 
-/** The camera comes closer to a smaller blade, so it goes slower to cross the screen as fast as one of fullSpeedSize, and with speedFollowsCameraWhenBigger a bigger one goes faster. */
+/** The camera moves away from a bigger blade, so it goes faster to cross the screen as fast as one of size 1. */
 export function maxSpeedAt(size: number): number {
-  const { maxSpeed, fullSpeedSize, speedFollowsCameraWhenBigger } = config.blade;
-  if (size >= fullSpeedSize && !speedFollowsCameraWhenBigger) return maxSpeed;
-  return (maxSpeed * targetDistance(size)) / targetDistance(fullSpeedSize);
-}
-
-/** A smaller blade turns more gently, so a small move of the finger does not swing it around. */
-export function turnSmoothingSecondsAt(size: number): number {
-  const { turnSmoothingSeconds, smallBladeTurnSmoothingSeconds, fullSpeedSize } = config.blade;
-  if (size >= fullSpeedSize) return turnSmoothingSeconds;
-  const towardFullSpeedSize = (size - 1) / (fullSpeedSize - 1);
-  return smallBladeTurnSmoothingSeconds + (turnSmoothingSeconds - smallBladeTurnSmoothingSeconds) * towardFullSpeedSize;
+  return (config.blade.maxSpeed * targetDistance(size)) / targetDistance(1);
 }
 
 /** Braking always takes `brakeSeconds`, so a faster blade brakes harder. A direction shorter than 1 is a joystick pushed part of the way, and the blade goes that share of full speed. */
@@ -82,7 +72,7 @@ export function moveBlade(
 ): void {
   if (direction) {
     const targetHeading = Math.atan2(direction.z, direction.x);
-    blade.heading = blade.speed === 0 ? targetHeading : turnToward(blade.heading, targetHeading, dt, turnSmoothingSecondsAt(blade.size));
+    blade.heading = blade.speed === 0 ? targetHeading : turnToward(blade.heading, targetHeading, dt, config.blade.turnSmoothingSeconds);
     blade.speed = maxSpeed * Math.min(1, Math.hypot(direction.x, direction.z));
   } else {
     const deceleration = maxSpeed / config.blade.brakeSeconds;
