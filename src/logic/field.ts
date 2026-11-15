@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { grassCutSize } from './grass';
 import type { LevelDefinition } from './levels';
 import { createRandom } from './random';
 
@@ -166,7 +167,7 @@ export function cutInCircle(
   const lastRow = Math.min(grid.rows - 1, Math.floor((centerZ + radius) / grid.cellSize));
   const radiusSquared = radius * radius;
   // Read on every call, so minimum sizes tuned from the debug panel apply at once.
-  const minSizeByType = GRASS_TYPE_ORDER.map((type) => config.grassTypes[type].minSize);
+  const cutSizeByType = GRASS_TYPE_ORDER.map(grassCutSize);
 
   for (let row = firstRow; row <= lastRow; row++) {
     for (let column = firstColumn; column <= lastColumn; column++) {
@@ -174,7 +175,7 @@ export function cutInCircle(
       for (let slot = grid.cellStart[cell]!; slot < grid.cellStart[cell + 1]!; slot++) {
         const blade = grid.cellBlades[slot]!;
         if (field.cut[blade] === 1) continue;
-        if (minSizeByType[field.types[blade]!]! > bladeSize) continue;
+        if (cutSizeByType[field.types[blade]!]! > bladeSize) continue;
         const dx = field.positionsX[blade]! - centerX;
         const dz = field.positionsZ[blade]! - centerZ;
         if (dx * dx + dz * dz <= radiusSquared) {

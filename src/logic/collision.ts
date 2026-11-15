@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { grassCutSize } from './grass';
 import type { LevelDefinition } from './levels';
 import { canCutObstacle, obstacleCutSize, obstacleRadius, type ObstacleField } from './obstacles';
 
@@ -17,7 +18,7 @@ export interface ResolvedPosition {
 /** A cell with grass that `size` cannot cut yet. */
 export function isHardCell(level: LevelDefinition, cell: number, size: number): boolean {
   const type = level.cells[cell];
-  return type !== null && type !== undefined && config.grassTypes[type].minSize > size;
+  return type !== null && type !== undefined && grassCutSize(type) > size;
 }
 
 /**
@@ -59,7 +60,7 @@ export function sizeToPass(world: CollisionWorld, x: number, z: number, radius: 
       const cell = row * columns + column;
       if (!isHardCell(level, cell, size)) continue;
       const box = { left: column * cellSize, top: row * cellSize, right: (column + 1) * cellSize, bottom: (row + 1) * cellSize };
-      if (distanceToBox({ x, z, blocked: false }, box) < radius) need(config.grassTypes[level.cells[cell]!].minSize);
+      if (distanceToBox({ x, z, blocked: false }, box) < radius) need(grassCutSize(level.cells[cell]!));
     }
   }
   obstacles.obstacles.forEach(({ type, x: obstacleX, z: obstacleZ }, index) => {
