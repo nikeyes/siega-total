@@ -12,7 +12,7 @@ function progressedSave(): SaveData {
     boosters: { upgrade: 0, compass: 5, clock: 1 },
     settings: { sound: false, music: false, vibration: true, quality: 'low', soundVolume: 0.4, musicVolume: 0.7 },
     tutorialDone: true,
-    timed: false,
+    timed: true,
     winStreak: 3,
   };
 }
@@ -84,7 +84,7 @@ function versionOneSave(): string {
 }
 
 describe('default save', () => {
-  it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on with the effects a little down, the tutorial pending and the clock running', () => {
+  it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on with the effects a little down, the tutorial pending and free play, without the clock', () => {
     expect(defaultSave()).toEqual({
       version: 8,
       level: 1,
@@ -97,7 +97,7 @@ describe('default save', () => {
       },
       settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: 0.25, musicVolume: 1 },
       tutorialDone: false,
-      timed: true,
+      timed: false,
       winStreak: 0,
     });
   });
@@ -131,7 +131,7 @@ describe('loading a save', () => {
     expect(loadSave(versionOneSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
-      timed: true,
+      timed: false,
       winStreak: 0,
       settings: defaultSave().settings,
       tutorialDone: true,
@@ -142,7 +142,7 @@ describe('loading a save', () => {
     expect(loadSave(versionTwoSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
-      timed: true,
+      timed: false,
       winStreak: 0,
       settings: { ...progressedSave().settings, quality: 'auto', music: true, ...defaultVolumes() },
     });
@@ -152,7 +152,7 @@ describe('loading a save', () => {
     expect(loadSave(versionThreeSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
-      timed: true,
+      timed: false,
       winStreak: 0,
       settings: { ...progressedSave().settings, music: true, ...defaultVolumes() },
     });
@@ -162,14 +162,14 @@ describe('loading a save', () => {
     expect(loadSave(versionFourSave())).toEqual({
       ...progressedSave(),
       version: SAVE_VERSION,
-      timed: true,
+      timed: false,
       winStreak: 0,
       settings: { ...progressedSave().settings, ...defaultVolumes() },
     });
   });
 
-  it('brings a version 5 save up to the current version, with the clock running and the rest kept', () => {
-    expect(loadSave(versionFiveSave())).toEqual({ ...progressedSave(), version: SAVE_VERSION, timed: true, winStreak: 0 });
+  it('brings a version 5 save up to the current version, in free play and the rest kept', () => {
+    expect(loadSave(versionFiveSave())).toEqual({ ...progressedSave(), version: SAVE_VERSION, timed: false, winStreak: 0 });
   });
 
   it('brings a version 6 save up to the current version, with no win streak and the rest kept', () => {

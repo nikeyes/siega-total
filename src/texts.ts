@@ -34,9 +34,11 @@ export const texts = {
   home: {
     title: 'Siega Total',
     play: 'Jugar',
-    /** The mode switch under «Jugar», named for the mode the next level starts in. */
-    timed: '⏱ Con tiempo',
-    untimed: '∞ Sin tiempo',
+    /** The two halves of the mode picker under «Jugar»: free play, and against the clock. */
+    untimed: '∞ Libre',
+    timed: '⏱ Reloj',
+    /** Read out for the mode picker. */
+    mode: 'Modo de juego',
     shop: 'Tienda',
     settings: 'Ajustes',
   },

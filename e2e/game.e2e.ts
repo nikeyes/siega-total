@@ -37,6 +37,13 @@ async function startPlaying(page: Page): Promise<void> {
   await page.keyboard.up('ArrowUp');
 }
 
+/** Picks one half of the mode picker on the home screen and checks it shows as chosen. */
+async function chooseMode(page: Page, name: '∞ Libre' | '⏱ Reloj'): Promise<void> {
+  const mode = page.getByRole('group', { name: 'Modo de juego' }).getByRole('button', { name });
+  await mode.click();
+  await expect(mode).toHaveAttribute('aria-pressed', 'true');
+}
+
 /** The sounds the game sent out, in order. */
 function soundsPlayed(page: Page): Promise<string[]> {
   return page.evaluate(() => window.__siegaFeedback.filter((entry) => entry.kind === 'sound').map((entry) => entry.name));
@@ -50,8 +57,9 @@ test('the home screen loads and draws the island without errors', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('playing cuts grass and runs the clock down', async ({ page }) => {
+test('playing against the clock cuts grass and runs the clock down', async ({ page }) => {
   const errors = await openGame(page);
+  await chooseMode(page, '⏱ Reloj');
   await startPlaying(page);
   const timeAtStart = await page.evaluate(() => window.__siega.timeLeft);
   await page.keyboard.down('ArrowRight');
@@ -61,10 +69,11 @@ test('playing cuts grass and runs the clock down', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('playing without time keeps the clock still, shows ∞ and is remembered after a reload', async ({ page }) => {
+test('a new player plays free, with the clock still and ∞ shown, and a picked clock is remembered after a reload', async ({ page }) => {
   const errors = await openGame(page);
-  await page.getByRole('button', { name: 'Con tiempo' }).click();
-  await expect(page.getByRole('button', { name: 'Sin tiempo' })).toBeVisible();
+  const picker = page.getByRole('group', { name: 'Modo de juego' });
+  await expect(picker.getByRole('button', { name: '∞ Libre' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(picker.getByRole('button', { name: '⏱ Reloj' })).toHaveAttribute('aria-pressed', 'false');
   await startPlaying(page);
   await page.keyboard.down('ArrowRight');
   await expect.poll(() => page.evaluate(() => window.__siega.field.cutCount)).toBeGreaterThan(0);
@@ -73,12 +82,15 @@ test('playing without time keeps the clock still, shows ∞ and is remembered af
   await expect(page.locator('.hud-timer-text')).toHaveText('∞');
 
   await openGame(page);
-  await expect(page.getByRole('button', { name: 'Sin tiempo' })).toBeVisible();
+  await chooseMode(page, '⏱ Reloj');
+  await openGame(page);
+  await expect(picker.getByRole('button', { name: '⏱ Reloj' })).toHaveAttribute('aria-pressed', 'true');
   expect(errors).toEqual([]);
 });
 
 test('the clock turns amber and warns once below lowTimeSeconds', async ({ page }) => {
   const errors = await openGame(page);
+  await chooseMode(page, '⏱ Reloj');
   await startPlaying(page);
   await page.evaluate(() => (window.__siega.timeLeft = 10.3));
   await expect(page.locator('.hud-timer')).toHaveAttribute('data-low-time', 'true');
