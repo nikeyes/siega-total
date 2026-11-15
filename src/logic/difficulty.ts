@@ -55,8 +55,14 @@ export function difficultyFor(levelNumber: number): Difficulty {
     rockCount: countIfUnlocked('rock', generator.rockCount),
     fruitCount: countIfUnlocked('fruit', generator.fruitCount),
     cactusCount: countIfUnlocked('cactus', generator.cactusCount),
-    timeMargin: curveValue(generator.timeMargin, levelNumber),
+    timeMargin: curveValue(generator.timeMargin, levelNumber) * timeMarginCycleValue(levelNumber),
   };
+}
+
+/** Where `levelNumber` falls in the time margin cycle: below 1 a hard level, above 1 a breather. */
+function timeMarginCycleValue(levelNumber: number): number {
+  const cycle = config.generator.timeMarginCycle;
+  return cycle[(levelNumber - 1) % cycle.length] ?? 1;
 }
 
 /** A grass the blade cannot cut at its starting size. */

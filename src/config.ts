@@ -78,7 +78,8 @@ const baseConfig = {
   boosters: {
     upgrade: { price: 3000, startUses: 2, sizes: 1 },
     compass: { price: 2000, startUses: 2, seconds: 15, retargetSeconds: 0.2 },
-    clock: { price: 3000, startUses: 2, seconds: 30 },
+    /** freeContinuesPerAttempt: «+30 s» after a defeat this many times per attempt without spending a clock. */
+    clock: { price: 3000, startUses: 2, seconds: 30, freeContinuesPerAttempt: 0 },
   },
   blade: {
     startSize: 1,
@@ -121,6 +122,8 @@ const baseConfig = {
     fruitCount: { first: 4, last: 16 },
     cactusCount: { first: 1, last: 2 },
     timeMargin: { first: 2.0, last: 1.6 },
+    /** The time margin of each level is multiplied by the next value, round and round: below 1 a hard level, above 1 a breather. */
+    timeMarginCycle: [1] as number[],
     /** Seconds to walk to and cut each target piece, on top of the swept area. */
     secondsPerTargetPiece: 1.5,
     /** Free space kept between obstacles, so the blade can pass between them. */
@@ -159,6 +162,8 @@ const baseConfig = {
     zoomPerSize: 0.12,
     zoomTransitionSeconds: 0.5,
     edgeMarginMeters: 1.5,
+    /** Until the first move the camera shows the whole field, then comes down to the blade. */
+    overviewBeforeStart: false,
   },
   quality: {
     /** Played seconds skipped at the start of each attempt, while shaders compile and the camera settles. */
@@ -263,11 +268,13 @@ const nuevaChanges: Changes<typeof baseConfig> = {
   input: { analogJoystick: true },
   // Grass one size too tough is no longer a wall: it gives way, and holds the blade back while it cuts it.
   toughGrass: { sizesEarly: 1, speedWhenShort: [0.45] },
-  // A slower small blade takes longer between targets than the estimate, which travels at the final size's speed.
-  generator: { extraSeconds: 45 },
+  // Each attempt can go on once after a defeat for free, as watching an ad would in a game that sells them.
+  boosters: { clock: { freeContinuesPerAttempt: 1 } },
+  // A hard level now and then, always followed by breathers, instead of an ever steeper slope.
+  generator: { extraSeconds: 45, timeMarginCycle: [1, 1.2, 1, 0.8, 1.2, 1, 1.2, 1, 0.8, 1.2] },
   // A narrower lens, closer: the blade looks bigger without changing the levels, the field is flatter and easier to read,
   // and it shows as much width on a long phone as on a 9:16 one; it moves away faster as the blade grows, so the blade does not fill the screen.
-  camera: { fovDegrees: 28, tiltDegrees: 50, baseDistance: 9, zoomPerSize: 0.2, portraitReferenceAspect: 9 / 16 },
+  camera: { fovDegrees: 28, tiltDegrees: 50, baseDistance: 9, zoomPerSize: 0.2, portraitReferenceAspect: 9 / 16, overviewBeforeStart: true },
 };
 
 export const config = variant === 'nueva' ? withChanges(baseConfig, nuevaChanges) : baseConfig;

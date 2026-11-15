@@ -56,6 +56,8 @@ export interface Game {
   toughGrassHold: { speedFactor: number; secondsLeft: number };
   /** Coins cut in this attempt, the win wave's included; fractional, as each blade pays its weight. */
   levelCoins: number;
+  /** «+30 s» after a defeat this attempt can still take without spending a clock. */
+  freeContinuesLeft: number;
   /** Bonus for the time left, set when the win wave starts. */
   bonusCoins: number;
   /** Coins of this attempt already added to the balance. */
@@ -107,6 +109,7 @@ export function createGame(
     compassLeft: 0,
     rockBounce: null,
     toughGrassHold: { speedFactor: 1, secondsLeft: 0 },
+    freeContinuesLeft: config.boosters.clock.freeContinuesPerAttempt,
     levelCoins: 0,
     bonusCoins: 0,
     bankedCoins: 0,

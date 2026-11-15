@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../src/config';
-import { clampFocus, createCameraFocus, followBlade, targetDistance, verticalFovDegrees } from '../../src/logic/camera';
+import { cameraDistanceFor, clampFocus, createCameraFocus, followBlade, targetDistance, verticalFovDegrees } from '../../src/logic/camera';
 
 const { baseDistance, zoomPerSize, followLagSeconds, zoomTransitionSeconds, edgeMarginMeters } = config.camera;
 const { startSize } = config.blade;
@@ -26,7 +26,7 @@ describe('targetDistance', () => {
 describe('followBlade', () => {
   it('closes 1 - 1/e of the gap to the blade in one followLagSeconds step', () => {
     const focus = createCameraFocus(10, 10, startSize);
-    followBlade(focus, 20, 5, startSize, followLagSeconds);
+    followBlade(focus, 20, 5, targetDistance(startSize), followLagSeconds);
     const closedFraction = 1 - Math.exp(-1);
     expect(focus.x).toBeCloseTo(10 + 10 * closedFraction, 12);
     expect(focus.z).toBeCloseTo(10 - 5 * closedFraction, 12);
@@ -36,7 +36,7 @@ describe('followBlade', () => {
     const focus = createCameraFocus(10, 10, startSize);
     const bladeX = 13;
     const bladeZ = 14;
-    runFrames(1, () => followBlade(focus, bladeX, bladeZ, startSize, SIXTY_FPS_FRAME));
+    runFrames(1, () => followBlade(focus, bladeX, bladeZ, targetDistance(startSize), SIXTY_FPS_FRAME));
     expect(Math.hypot(focus.x - bladeX, focus.z - bladeZ)).toBeLessThan(0.01);
   });
 
@@ -44,15 +44,15 @@ describe('followBlade', () => {
     const focus = createCameraFocus(10, 10, startSize);
     const grownSize = startSize + 1;
     const zoomChange = targetDistance(grownSize) - targetDistance(startSize);
-    followBlade(focus, 10, 10, grownSize, zoomTransitionSeconds);
+    followBlade(focus, 10, 10, targetDistance(grownSize), zoomTransitionSeconds);
     expect(targetDistance(grownSize) - focus.distance).toBeCloseTo(zoomChange * Math.exp(-5), 12);
   });
 
   it('gives the same result for one step or many small steps of the same total time', () => {
     const single = createCameraFocus(10, 10, startSize);
     const many = createCameraFocus(10, 10, startSize);
-    followBlade(single, 20, 5, startSize + 1, 0.2);
-    for (let step = 0; step < 20; step++) followBlade(many, 20, 5, startSize + 1, 0.01);
+    followBlade(single, 20, 5, targetDistance(startSize + 1), 0.2);
+    for (let step = 0; step < 20; step++) followBlade(many, 20, 5, targetDistance(startSize + 1), 0.01);
     expect(many.x).toBeCloseTo(single.x, 9);
     expect(many.z).toBeCloseTo(single.z, 9);
     expect(many.distance).toBeCloseTo(single.distance, 9);
@@ -60,13 +60,13 @@ describe('followBlade', () => {
 
   it('does not move the focus when dt is 0', () => {
     const focus = createCameraFocus(10, 10, startSize);
-    followBlade(focus, 20, 5, startSize + 3, 0);
+    followBlade(focus, 20, 5, targetDistance(startSize + 3), 0);
     expect(focus).toEqual(createCameraFocus(10, 10, startSize));
   });
 
   it('lands exactly on the blade and target distance with a huge dt', () => {
     const focus = createCameraFocus(10, 10, startSize);
-    followBlade(focus, 20, 5, startSize + 3, 1e6);
+    followBlade(focus, 20, 5, targetDistance(startSize + 3), 1e6);
     expect(focus).toEqual(createCameraFocus(20, 5, startSize + 3));
   });
 });
@@ -130,5 +130,13 @@ describe('verticalFovDegrees', () => {
   it('is the configured field of view on any screen while no portrait reference is set', () => {
     expect(config.camera.portraitReferenceAspect).toBeNull();
     for (const aspect of [0.4, 0.5625, 1, 2]) expect(verticalFovDegrees(aspect)).toBe(config.camera.fovDegrees);
+  });
+});
+
+describe('cameraDistanceFor', () => {
+  it('follows the blade from the start while the overview before playing is off', () => {
+    expect(config.camera.overviewBeforeStart).toBe(false);
+    expect(cameraDistanceFor('ready', startSize, width, depth, 0.5)).toBe(targetDistance(startSize));
+    expect(cameraDistanceFor('playing', startSize + 2, width, depth, 0.5)).toBe(targetDistance(startSize + 2));
   });
 });
