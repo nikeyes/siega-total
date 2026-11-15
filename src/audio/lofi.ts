@@ -1,8 +1,8 @@
 import { config } from '../config';
 
 export interface LofiNote {
-  instrument: 'chord' | 'melody' | 'bass' | 'kick' | 'brush';
-  /** MIDI note; none for the kick and the brush. */
+  instrument: 'chord' | 'melody' | 'bass' | 'kick';
+  /** MIDI note; none for the kick. */
   midi?: number;
   /** After the start of the eighth: the swing, and the strum of a chord. */
   delaySeconds: number;
@@ -40,7 +40,7 @@ const CHORD_ECHO_EIGHTH = 3;
 const KICK_EIGHTHS = [0, 4];
 /** The notes of a chord come this far apart, like fingers on a keyboard. */
 const STRUM_SECONDS = 0.012;
-const RING_SECONDS = { melody: 1.2, bass: 1.4, kick: 0.3, brush: 0.06 };
+const RING_SECONDS = { melody: 1.2, bass: 1.4, kick: 0.3 };
 /** Scale steps the melody can take from one note to the next, the small ones more often. */
 const MELODY_STEPS = [-2, -1, -1, 0, 1, 1, 2];
 
@@ -53,7 +53,7 @@ export interface LofiComposer {
   eighth(step: number): LofiNote[];
 }
 
-/** Slow lo-fi in `style`: an electric piano on four chords, soft bass, kick and brushes, and a melody that wanders the scale. */
+/** Slow lo-fi in `style`: an electric piano on four chords, soft bass and kick, and a melody that wanders the scale. */
 export function createLofiComposer(style: MusicStyle, random: () => number = Math.random): LofiComposer {
   const chords = LOFI_PROGRESSIONS[style];
   let melodyIndex = Math.floor(LOFI_SCALE.length / 2);
@@ -73,8 +73,6 @@ export function createLofiComposer(style: MusicStyle, random: () => number = Mat
     }
     if (inBar === CHORD_ECHO_EIGHTH) strum(ringSeconds.chordEcho, levels.chordEcho);
     if (levels.kick > 0 && KICK_EIGHTHS.includes(inBar)) notes.push({ instrument: 'kick', delaySeconds: delay, seconds: RING_SECONDS.kick, level: levels.kick });
-    const brushLevel = inBar % 2 === 0 ? levels.brushOnBeat : levels.brushOffBeat;
-    notes.push({ instrument: 'brush', delaySeconds: delay, seconds: RING_SECONDS.brush, level: brushLevel });
     if (random() < melodyChance) {
       const move = MELODY_STEPS[Math.floor(random() * MELODY_STEPS.length)]!;
       melodyIndex = Math.max(0, Math.min(LOFI_SCALE.length - 1, melodyIndex + move));

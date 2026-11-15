@@ -5,7 +5,7 @@ import { defaultSave, loadSave, SAVE_VERSION, serializeSave, type SaveData } fro
 /** A save far from the defaults in every field. */
 function progressedSave(): SaveData {
   return {
-    version: 7,
+    version: 8,
     level: 12,
     coins: 34_500,
     upgrades: { startSize: 2, speed: 3, extraTime: 1, growth: 4 },
@@ -32,6 +32,12 @@ function versionSixSave(): string {
 /** `progressedSave()` as version 5 stored it, without the play mode. */
 function versionFiveSave(): string {
   return JSON.stringify({ ...withoutPlayMode(), version: 5 });
+}
+
+/** `progressedSave()` as version 7 stored it, with the effects at `soundVolume`. */
+function versionSevenSave(soundVolume: number): string {
+  const save = progressedSave();
+  return JSON.stringify({ ...save, version: 7, settings: { ...save.settings, soundVolume } });
 }
 
 /** The volumes a save starts with. */
@@ -80,7 +86,7 @@ function versionOneSave(): string {
 describe('default save', () => {
   it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on with the effects a little down, the tutorial pending and the clock running', () => {
     expect(defaultSave()).toEqual({
-      version: 7,
+      version: 8,
       level: 1,
       coins: 0,
       upgrades: { startSize: 0, speed: 0, extraTime: 0, growth: 0 },
@@ -89,7 +95,7 @@ describe('default save', () => {
         compass: config.boosters.compass.startUses,
         clock: config.boosters.clock.startUses,
       },
-      settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: 0.65, musicVolume: 1 },
+      settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: 0.25, musicVolume: 1 },
       tutorialDone: false,
       timed: true,
       winStreak: 0,
@@ -168,6 +174,17 @@ describe('loading a save', () => {
 
   it('brings a version 6 save up to the current version, with no win streak and the rest kept', () => {
     expect(loadSave(versionSixSave())).toEqual({ ...progressedSave(), version: SAVE_VERSION, winStreak: 0 });
+  });
+
+  it('brings a version 7 save with the effects left at the old default of 0.65 down to the new default', () => {
+    expect(loadSave(versionSevenSave(0.65))).toEqual({
+      ...progressedSave(),
+      settings: { ...progressedSave().settings, soundVolume: defaultSave().settings.soundVolume },
+    });
+  });
+
+  it('keeps the effects volume of a version 7 save that was moved from the old default', () => {
+    expect(loadSave(versionSevenSave(0.4))).toEqual(progressedSave());
   });
 
   it('keeps a migrated version 1 save the same when it is saved and loaded again', () => {
