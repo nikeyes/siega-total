@@ -5,7 +5,7 @@ import { defaultSave, loadSave, SAVE_VERSION, serializeSave, type SaveData } fro
 /** A save far from the defaults in every field. */
 function progressedSave(): SaveData {
   return {
-    version: 6,
+    version: 7,
     level: 12,
     coins: 34_500,
     upgrades: { startSize: 2, speed: 3, extraTime: 1, growth: 4 },
@@ -13,13 +13,20 @@ function progressedSave(): SaveData {
     settings: { sound: false, music: false, vibration: true, quality: 'low', soundVolume: 0.4, musicVolume: 0.7 },
     tutorialDone: true,
     timed: false,
+    winStreak: 3,
   };
 }
 
-/** `progressedSave()` without the play mode, which saves before version 6 did not have. */
-function withoutPlayMode(): Omit<SaveData, 'timed'> {
-  const { timed, ...rest } = progressedSave();
+/** `progressedSave()` without the play mode and the win streak, which saves before version 6 did not have. */
+function withoutPlayMode(): Omit<SaveData, 'timed' | 'winStreak'> {
+  const { timed, winStreak, ...rest } = progressedSave();
   return rest;
+}
+
+/** `progressedSave()` as version 6 stored it, without the win streak. */
+function versionSixSave(): string {
+  const { winStreak, ...rest } = progressedSave();
+  return JSON.stringify({ ...rest, version: 6 });
 }
 
 /** `progressedSave()` as version 5 stored it, without the play mode. */
@@ -73,7 +80,7 @@ function versionOneSave(): string {
 describe('default save', () => {
   it('starts at level 1 with no coins, no upgrades, the starting uses of each booster, everything on with the effects a little down, the tutorial pending and the clock running', () => {
     expect(defaultSave()).toEqual({
-      version: 6,
+      version: 7,
       level: 1,
       coins: 0,
       upgrades: { startSize: 0, speed: 0, extraTime: 0, growth: 0 },
@@ -85,6 +92,7 @@ describe('default save', () => {
       settings: { sound: true, music: true, vibration: true, quality: 'auto', soundVolume: 0.65, musicVolume: 1 },
       tutorialDone: false,
       timed: true,
+      winStreak: 0,
     });
   });
 
@@ -118,6 +126,7 @@ describe('loading a save', () => {
       ...progressedSave(),
       version: SAVE_VERSION,
       timed: true,
+      winStreak: 0,
       settings: defaultSave().settings,
       tutorialDone: true,
     });
@@ -128,6 +137,7 @@ describe('loading a save', () => {
       ...progressedSave(),
       version: SAVE_VERSION,
       timed: true,
+      winStreak: 0,
       settings: { ...progressedSave().settings, quality: 'auto', music: true, ...defaultVolumes() },
     });
   });
@@ -137,6 +147,7 @@ describe('loading a save', () => {
       ...progressedSave(),
       version: SAVE_VERSION,
       timed: true,
+      winStreak: 0,
       settings: { ...progressedSave().settings, music: true, ...defaultVolumes() },
     });
   });
@@ -146,12 +157,17 @@ describe('loading a save', () => {
       ...progressedSave(),
       version: SAVE_VERSION,
       timed: true,
+      winStreak: 0,
       settings: { ...progressedSave().settings, ...defaultVolumes() },
     });
   });
 
   it('brings a version 5 save up to the current version, with the clock running and the rest kept', () => {
-    expect(loadSave(versionFiveSave())).toEqual({ ...progressedSave(), version: SAVE_VERSION, timed: true });
+    expect(loadSave(versionFiveSave())).toEqual({ ...progressedSave(), version: SAVE_VERSION, timed: true, winStreak: 0 });
+  });
+
+  it('brings a version 6 save up to the current version, with no win streak and the rest kept', () => {
+    expect(loadSave(versionSixSave())).toEqual({ ...progressedSave(), version: SAVE_VERSION, winStreak: 0 });
   });
 
   it('keeps a migrated version 1 save the same when it is saved and loaded again', () => {
@@ -208,6 +224,10 @@ describe('sanitizing a loaded save', () => {
   it.each(['ultra', 3, undefined])('puts a quality setting of %s back on auto and keeps the rest', (quality) => {
     const settings = { ...progressedSave().settings, quality };
     expect(loadWith({ settings })).toEqual({ ...progressedSave(), settings: { ...settings, quality: defaultSave().settings.quality } });
+  });
+
+  it.each([-1, 'tres', null])('starts the win streak over from a damaged one (%s)', (winStreak) => {
+    expect(loadWith({ winStreak }).winStreak).toBe(0);
   });
 
   it('drops unknown settings', () => {

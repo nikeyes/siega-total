@@ -16,6 +16,7 @@ const STATE: HudState = {
   coins: 345,
   floatCoins: null,
   sizeUp: null,
+  turbo: false,
   boosters: {
     upgrade: { uses: 2, usable: true },
     compass: { uses: 0, usable: true },
@@ -24,6 +25,11 @@ const STATE: HudState = {
 };
 
 describe('hudDisplay', () => {
+  it('marks the size pill while the turbo is on, and only then', () => {
+    expect(hudDisplay(STATE).sizeLabel).toBe(`${texts.hud.size} 3`);
+    expect(hudDisplay({ ...STATE, turbo: true }).sizeLabel).toBe(`${texts.hud.size} 3 ${texts.hud.turbo}`);
+  });
+
   it('shows the coins with Spanish thousands', () => {
     expect(hudDisplay({ ...STATE, coins: 12840 }).coinsLabel).toBe('12.840');
   });

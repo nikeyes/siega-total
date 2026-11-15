@@ -38,6 +38,11 @@ const baseConfig = {
     /** The glow under the blade spans scale times its radius. */
     glow: { scale: 1.5, opacity: 0.55 },
   },
+  /** After afterWins levels won in a row the blade goes speedMultiplier times faster, until a defeat; null: no turbo. */
+  turbo: {
+    afterWins: null as number | null,
+    speedMultiplier: 1.15,
+  },
   /** Grass a blade is short of cutting: a wall, unless it is at most sizesEarly sizes short, then it is cut slowly. */
   toughGrass: {
     sizesEarly: 0,
@@ -94,6 +99,9 @@ const baseConfig = {
     /** From fullSpeedSize up; a smaller blade turns more gently, down to smallBladeTurnSmoothingSeconds at size 1. */
     turnSmoothingSeconds: 0.1,
     smallBladeTurnSmoothingSeconds: 0.2,
+    /** How fast the blade spins on screen at size 1; each size up keeps spinKeptPerSize of the spin of the size before. */
+    spinRadiansPerSecond: 14,
+    spinKeptPerSize: 1,
     brakeSeconds: 0.15,
   },
   level: {
@@ -246,6 +254,10 @@ const baseConfig = {
   },
   vibration: {
     milliseconds: 10,
+    /** While the blade keeps cutting, a buzz every everySeconds from afterSeconds of cutting on; empty: cutting does not buzz. */
+    cutRhythm: [] as { afterSeconds: number; everySeconds: number }[],
+    /** A pause this long in the cutting starts the rhythm over. */
+    cutRhythmPauseSeconds: 0.3,
   },
   effects: {
     clippingSeconds: 0.7,
@@ -263,8 +275,18 @@ const baseConfig = {
 
 /** What the «nueva» variant changes on top of the game everyone plays. */
 const nuevaChanges: Changes<typeof baseConfig> = {
-  // Starts slower and speeds up as it grows, crossing the screen equally fast at every size.
-  blade: { maxSpeed: 1.9, fullSpeedSize: 1, speedFollowsCameraWhenBigger: true },
+  // Starts slower and speeds up as it grows, crossing the screen equally fast at every size; a bigger blade spins slower, about half as fast by size 10.
+  blade: { maxSpeed: 1.9, fullSpeedSize: 1, speedFollowsCameraWhenBigger: true, spinKeptPerSize: 0.93 },
+  // Cutting buzzes, less often the longer it goes on, so it never wears on the hand.
+  vibration: {
+    cutRhythm: [
+      { afterSeconds: 0, everySeconds: 0.175 },
+      { afterSeconds: 5, everySeconds: 0.35 },
+      { afterSeconds: 20, everySeconds: 0.7 },
+    ],
+  },
+  // Three wins in a row make the blade faster until the next defeat.
+  turbo: { afterWins: 3 },
   input: { analogJoystick: true },
   // Grass one size too tough is no longer a wall: it gives way, and holds the blade back while it cuts it.
   toughGrass: { sizesEarly: 1, speedWhenShort: [0.45] },

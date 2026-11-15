@@ -10,6 +10,7 @@ import {
   growthFraction,
   maxSpeedAt,
   moveBlade,
+  spinRadiansPerSecond,
   turnSmoothingSecondsAt,
   type Blade,
   type Direction,
@@ -420,5 +421,12 @@ describe('moveBlade: island edges, shoreMeters past the field', () => {
       }
     }
     expect(firstPositionOutside).toBeUndefined();
+  });
+});
+
+describe('spinRadiansPerSecond', () => {
+  it('spins as fast at every size while it keeps all its spin per size', () => {
+    expect(config.blade.spinKeptPerSize).toBe(1);
+    for (let size = 1; size <= 10; size++) expect(spinRadiansPerSecond(size)).toBe(config.blade.spinRadiansPerSecond);
   });
 });

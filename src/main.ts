@@ -1,5 +1,6 @@
 import { createBreezeSound } from './audio/breeze';
 import { createCutBreeze } from './audio/cutBreeze';
+import { createCutBuzz } from './audio/cutBuzz';
 import { createMusicPlayer } from './audio/music';
 import { musicStyleFor, type Screen } from './audio/musicStyle';
 import { createSoundPlayer, type SoundName } from './audio/sounds';
@@ -26,6 +27,7 @@ import {
 import type { LevelDefinition } from './logic/levels';
 import { levelFor } from './logic/progression';
 import { defaultSave, type BoosterKind } from './logic/save';
+import { nextWinStreak } from './logic/turbo';
 import { bonusesFor, buyUpgrade } from './logic/upgrades';
 import { createQualityMonitor, nextQualitySetting, qualityForAttempt, type QualityLevel } from './logic/quality';
 import { createBurstView, type BurstView } from './render/burst';
@@ -97,6 +99,7 @@ const soundPlayer = createSoundPlayer(import.meta.env.BASE_URL + 'sounds/', debu
 const vibration = createVibration(debugging ? logVibration : undefined);
 const breezeSound = createBreezeSound(soundPlayer.context);
 const cutBreeze = createCutBreeze();
+const cutBuzz = createCutBuzz();
 const musicPlayer = createMusicPlayer(soundPlayer.context);
 const feedback = createFeedbackTracker();
 // One listener for every button on every screen, so none of them needs its own.
@@ -344,7 +347,7 @@ function playLevel(level: LevelDefinition): void {
   grass?.dispose();
   obstacleView?.dispose();
   applyQuality(qualityForAttempt(save.settings.quality, qualityMonitor));
-  game = createGame(level, bonusesFor(save.upgrades), config.quality.levels[quality!].bladeCount, save.timed);
+  game = createGame(level, bonusesFor(save.upgrades, save.winStreak), config.quality.levels[quality!].bladeCount, save.timed);
   sizeUpAge = Infinity;
   // Tracked before its first step, so a key held through «Siguiente» or «Reintentar» still gives started.
   feedback.track(game);
@@ -374,6 +377,7 @@ function restart(): void {
 function saveLevelEnd(): void {
   save.coins += bankCoins(game);
   if (game.status === 'won' && game.level.number >= 1) save.level = game.level.number + 1;
+  if (game.status === 'won' || game.status === 'lost') save.winStreak = nextWinStreak(save.winStreak, game.status);
   writeSave(save);
 }
 
@@ -552,7 +556,9 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
   const result = stepGame(game, direction, stepping ? dt : 0);
   // Every frame, stepping or not, so the tracker never misses a change between frames.
   const events = feedback.step(game, result);
-  breezeSound.setBlowing(cutBreeze.step(events.some((event) => event.kind === 'cut'), dt) && !document.hidden);
+  const cutThisStep = events.some((event) => event.kind === 'cut');
+  breezeSound.setBlowing(cutBreeze.step(cutThisStep, dt) && !document.hidden);
+  if (cutBuzz.step(cutThisStep, dt)) vibration.pulse();
   for (const event of events) playFeedback(event);
   const sizeUpEvent = events.find((event) => event.kind === 'sizeUp');
   const showBlocked = blockedNotice.step(result.blocked, dt);
@@ -624,6 +630,7 @@ gameScene.renderer.setAnimationLoop((timestamp: number) => {
     coins: save.coins + unbankedCoins(game),
     floatCoins: coinFloats.step(result.coins, dt),
     sizeUp: sizeUpEvent?.size ?? null,
+    turbo: game.bonuses.turbo,
     boosters: {
       upgrade: boosterState('upgrade'),
       compass: boosterState('compass'),

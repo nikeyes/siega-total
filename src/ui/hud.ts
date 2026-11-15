@@ -43,6 +43,8 @@ export interface HudState {
   floatCoins: number | null;
   /** The new size in the frame the blade grows, null in the others. */
   sizeUp: number | null;
+  /** The blade goes faster after a streak of wins. */
+  turbo: boolean;
   /** Uses left of each booster, and whether the game lets it be used now. */
   boosters: Record<BoosterKind, { uses: number; usable: boolean }>;
 }
@@ -72,7 +74,7 @@ export function hudDisplay(state: HudState): HudDisplay {
     timePercent: state.timed ? toPercent(state.timeLeft / state.timeTotal) : 100,
     lowTime: state.timed && state.playing && state.timeLeft <= config.level.lowTimeSeconds,
     targetCounts: state.remainingByTarget.map(formatCount),
-    sizeLabel: `${texts.hud.size} ${state.size}`,
+    sizeLabel: state.turbo ? `${texts.hud.size} ${state.size} ${texts.hud.turbo}` : `${texts.hud.size} ${state.size}`,
     growthPercent: toPercent(state.growthFraction),
     sizeLabelX: Math.round(state.sizeLabelX),
     sizeLabelY: Math.round(state.sizeLabelY),
