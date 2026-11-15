@@ -38,17 +38,19 @@ describe('lo-fi composer, game style', () => {
     expect(new Set(kicked)).toEqual(new Set([0, 4]));
   });
 
-  it('brushes every eighth, softer off the beat', () => {
-    const notes = compose(EIGHTHS_PER_BAR);
-    notes.forEach((eighth) => expect(of(eighth, 'brush')).toHaveLength(1));
-    expect(of(notes[1]!, 'brush')[0]!.level).toBeLessThan(of(notes[0]!, 'brush')[0]!.level);
+  it.each(['game', 'menu'] as const)('has no steady ticking under it: some eighths of each bar are silent (%s)', (style) => {
+    const bars = compose(EIGHTHS_PER_BAR * 8, 7, style);
+    for (let bar = 0; bar < 8; bar++) {
+      const eighths = bars.slice(bar * EIGHTHS_PER_BAR, (bar + 1) * EIGHTHS_PER_BAR);
+      expect(eighths.some((notes) => notes.length === 0)).toBe(true);
+    }
   });
 
-  it('swings: everything off the beat comes swing eighths late, everything on the beat on time', () => {
+  it('swings: the chord echo, off the beat, comes swing eighths late, the chord on the beat on time', () => {
     const notes = compose(EIGHTHS_PER_BAR);
     const late = config.audio.music.styles.game.swing * eighthSeconds('game');
-    expect(of(notes[0]!, 'brush')[0]!.delaySeconds).toBe(0);
-    expect(of(notes[1]!, 'brush')[0]!.delaySeconds).toBeCloseTo(late);
+    expect(of(notes[0]!, 'chord')[0]!.delaySeconds).toBe(0);
+    expect(of(notes[3]!, 'chord')[0]!.delaySeconds).toBeCloseTo(late);
   });
 
   it('keeps the melody in the scale, moving at most two scale steps at a time', () => {
@@ -79,11 +81,6 @@ describe('lo-fi composer, menu style', () => {
 
   it('has no kick', () => {
     expect(compose(EIGHTHS_PER_BAR * 8, 7, 'menu').flatMap((notes) => of(notes, 'kick'))).toEqual([]);
-  });
-
-  it('brushes more softly than in play', () => {
-    const brushLevels = (style: MusicStyle) => compose(2, 7, style).map((notes) => of(notes, 'brush')[0]!.level);
-    brushLevels('menu').forEach((level, eighth) => expect(level).toBeLessThan(brushLevels('game')[eighth]!));
   });
 
   it('follows its own progression, one chord per bar', () => {

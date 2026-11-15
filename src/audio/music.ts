@@ -80,8 +80,7 @@ export function createMusicPlayer(context: AudioContext | null): MusicPlayer {
   function play(bus: StyleBus, note: LofiNote, time: number): void {
     if (note.instrument === 'chord' || note.instrument === 'melody') electricPiano(ctx, [bus.dry, bus.reverbSend], note, time);
     else if (note.instrument === 'bass') sine(ctx, bus.dry, frequencyOf(note.midi!), note, time);
-    else if (note.instrument === 'kick') kick(ctx, bus.dry, note, time);
-    else brush(ctx, bus.dry, note, time);
+    else kick(ctx, bus.dry, note, time);
   }
 
   function setStyle(next: MusicStyle): void {
@@ -177,32 +176,6 @@ function kick(ctx: AudioContext, output: AudioNode, { level, seconds }: LofiNote
   oscillator.connect(envelope).connect(output);
   oscillator.start(time);
   oscillator.stop(time + seconds + 0.05);
-}
-
-/** A brush on a snare: a short puff of high noise. */
-function brush(ctx: AudioContext, output: AudioNode, { level, seconds }: LofiNote, time: number): void {
-  const source = ctx.createBufferSource();
-  source.buffer = noise(ctx, seconds);
-  const highpass = ctx.createBiquadFilter();
-  highpass.type = 'highpass';
-  highpass.frequency.value = 5000;
-  const envelope = ctx.createGain();
-  envelope.gain.setValueAtTime(level, time);
-  envelope.gain.exponentialRampToValueAtTime(0.0001, time + seconds);
-  source.connect(highpass).connect(envelope).connect(output);
-  source.start(time);
-}
-
-const noiseBuffers = new Map<number, AudioBuffer>();
-function noise(ctx: AudioContext, seconds: number): AudioBuffer {
-  let buffer = noiseBuffers.get(seconds);
-  if (!buffer) {
-    buffer = ctx.createBuffer(1, Math.ceil(seconds * ctx.sampleRate), ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    noiseBuffers.set(seconds, buffer);
-  }
-  return buffer;
 }
 
 /** A room made of noise that dies away, for a soft reverb. */

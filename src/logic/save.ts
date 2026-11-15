@@ -18,7 +18,7 @@ export interface Settings {
 }
 
 export interface SaveData {
-  version: 7;
+  version: 8;
   /** Next level to play, ≥ 1. */
   level: number;
   coins: number;
@@ -35,9 +35,11 @@ export interface SaveData {
   winStreak: number;
 }
 
-export const SAVE_VERSION = 7;
-/** The effects start a little down, so they sit well with the music at full. */
-const DEFAULT_SOUND_VOLUME = 0.65;
+export const SAVE_VERSION = 8;
+/** The effects start well down, so they sit under the music at full. */
+const DEFAULT_SOUND_VOLUME = 0.25;
+/** The effects' default before version 8, when it was too loud. */
+const OLD_DEFAULT_SOUND_VOLUME = 0.65;
 
 export function defaultSave(): SaveData {
   return {
@@ -78,7 +80,15 @@ function migrate(data: { version: number } & Record<string, unknown>): unknown {
   if (data.version === 5) data = { ...data, version: 6 };
   // Version 6 had no win streak; sanitize starts it at 0.
   if (data.version === 6) data = { ...data, version: 7 };
+  // Version 7 started the effects too loud; a volume still at that default comes down to the new one.
+  if (data.version === 7) data = { ...data, version: 8, settings: withQuieterDefaultEffects(data.settings) };
   return data;
+}
+
+function withQuieterDefaultEffects(settings: unknown): unknown {
+  if (typeof settings !== 'object' || settings === null) return settings;
+  const { soundVolume } = settings as { soundVolume?: unknown };
+  return soundVolume === OLD_DEFAULT_SOUND_VOLUME ? { ...settings, soundVolume: DEFAULT_SOUND_VOLUME } : settings;
 }
 
 function parseOrNull(raw: string | null): unknown {
