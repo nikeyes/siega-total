@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { targetDistance } from './camera';
 
 /** Unit vector on the field plane. */
 export interface Direction {
@@ -49,6 +50,21 @@ export function addCuts(blade: Blade, count: number): number {
   return sizesGained;
 }
 
+/** The camera comes closer to a smaller blade, so it goes slower to cross the screen as fast as one of fullSpeedSize. */
+export function maxSpeedAt(size: number): number {
+  const { maxSpeed, fullSpeedSize } = config.blade;
+  if (size >= fullSpeedSize) return maxSpeed;
+  return (maxSpeed * targetDistance(size)) / targetDistance(fullSpeedSize);
+}
+
+/** A smaller blade turns more gently, so a small move of the finger does not swing it around. */
+export function turnSmoothingSecondsAt(size: number): number {
+  const { turnSmoothingSeconds, smallBladeTurnSmoothingSeconds, fullSpeedSize } = config.blade;
+  if (size >= fullSpeedSize) return turnSmoothingSeconds;
+  const towardFullSpeedSize = (size - 1) / (fullSpeedSize - 1);
+  return smallBladeTurnSmoothingSeconds + (turnSmoothingSeconds - smallBladeTurnSmoothingSeconds) * towardFullSpeedSize;
+}
+
 /** Braking always takes `brakeSeconds`, so a faster blade brakes harder. */
 export function moveBlade(
   blade: Blade,
@@ -56,11 +72,11 @@ export function moveBlade(
   dt: number,
   width: number,
   depth: number,
-  maxSpeed = config.blade.maxSpeed,
+  maxSpeed = maxSpeedAt(blade.size),
 ): void {
   if (direction) {
     const targetHeading = Math.atan2(direction.z, direction.x);
-    blade.heading = blade.speed === 0 ? targetHeading : turnToward(blade.heading, targetHeading, dt);
+    blade.heading = blade.speed === 0 ? targetHeading : turnToward(blade.heading, targetHeading, dt, turnSmoothingSecondsAt(blade.size));
     blade.speed = maxSpeed;
   } else {
     const deceleration = maxSpeed / config.blade.brakeSeconds;
@@ -78,8 +94,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /** Exponential smoothing along the shortest arc, independent of the frame rate. */
-function turnToward(heading: number, targetHeading: number, dt: number): number {
-  const factor = 1 - Math.exp(-dt / config.blade.turnSmoothingSeconds);
+function turnToward(heading: number, targetHeading: number, dt: number, smoothingSeconds: number): number {
+  const factor = 1 - Math.exp(-dt / smoothingSeconds);
   return heading + shortestAngle(heading, targetHeading) * factor;
 }
 
