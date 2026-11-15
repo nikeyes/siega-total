@@ -15,21 +15,19 @@ function switchRows(save: SaveData, vibrationSupported: boolean) {
 
 describe('settingRows', () => {
   describe('which switches are offered', () => {
-    it('offers sound, music, vibration where the browser can vibrate, and the grass to try', () => {
+    it('offers sound, music and vibration where the browser can vibrate', () => {
       expect(switchRows(defaultSave(), true).map((row) => row.label)).toEqual([
         texts.settings.sound,
         texts.settings.music,
         texts.settings.vibration,
-        texts.settings.paintedGrass,
       ]);
     });
 
     it('offers sound and music, unchanged, where the browser cannot vibrate', () => {
-      const save = saveWith({ sound: false, music: true, vibration: true, quality: 'auto', paintedGrass: false });
+      const save = saveWith({ sound: false, music: true, vibration: true, quality: 'auto' });
       expect(switchRows(save, false)).toEqual([
         { key: 'sound', label: texts.settings.sound, valueLabel: texts.settings.off, pressed: false },
         { key: 'music', label: texts.settings.music, valueLabel: texts.settings.on, pressed: true },
-        { key: 'paintedGrass', label: texts.settings.paintedGrass, valueLabel: texts.settings.off, pressed: false },
       ]);
     });
   });
@@ -38,25 +36,22 @@ describe('settingRows', () => {
     const { on, off } = texts.settings;
     it.each([
       {
-        settings: { sound: false, music: true, vibration: true, quality: 'auto' as const, paintedGrass: true },
+        settings: { sound: false, music: true, vibration: true, quality: 'auto' as const },
         sound: { valueLabel: off, pressed: false },
         music: { valueLabel: on, pressed: true },
         vibration: { valueLabel: on, pressed: true },
-        paintedGrass: { valueLabel: on, pressed: true },
       },
       {
-        settings: { sound: true, music: false, vibration: false, quality: 'auto' as const, paintedGrass: false },
+        settings: { sound: true, music: false, vibration: false, quality: 'auto' as const },
         sound: { valueLabel: on, pressed: true },
         music: { valueLabel: off, pressed: false },
         vibration: { valueLabel: off, pressed: false },
-        paintedGrass: { valueLabel: off, pressed: false },
       },
-    ])('shows each switch as the save has it: $settings', ({ settings, sound, music, vibration, paintedGrass }) => {
+    ])('shows each switch as the save has it: $settings', ({ settings, sound, music, vibration }) => {
       expect(switchRows(saveWith(settings), true)).toEqual([
         { key: 'sound', label: texts.settings.sound, ...sound },
         { key: 'music', label: texts.settings.music, ...music },
         { key: 'vibration', label: texts.settings.vibration, ...vibration },
-        { key: 'paintedGrass', label: texts.settings.paintedGrass, ...paintedGrass },
       ]);
     });
   });
@@ -67,8 +62,8 @@ describe('settingRows', () => {
       settingRows(saveWith({ sound: true, music: true, vibration: true, quality }), true, active).find((row) => row.key === 'quality')!;
 
     it('comes last, after the switches, whether or not the browser can vibrate', () => {
-      expect(settingRows(defaultSave(), true, 'medium').map((row) => row.key)).toEqual(['sound', 'music', 'vibration', 'paintedGrass', 'quality']);
-      expect(settingRows(defaultSave(), false, 'medium').map((row) => row.key)).toEqual(['sound', 'music', 'paintedGrass', 'quality']);
+      expect(settingRows(defaultSave(), true, 'medium').map((row) => row.key)).toEqual(['sound', 'music', 'vibration', 'quality']);
+      expect(settingRows(defaultSave(), false, 'medium').map((row) => row.key)).toEqual(['sound', 'music', 'quality']);
     });
 
     it.each([true, false])('keeps the same rows in the same order whatever the save says (vibration %s)', (vibrationSupported) => {

@@ -54,7 +54,7 @@ const HIGHLIGHT_HEIGHT_SCALE = 1.3;
 const HIGHLIGHT_PULSE_SPEED = 6;
 /** How far the highlight pulse brightens the color toward white at its peak. */
 const HIGHLIGHT_BRIGHTENING = 0.5;
-/** The painted grass darkens the ground where it was mown by this much, so the swept path shows. */
+/** The ground darkens where it was mown by this much, so the swept path shows. */
 const MOWN_GROUND_DARKENING = 0.16;
 /** Just above the ground, under the clippings lying on it. */
 const MOWN_GROUND_HEIGHT = 0.004;
@@ -66,7 +66,6 @@ const vertexShader = /* glsl */ `
   attribute float instanceShade;
   uniform float time;
   uniform float highlight;
-  uniform float painted;
   uniform sampler2D cutMask;
   uniform vec2 fieldSize;
   uniform float cutSize;
@@ -96,9 +95,9 @@ const vertexShader = /* glsl */ `
     local.xz *= spreadScale;
     vec4 world = modelMatrix * instanceMatrix * vec4(local, 1.0);
     vec2 root = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
-    // The painted grass: each standing spike is trimmed where a blade that cuts it swept,
+    // Each standing spike is trimmed where a blade that cuts it swept,
     // except the highlighted last targets, which stay in sight until the blade cuts them.
-    if (painted > 0.5 && instanceCutTime < 0.0) {
+    if (instanceCutTime < 0.0) {
       if (vHighlight < 0.5) {
         vec2 swept = texture2D(cutMask, world.xz / fieldSize).rg;
         float trimmed = swept.g * step(cutSize - 0.5, swept.r * 255.0);
@@ -144,12 +143,10 @@ export interface GrassView {
   markCut(indices: number[], time: number): void;
   /** Makes the standing blades of `types` (indices into GRASS_TYPE_ORDER) glow; empty turns it off. */
   setHighlight(types: readonly number[]): void;
-  /** Records that a blade of `size` swept the circle (x, z, radius), for the painted grass to trim it. */
+  /** Records that a blade of `size` swept the circle (x, z, radius), to trim the grass there. */
   sweep(x: number, z: number, radius: number, size: number): void;
-  /** Where the blade is, for the painted grass to bend away from it. */
+  /** Where the blade is, for the grass to bend away from it. */
   setBlade(x: number, z: number, radius: number): void;
-  /** On, the painted grass, trimmed where swept and bending away from the blade; off, the classic grass. */
-  setPainted(painted: boolean): void;
   /** Takes the grass out of the scene and frees its geometry and materials. */
   dispose(): void;
 }
@@ -203,11 +200,6 @@ export function createGrassView(scene: Scene, field: Field, seed: number): Grass
     for (const { material } of layers) material.uniforms.bladeRadius!.value = radius;
   }
 
-  function setPainted(painted: boolean): void {
-    for (const { material } of layers) material.uniforms.painted!.value = painted ? 1 : 0;
-    mownGround.visible = painted;
-  }
-
   function dispose(): void {
     for (const { mesh, material } of layers) {
       scene.remove(mesh);
@@ -222,7 +214,7 @@ export function createGrassView(scene: Scene, field: Field, seed: number): Grass
     cutMaskTexture.dispose();
   }
 
-  return { setTime, markCut, setHighlight, sweep, setBlade, setPainted, dispose };
+  return { setTime, markCut, setHighlight, sweep, setBlade, dispose };
 }
 
 /** The mask as a smooth two-channel texture, sent to the GPU again whenever a sweep changes it. */
@@ -248,9 +240,7 @@ function createMownGround(cutMaskTexture: DataTexture, width: number, depth: num
     depthWrite: false,
     side: DoubleSide,
   });
-  const mesh = new Mesh(geometry, material);
-  mesh.visible = false;
-  return mesh;
+  return new Mesh(geometry, material);
 }
 
 interface SharedUniforms {
@@ -280,7 +270,6 @@ function createLayerView(tuftGeometry: BufferGeometry, type: number, instanceCou
     uniforms: {
       time: { value: 0 },
       highlight: { value: 0 },
-      painted: { value: 0 },
       cutMask: { value: shared.cutMask },
       fieldSize: { value: shared.fieldSize },
       cutSize: { value: grassCutSize(grassType) },

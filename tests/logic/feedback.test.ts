@@ -106,14 +106,23 @@ describe('hitting fruit', () => {
 });
 
 describe('knocking into a rock', () => {
-  it('gives rockBounce when the blade bounces off a rock', () => {
+  it('gives obstacleBounce, naming the rock, when the blade bounces off a rock', () => {
     const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [{ type: 'rock', x: SAND_CENTER.x + 2, z: SAND_CENTER.z }] }));
     const tracker = createFeedbackTracker();
     tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
     const events: FeedbackEvent[] = [];
     // Half a meter from the rock: the blade reaches it in about a quarter of a second, and bounces once before it can steer back.
     for (let step = 0; step < 25; step++) events.push(...tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME)));
-    expect(events.filter((event) => event.kind === 'rockBounce')).toEqual([{ kind: 'rockBounce' }]);
+    expect(events.filter((event) => event.kind === 'obstacleBounce')).toEqual([{ kind: 'obstacleBounce', obstacle: 'rock' }]);
+  });
+
+  it('names the fruit the blade bounced off when it is too small to cut it', () => {
+    const game = createGame(levelFromRows(SAND_WITH_FAR_ICE, { obstacles: [{ type: 'watermelon', x: SAND_CENTER.x + 2, z: SAND_CENTER.z }] }));
+    const tracker = createFeedbackTracker();
+    tracker.step(game, stepGame(game, null, SIXTY_FPS_FRAME));
+    const events: FeedbackEvent[] = [];
+    for (let step = 0; step < 40; step++) events.push(...tracker.step(game, stepGame(game, EAST, SIXTY_FPS_FRAME)));
+    expect(events.filter((event) => event.kind === 'obstacleBounce')).toEqual([{ kind: 'obstacleBounce', obstacle: 'watermelon' }]);
   });
 });
 

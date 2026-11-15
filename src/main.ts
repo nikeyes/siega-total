@@ -240,12 +240,6 @@ const settingsScreen = createSettingsScreen(
       save.settings.vibration = !save.settings.vibration;
       saveSettings();
     },
-    onTogglePaintedGrass: () => {
-      // At once, even mid-level, so both grasses can be compared on the same field.
-      save.settings.paintedGrass = !save.settings.paintedGrass;
-      grass!.setPainted(save.settings.paintedGrass);
-      saveSettings();
-    },
     onCycleQuality: () => {
       // Applies from the next attempt, so the level in play never changes under the player.
       save.settings.quality = nextQualitySetting(save.settings.quality);
@@ -349,7 +343,7 @@ let obstacleView: ObstacleView | null = null;
 let obstacleModels: ObstacleModels = placeholderObstacleModels();
 const focus = createCameraFocus(0, 0, config.blade.startSize);
 
-/** Marks for the painted grass where this step cut: under the win wave while it spreads, otherwise under the blade once it moved. */
+/** Marks for the grass where this step cut: under the win wave while it spreads, otherwise under the blade once it moved. */
 function sweepGrass(statusBefore: GameStatus): void {
   const { blade, winWave } = game;
   if (statusBefore === 'winWave' && winWave) grass!.sweep(winWave.x, winWave.z, winWave.radius, Infinity);
@@ -374,7 +368,6 @@ function playLevel(level: LevelDefinition): void {
   gameScene.setBiome(biome);
   bladeGlow.setBiome(biome);
   grass = createGrassView(gameScene.scene, game.field, level.seed);
-  grass.setPainted(save.settings.paintedGrass);
   obstacleView = createObstacleView(gameScene.scene, level.obstacles, obstacleModels, level.seed);
   hud.showLevel(level);
   focusOnBlade();
@@ -518,8 +511,8 @@ function playFeedback(event: FeedbackEvent): void {
     case 'obstacleCut':
       soundPlayer.play(`${event.obstacle}Break`);
       break;
-    case 'rockBounce':
-      soundPlayer.play('rockBump');
+    case 'obstacleBounce':
+      soundPlayer.play(event.obstacle === 'rock' ? 'rockBump' : 'fruitHit');
       vibration.pulse();
       break;
     case 'sizeUp':

@@ -12,13 +12,12 @@ export interface SettingsActions {
   onSoundVolume(position: number): void;
   onMusicVolume(position: number): void;
   onToggleVibration(): void;
-  onTogglePaintedGrass(): void;
   onCycleQuality(): void;
   onClearProgress(): void;
   onBack(): void;
 }
 
-type SwitchKey = 'sound' | 'music' | 'vibration' | 'paintedGrass' | 'quality';
+type SwitchKey = 'sound' | 'music' | 'vibration' | 'quality';
 
 export interface SettingRow {
   key: SwitchKey;
@@ -28,11 +27,10 @@ export interface SettingRow {
   pressed: boolean | null;
 }
 
-/** Sound, music, vibration where the browser can vibrate, the grass to try, and quality, which under Auto names the level in use. */
+/** Sound, music, vibration where the browser can vibrate, and quality, which under Auto names the level in use. */
 export function settingRows(save: SaveData, vibrationSupported: boolean, activeQuality: QualityLevel): SettingRow[] {
   const rows: SettingRow[] = [settingRow(save.settings, 'sound', texts.settings.sound), settingRow(save.settings, 'music', texts.settings.music)];
   if (vibrationSupported) rows.push(settingRow(save.settings, 'vibration', texts.settings.vibration));
-  rows.push(settingRow(save.settings, 'paintedGrass', texts.settings.paintedGrass));
   rows.push(qualityRow(save.settings, activeQuality));
   return rows;
 }
@@ -44,12 +42,12 @@ function qualityRow(settings: Settings, activeQuality: QualityLevel): SettingRow
   return { key: 'quality', label: texts.settings.quality, valueLabel, pressed: null };
 }
 
-function settingRow(settings: Settings, key: 'sound' | 'music' | 'vibration' | 'paintedGrass', label: string): SettingRow {
+function settingRow(settings: Settings, key: 'sound' | 'music' | 'vibration', label: string): SettingRow {
   const pressed = settings[key];
   return { key, label, valueLabel: pressed ? texts.settings.on : texts.settings.off, pressed };
 }
 
-/** The sound and music switches each with its volume slider under it, the vibration and grass switches, the quality picker, and «Borrar progreso» confirmed with a second press instead of a browser dialog. */
+/** The sound and music switches each with its volume slider under it, the vibration switch, the quality picker, and «Borrar progreso» confirmed with a second press instead of a browser dialog. */
 export function createSettingsScreen(
   container: HTMLElement,
   actions: SettingsActions,
@@ -60,7 +58,6 @@ export function createSettingsScreen(
     sound: actions.onToggleSound,
     music: actions.onToggleMusic,
     vibration: actions.onToggleVibration,
-    paintedGrass: actions.onTogglePaintedGrass,
     quality: actions.onCycleQuality,
   };
   // The rows only depend on the browser, so the buttons are made once and filled in by render.

@@ -55,8 +55,6 @@ export const texts = {
     soundVolume: 'Volumen del sonido',
     musicVolume: 'Volumen de la música',
     vibration: 'Vibración',
-    /** The grass trimmed where the blade sweeps and bending away from it, offered to compare with the classic one. */
-    paintedGrass: 'Hierba nueva',
     quality: 'Calidad',
     qualityLevels: { auto: 'Auto', high: 'Alta', medium: 'Media', low: 'Baja' },
     /** Under Auto, the setting also names the level in use. */

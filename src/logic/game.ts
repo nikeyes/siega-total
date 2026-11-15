@@ -1,10 +1,10 @@
 import { config } from '../config';
 import { addCuts, bladeRadius, createBlade, maxSpeedAt, moveBlade, type Blade, type Direction } from './blade';
-import { overlappedRock, resolveCollisions, sizeToPass } from './collision';
+import { overlappedUncuttableObstacle, resolveCollisions, sizeToPass } from './collision';
 import { coinsForCuts, timeBonus } from './economy';
 import { createField, cutBlade, cutInCircle, GRASS_TYPE_ORDER, levelFieldOptions, type Field } from './field';
 import { isCutSlowly } from './grass';
-import { isObstacleType, sampleLevel, type LevelDefinition, type TargetKind } from './levels';
+import { isObstacleType, sampleLevel, type LevelDefinition, type ObstacleType, type TargetKind } from './levels';
 import {
   createObstacleField,
   cutObstaclesInCircle,
@@ -24,8 +24,8 @@ export interface WinWave {
   radius: number;
 }
 
-/** The blade thrown back by a rock it knocked into. */
-export interface RockBounce {
+/** The blade thrown back by a rock, or a fruit too big for it, that it knocked into. */
+export interface ObstacleBounce {
   /** Meters per second at the start of the bounce. */
   velocityX: number;
   velocityZ: number;
@@ -51,7 +51,7 @@ export interface Game {
   /** Seconds the compass booster still points for; 0 when it is off. */
   compassLeft: number;
   /** While set, the blade flies back from a rock and the player does not steer it. */
-  rockBounce: RockBounce | null;
+  obstacleBounce: ObstacleBounce | null;
   /** Seconds the tough grass cut lately still holds the blade back for; 0 when it goes at full speed. */
   toughGrassHoldLeft: number;
   /** Coins cut in this attempt, the win wave's included; fractional, as each blade pays its weight. */
@@ -78,12 +78,12 @@ export interface StepResult {
   blocked: boolean;
   /** When blocked, the size that would get the blade through: Infinity for a rock. Null otherwise. */
   neededSize: number | null;
-  /** True in the step the blade knocked into a rock and started bouncing back. */
-  bouncedOffRock: boolean;
+  /** In the step the blade knocked into a rock or a fruit too big for it and started bouncing back, that obstacle's type; null otherwise. */
+  bouncedOff: ObstacleType | null;
 }
 
 function nothingHappened(): StepResult {
-  return { cutIndices: [], cutObstacles: [], hitObstacles: [], sizesGained: 0, coins: 0, blocked: false, neededSize: null, bouncedOffRock: false };
+  return { cutIndices: [], cutObstacles: [], hitObstacles: [], sizesGained: 0, coins: 0, blocked: false, neededSize: null, bouncedOff: null };
 }
 
 /** The field of `level`, with the blade at its center, waiting for the first move. */
@@ -107,7 +107,7 @@ export function createGame(
     timeTotal: startingTime(level, bonuses),
     winWave: null,
     compassLeft: 0,
-    rockBounce: null,
+    obstacleBounce: null,
     toughGrassHoldLeft: 0,
     freeContinuesLeft: config.boosters.clock.freeContinuesPerAttempt,
     levelCoins: 0,
@@ -136,7 +136,7 @@ export function resetGame(game: Game): void {
   game.status = 'ready';
   game.winWave = null;
   game.compassLeft = 0;
-  game.rockBounce = null;
+  game.obstacleBounce = null;
   game.toughGrassHoldLeft = 0;
   game.freeContinuesLeft = config.boosters.clock.freeContinuesPerAttempt;
   game.levelCoins = 0;
@@ -157,18 +157,18 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
   }
   if (game.timed) game.timeLeft = Math.max(0, game.timeLeft - dt);
   game.compassLeft = Math.max(0, game.compassLeft - dt);
-  const steering = game.rockBounce ? null : direction;
+  const steering = game.obstacleBounce ? null : direction;
   moveBlade(blade, steering, dt, field.width, field.depth, maxSpeedOf(game));
-  if (game.rockBounce) flyBack(game, game.rockBounce, dt);
+  if (game.obstacleBounce) flyBack(game, game.obstacleBounce, dt);
   const { x, z, blocked: pushedBack } = resolveCollisions(game, blade.x, blade.z, bladeRadius(blade.size), blade.size);
   // Growing can make the blade overlap a wall too; only a push against where the player steers counts.
   const blocked = pushedBack && steering !== null && (x - blade.x) * steering.x + (z - blade.z) * steering.z < 0;
   // Asked where the blade tried to go, before the walls pushed it back.
   const neededSize = blocked ? sizeToPass(game, blade.x, blade.z, bladeRadius(blade.size), blade.size) : null;
-  const rock = blocked ? overlappedRock(game, blade.x, blade.z, bladeRadius(blade.size)) : null;
+  const knocked = blocked ? overlappedUncuttableObstacle(game, blade.x, blade.z, bladeRadius(blade.size), blade.size) : null;
   blade.x = x;
   blade.z = z;
-  if (rock) bounceOff(game, rock);
+  if (knocked) bounceOff(game, knocked);
   const radius = bladeRadius(blade.size);
   const cutIndices = cutInCircle(field, blade.x, blade.z, radius, blade.size);
   holdBackOnToughGrass(game, cutsToughGrass(field, cutIndices, blade.size), dt);
@@ -186,26 +186,26 @@ export function stepGame(game: Game, direction: Direction | null, dt: number): S
     game.status = 'lost';
     game.compassLeft = 0;
   }
-  return { cutIndices, cutObstacles, hitObstacles, sizesGained, coins, blocked, neededSize, bouncedOffRock: rock !== null };
+  return { cutIndices, cutObstacles, hitObstacles, sizesGained, coins, blocked, neededSize, bouncedOff: knocked?.type ?? null };
 }
 
 /** Throws the blade straight away from the rock it knocked into, and stops it from going on. */
-function bounceOff(game: Game, rock: { x: number; z: number }): void {
+function bounceOff(game: Game, obstacle: { x: number; z: number }): void {
   const { blade } = game;
-  const { speed, seconds } = config.collision.rockBounce;
-  const distance = Math.hypot(blade.x - rock.x, blade.z - rock.z);
-  const [awayX, awayZ] = distance > 0 ? [(blade.x - rock.x) / distance, (blade.z - rock.z) / distance] : [-1, 0];
-  game.rockBounce = { velocityX: awayX * speed, velocityZ: awayZ * speed, secondsLeft: seconds };
+  const { speed, seconds } = config.collision.obstacleBounce;
+  const distance = Math.hypot(blade.x - obstacle.x, blade.z - obstacle.z);
+  const [awayX, awayZ] = distance > 0 ? [(blade.x - obstacle.x) / distance, (blade.z - obstacle.z) / distance] : [-1, 0];
+  game.obstacleBounce = { velocityX: awayX * speed, velocityZ: awayZ * speed, secondsLeft: seconds };
   blade.speed = 0;
 }
 
 /** Moves the blade along its bounce, slowing linearly to a stop at its end. */
-function flyBack(game: Game, bounce: RockBounce, dt: number): void {
-  const slowdown = bounce.secondsLeft / config.collision.rockBounce.seconds;
+function flyBack(game: Game, bounce: ObstacleBounce, dt: number): void {
+  const slowdown = bounce.secondsLeft / config.collision.obstacleBounce.seconds;
   game.blade.x += bounce.velocityX * slowdown * dt;
   game.blade.z += bounce.velocityZ * slowdown * dt;
   bounce.secondsLeft -= dt;
-  if (bounce.secondsLeft <= 0) game.rockBounce = null;
+  if (bounce.secondsLeft <= 0) game.obstacleBounce = null;
 }
 
 function maxSpeedOf(game: Game): number {
@@ -236,7 +236,7 @@ function stepWinWave(game: Game, wave: WinWave, dt: number): StepResult {
   const coins = coinsForCuts(game, cutIndices, cutObstacles);
   game.levelCoins += coins;
   if (wave.radius >= distanceToFarthestCorner(field, wave.x, wave.z)) game.status = 'won';
-  return { cutIndices, cutObstacles, hitObstacles: [], sizesGained: 0, coins, blocked: false, neededSize: null, bouncedOffRock: false };
+  return { cutIndices, cutObstacles, hitObstacles: [], sizesGained: 0, coins, blocked: false, neededSize: null, bouncedOff: null };
 }
 
 function distanceToFarthestCorner(field: Field, x: number, z: number): number {
