@@ -141,7 +141,7 @@ export const config = {
     /** A blade resting on a fruit that takes several hits lands one at once, then one every this many seconds. */
     hitIntervalSeconds: 0.3,
     /** Knocking into a rock throws the blade back at `speed` m/s, slowing to a stop over `seconds`, with the steering off meanwhile. */
-    rockBounce: { speed: 4, seconds: 0.25 },
+    obstacleBounce: { speed: 4, seconds: 0.25 },
   },
   input: {
     joystickDeadZonePx: 10,

@@ -15,7 +15,7 @@ import {
   type StepResult,
 } from '../../src/logic/game';
 import { grassCutSize } from '../../src/logic/grass';
-import { obstacleRadius } from '../../src/logic/obstacles';
+import { canCutObstacle, obstacleCutSize, obstacleRadius } from '../../src/logic/obstacles';
 import { sampleLevel, stripesLevel, type LevelDefinition, type Obstacle } from '../../src/logic/levels';
 import { levelFromRows, oneBlowFromBreaking } from './levelFixtures';
 import { noBonuses, type GameBonuses } from '../../src/logic/upgrades';
@@ -553,11 +553,11 @@ describe('collisions in play', () => {
     const positions: number[] = [];
     driveForSeconds(game, EAST, 1, (result) => {
       positions.push(game.blade.x);
-      if (result.bouncedOffRock && bounceStep < 0) bounceStep = positions.length - 1;
+      if (result.bouncedOff !== null && bounceStep < 0) bounceStep = positions.length - 1;
     });
     expect(bounceStep).toBeGreaterThanOrEqual(0);
     expect(positions[bounceStep]).toBeCloseTo(touchingX, 9);
-    const afterBounce = positions.slice(bounceStep, bounceStep + config.collision.rockBounce.seconds / SIXTY_FPS_FRAME);
+    const afterBounce = positions.slice(bounceStep, bounceStep + config.collision.obstacleBounce.seconds / SIXTY_FPS_FRAME);
     expect(touchingX - Math.min(...afterBounce)).toBeGreaterThan(0.2);
     // Once the bounce is over, the player's steering takes the blade back to the rock.
     expect(positions.at(-1)!).toBeGreaterThan(Math.min(...afterBounce));
@@ -567,28 +567,50 @@ describe('collisions in play', () => {
     const rock: Obstacle = { type: 'rock', x: 6, z: 1.5 };
     const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, rock], targets: ['strawberry'] }));
     let bounces = 0;
-    driveForSeconds(game, EAST, 1, (result) => (bounces += result.bouncedOffRock ? 1 : 0));
+    driveForSeconds(game, EAST, 1, (result) => (bounces += result.bouncedOff !== null ? 1 : 0));
     expect(bounces).toBeGreaterThan(0);
-    expect(bounces).toBeLessThanOrEqual(Math.ceil(1 / config.collision.rockBounce.seconds));
+    expect(bounces).toBeLessThanOrEqual(Math.ceil(1 / config.collision.obstacleBounce.seconds));
   });
 
-  it('does not bounce off grass or a fruit the blade is too small for, only stops', () => {
+  it('does not bounce off grass the blade is too small for, only stops', () => {
     const lavender = createGame(levelFromRows(LAVENDER_AHEAD, { obstacles: [OFF_PATH_TARGET], targets: ['strawberry'] }));
     let bounced = false;
-    driveForSeconds(lavender, EAST, 1, (result) => (bounced ||= result.bouncedOffRock));
+    driveForSeconds(lavender, EAST, 1, (result) => (bounced ||= result.bouncedOff !== null));
     expect(bounced).toBe(false);
+  });
 
-    const melon = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, { type: 'watermelon', x: 6, z: 1.5 }], targets: ['strawberry'] }));
-    driveForSeconds(melon, EAST, 1, (result) => (bounced ||= result.bouncedOffRock));
+  it('bounces the blade back off a fruit it is too small to cut, as off a rock', () => {
+    const melon: Obstacle = { type: 'watermelon', x: 6, z: 1.5 };
+    expect(canCutObstacle('watermelon', startSize)).toBe(false);
+    const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, melon], targets: ['strawberry'] }));
+    const touchingX = melon.x - bladeRadius(startSize) - obstacleRadius('watermelon');
+    let bounceStep = -1;
+    const positions: number[] = [];
+    driveForSeconds(game, EAST, 1, (result) => {
+      positions.push(game.blade.x);
+      if (result.bouncedOff !== null && bounceStep < 0) bounceStep = positions.length - 1;
+    });
+    expect(bounceStep).toBeGreaterThanOrEqual(0);
+    const afterBounce = positions.slice(bounceStep, bounceStep + config.collision.obstacleBounce.seconds / SIXTY_FPS_FRAME);
+    expect(touchingX - Math.min(...afterBounce)).toBeGreaterThan(0.2);
+    expect(game.obstacles.cut[1]).toBe(0);
+  });
+
+  it('does not bounce off a fruit the blade can cut, but cuts it', () => {
+    const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, { type: 'strawberry', x: 6, z: 1.5 }], targets: ['strawberry'] }));
+    game.blade.size = obstacleCutSize('strawberry');
+    let bounced = false;
+    driveForSeconds(game, EAST, 1, (result) => (bounced ||= result.bouncedOff !== null));
     expect(bounced).toBe(false);
+    expect(game.obstacles.cut[1]).toBe(1);
   });
 
   it('starts a restarted level without the bounce of the last attempt', () => {
     const rock: Obstacle = { type: 'rock', x: 4.9, z: 1.5 };
     const game = createGame(levelFromRows(WIDE_SAND, { obstacles: [OFF_PATH_TARGET, rock], targets: ['strawberry'] }));
-    driveUntil(game, EAST, () => game.rockBounce !== null);
+    driveUntil(game, EAST, () => game.obstacleBounce !== null);
     resetGame(game);
-    expect(game.rockBounce).toBeNull();
+    expect(game.obstacleBounce).toBeNull();
   });
 });
 

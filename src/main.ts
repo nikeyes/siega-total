@@ -511,8 +511,8 @@ function playFeedback(event: FeedbackEvent): void {
     case 'obstacleCut':
       soundPlayer.play(`${event.obstacle}Break`);
       break;
-    case 'rockBounce':
-      soundPlayer.play('rockBump');
+    case 'obstacleBounce':
+      soundPlayer.play(event.obstacle === 'rock' ? 'rockBump' : 'fruitHit');
       vibration.pulse();
       break;
     case 'sizeUp':
